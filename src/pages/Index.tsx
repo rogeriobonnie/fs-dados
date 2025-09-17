@@ -3,6 +3,7 @@ import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { FinancialFilters, FilterState } from '@/components/FinancialFilters';
 import { FinancialTable } from '@/components/FinancialTable';
 import { FinancialCharts } from '@/components/FinancialCharts';
+import { QuickFilters } from '@/components/QuickFilters';
 import { StudentAnalytics } from '@/components/StudentAnalytics';
 import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { ImplementationGuide } from '@/components/ImplementationGuide';
@@ -126,7 +127,14 @@ const Index = () => {
           {/* Dashboard Overview */}
           <FinancialDashboard summary={summary} consultantSummaries={consultantSummaries} />
 
-          {/* Filters */}
+          {/* Quick Filters */}
+          <QuickFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            totalRecords={filteredData.length}
+          />
+
+          {/* Advanced Filters */}
           <FinancialFilters
             filters={filters}
             onFiltersChange={setFilters}
