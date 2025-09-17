@@ -1,0 +1,187 @@
+import { FinancialRecord } from '../types/financial';
+
+// Simulated data based on the spreadsheet structure
+export const financialData: FinancialRecord[] = [
+  {
+    id: '1',
+    consultant: '',
+    contractDate: '2025-06-17',
+    studentName: 'ANA CAROLINA DE ASSIS G BASTOS',
+    installment: 'A VISTA',
+    dueDate: '2025-06-17',
+    amount: 5999.90,
+    paymentDate: '2025-06-17',
+    status: 'PAGO',
+    invoice: 'NF SALVA',
+    contract: 'R$ 5.999,90 pago no pix'
+  },
+  {
+    id: '2',
+    consultant: '',
+    contractDate: '2025-07-31',
+    studentName: 'ANA CRISTINA LOPES CANCADO',
+    installment: '1 DE 2',
+    dueDate: '2025-07-31',
+    amount: 3000.00,
+    paymentDate: '2025-07-31',
+    status: 'PAGO',
+    invoice: '',
+    contract: '2X DE 3 MIL'
+  },
+  {
+    id: '3',
+    consultant: '',
+    contractDate: '2025-07-31',
+    studentName: 'ANA CRISTINA LOPES CANCADO',
+    installment: '2 DE 2',
+    dueDate: '2025-07-31',
+    amount: 3000.00,
+    paymentDate: '2025-08-01',
+    status: 'PAGO',
+    invoice: '796-2025',
+    contract: ''
+  },
+  {
+    id: '4',
+    consultant: 'STHEPHANIE',
+    contractDate: '2025-08-07',
+    studentName: 'ANA PAULA BORGES SOARES PIRES',
+    installment: 'CARTÃO',
+    dueDate: '2025-08-07',
+    amount: 7272.30,
+    paymentDate: '2025-08-07',
+    status: 'PAGO',
+    invoice: '791-2025',
+    contract: 'R$ 7.272,30 pago no cartão'
+  },
+  {
+    id: '5',
+    consultant: '',
+    contractDate: '2025-08-04',
+    studentName: 'BRENO SILVA DE OLIVEIRA ALVES',
+    installment: '1 DE 6',
+    dueDate: '2025-08-04',
+    amount: 1000.00,
+    paymentDate: '2025-08-04',
+    status: 'PAGO',
+    invoice: '799-2025',
+    contract: '6x parcelas de 1000 no pix'
+  },
+  {
+    id: '6',
+    consultant: '',
+    contractDate: '2025-08-04',
+    studentName: 'BRENO SILVA DE OLIVEIRA ALVES',
+    installment: '2 DE 6',
+    dueDate: '2025-09-04',
+    amount: 1000.00,
+    paymentDate: '2025-09-07',
+    status: 'PAGO',
+    invoice: '828-2025',
+    contract: ''
+  },
+  {
+    id: '7',
+    consultant: '',
+    contractDate: '2025-08-04',
+    studentName: 'BRENO SILVA DE OLIVEIRA ALVES',
+    installment: '3 DE 6',
+    dueDate: '2025-10-04',
+    amount: 1000.00,
+    status: 'A PAGAR',
+    contract: ''
+  },
+  {
+    id: '8',
+    consultant: '',
+    contractDate: '2025-08-04',
+    studentName: 'BRENO SILVA DE OLIVEIRA ALVES',
+    installment: '4 DE 6',
+    dueDate: '2025-11-04',
+    amount: 1000.00,
+    status: 'A PAGAR',
+    contract: ''
+  },
+  {
+    id: '9',
+    consultant: '',
+    contractDate: '2025-08-04',
+    studentName: 'BRENO SILVA DE OLIVEIRA ALVES',
+    installment: '5 DE 6',
+    dueDate: '2025-12-04',
+    amount: 1000.00,
+    status: 'A PAGAR',
+    contract: ''
+  },
+  {
+    id: '10',
+    consultant: '',
+    contractDate: '2025-08-04',
+    studentName: 'BRENO SILVA DE OLIVEIRA ALVES',
+    installment: '6 DE 6',
+    dueDate: '2026-01-04',
+    amount: 1000.00,
+    status: 'A PAGAR',
+    contract: ''
+  },
+  {
+    id: '11',
+    consultant: 'STHEPHANIE',
+    contractDate: '2025-02-21',
+    studentName: 'CAMILA PILATI',
+    installment: 'CARTÃO',
+    dueDate: '2025-02-21',
+    amount: 658.00,
+    paymentDate: '2025-02-21',
+    status: 'PAGO',
+    invoice: '',
+    contract: '658 pago na Eduzz + 17x de 389 no boleto'
+  },
+  {
+    id: '12',
+    consultant: 'STHEPHANIE',
+    contractDate: '2025-02-21',
+    studentName: 'CAMILA PILATI',
+    installment: '1 DE 17',
+    dueDate: '2025-04-15',
+    amount: 389.00,
+    paymentDate: '2025-04-15',
+    status: 'PAGO',
+    contract: ''
+  },
+  {
+    id: '13',
+    consultant: 'STHEPHANIE',
+    contractDate: '2025-02-21',
+    studentName: 'CAMILA PILATI',
+    installment: '7 DE 17',
+    dueDate: '2025-10-15',
+    amount: 389.00,
+    status: 'A PAGAR',
+    contract: ''
+  },
+  {
+    id: '14',
+    consultant: '',
+    contractDate: '2025-08-11',
+    studentName: 'CAROLINE LAVAREDA LOBATO',
+    installment: '2 DE 6',
+    dueDate: '2025-09-10',
+    amount: 1000.00,
+    status: 'VENCIDO',
+    contract: ''
+  },
+  {
+    id: '15',
+    consultant: 'RAFAELA',
+    contractDate: '2025-08-20',
+    studentName: 'CARLO STENIO SARMENTO COSTA',
+    installment: 'CARTÃO',
+    dueDate: '2025-08-20',
+    amount: 7272.30,
+    paymentDate: '2025-08-20',
+    status: 'PAGO',
+    invoice: '793-2025',
+    contract: 'R$ 7.272,30 pago no cartão'
+  }
+];
