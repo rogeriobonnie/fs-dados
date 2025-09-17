@@ -30,8 +30,8 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
 
   const clearFilters = () => {
     onFiltersChange({
-      status: '',
-      consultant: '',
+      status: 'all',
+      consultant: 'all',
       studentName: '',
       dateFrom: '',
       dateTo: '',
@@ -40,7 +40,9 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
     });
   };
 
-  const activeFiltersCount = Object.values(filters).filter(value => value !== '').length;
+  const activeFiltersCount = Object.entries(filters).filter(([key, value]) => 
+    value !== '' && value !== 'all'
+  ).length;
 
   return (
     <div className="space-y-4">
@@ -75,7 +77,7 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="PAGO">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-success"></div>
@@ -105,7 +107,7 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
                 <SelectValue placeholder="Todos os consultores" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os consultores</SelectItem>
+                <SelectItem value="all">Todos os consultores</SelectItem>
                 {consultants.map(consultant => (
                   <SelectItem key={consultant} value={consultant}>
                     {consultant === '' ? 'Vendas Diretas' : consultant}

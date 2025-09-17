@@ -16,8 +16,8 @@ import { BarChart3, Table2, PieChart, Settings, RefreshCw } from 'lucide-react';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
-    status: '',
-    consultant: '',
+    status: 'all',
+    consultant: 'all',
     studentName: '',
     dateFrom: '',
     dateTo: '',
@@ -67,8 +67,8 @@ const Index = () => {
   // Filter data based on current filters
   const filteredData = useMemo(() => {
     return data.filter(record => {
-      if (filters.status && record.status !== filters.status) return false;
-      if (filters.consultant && record.consultant !== filters.consultant) return false;
+      if (filters.status && filters.status !== 'all' && record.status !== filters.status) return false;
+      if (filters.consultant && filters.consultant !== 'all' && record.consultant !== filters.consultant) return false;
       if (filters.studentName && !record.studentName.toLowerCase().includes(filters.studentName.toLowerCase())) return false;
       if (filters.dateFrom && record.dueDate < filters.dateFrom) return false;
       if (filters.dateTo && record.dueDate > filters.dateTo) return false;
