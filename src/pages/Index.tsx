@@ -3,6 +3,7 @@ import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { FinancialFilters, FilterState } from '@/components/FinancialFilters';
 import { FinancialTable } from '@/components/FinancialTable';
 import { FinancialCharts } from '@/components/FinancialCharts';
+import { StudentsDirectory } from '@/components/StudentsDirectory';
 import { QuickFilters } from '@/components/QuickFilters';
 import { StudentAnalytics } from '@/components/StudentAnalytics';
 import { MonthlyRevenue } from '@/components/MonthlyRevenue';
@@ -15,7 +16,7 @@ import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { BarChart3, Table2, PieChart, Settings, RefreshCw, Users, TrendingUp } from 'lucide-react';
+import { BarChart3, Table2, PieChart, Settings, RefreshCw, Users, TrendingUp, UserCheck } from 'lucide-react';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -143,29 +144,33 @@ const Index = () => {
 
           {/* Tabbed Content */}
           <Tabs defaultValue="table" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="table" className="flex items-center gap-2">
-                <Table2 className="h-4 w-4" />
+            <TabsList className="grid w-full grid-cols-7 text-xs">
+              <TabsTrigger value="table" className="flex items-center gap-1 px-2">
+                <Table2 className="h-3 w-3" />
                 Tabela
               </TabsTrigger>
-              <TabsTrigger value="charts" className="flex items-center gap-2">
-                <PieChart className="h-4 w-4" />
+              <TabsTrigger value="charts" className="flex items-center gap-1 px-2">
+                <PieChart className="h-3 w-3" />
                 Gráficos
               </TabsTrigger>
-              <TabsTrigger value="students" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
+              <TabsTrigger value="students" className="flex items-center gap-1 px-2">
+                <Users className="h-3 w-3" />
                 Por Aluno
               </TabsTrigger>
-              <TabsTrigger value="monthly" className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
+              <TabsTrigger value="directory" className="flex items-center gap-1 px-2">
+                <UserCheck className="h-3 w-3" />
+                Alunos
+              </TabsTrigger>
+              <TabsTrigger value="monthly" className="flex items-center gap-1 px-2">
+                <TrendingUp className="h-3 w-3" />
                 Mensal
               </TabsTrigger>
-              <TabsTrigger value="analytics" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
+              <TabsTrigger value="analytics" className="flex items-center gap-1 px-2">
+                <BarChart3 className="h-3 w-3" />
                 Análises
               </TabsTrigger>
-              <TabsTrigger value="config" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
+              <TabsTrigger value="config" className="flex items-center gap-1 px-2">
+                <Settings className="h-3 w-3" />
                 Config
               </TabsTrigger>
             </TabsList>
@@ -176,6 +181,10 @@ const Index = () => {
 
             <TabsContent value="charts" className="space-y-6">
               <FinancialCharts data={filteredData} />
+            </TabsContent>
+
+            <TabsContent value="directory" className="space-y-6">
+              <StudentsDirectory data={filteredData} />
             </TabsContent>
 
             <TabsContent value="students" className="space-y-6">
