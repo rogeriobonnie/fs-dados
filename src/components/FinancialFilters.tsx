@@ -108,8 +108,8 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os consultores</SelectItem>
-                {consultants.map(consultant => (
-                  <SelectItem key={consultant} value={consultant}>
+                {consultants.map((consultant, index) => (
+                  <SelectItem key={`${consultant}-${index}`} value={consultant || 'direct'}>
                     {consultant === '' ? 'Vendas Diretas' : consultant}
                   </SelectItem>
                 ))}

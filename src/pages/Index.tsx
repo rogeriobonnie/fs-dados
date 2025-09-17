@@ -3,6 +3,8 @@ import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { FinancialFilters, FilterState } from '@/components/FinancialFilters';
 import { FinancialTable } from '@/components/FinancialTable';
 import { FinancialCharts } from '@/components/FinancialCharts';
+import { StudentAnalytics } from '@/components/StudentAnalytics';
+import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { ImplementationGuide } from '@/components/ImplementationGuide';
 import { GoogleSheetsConfig } from '@/components/GoogleSheetsConfig';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,7 +14,7 @@ import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { BarChart3, Table2, PieChart, Settings, RefreshCw } from 'lucide-react';
+import { BarChart3, Table2, PieChart, Settings, RefreshCw, Users, TrendingUp } from 'lucide-react';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -68,7 +70,10 @@ const Index = () => {
   const filteredData = useMemo(() => {
     return data.filter(record => {
       if (filters.status && filters.status !== 'all' && record.status !== filters.status) return false;
-      if (filters.consultant && filters.consultant !== 'all' && record.consultant !== filters.consultant) return false;
+      if (filters.consultant && filters.consultant !== 'all') {
+        const consultantValue = filters.consultant === 'direct' ? '' : filters.consultant;
+        if (record.consultant !== consultantValue) return false;
+      }
       if (filters.studentName && !record.studentName.toLowerCase().includes(filters.studentName.toLowerCase())) return false;
       if (filters.dateFrom && record.dueDate < filters.dateFrom) return false;
       if (filters.dateTo && record.dueDate > filters.dateTo) return false;
@@ -130,14 +135,22 @@ const Index = () => {
 
           {/* Tabbed Content */}
           <Tabs defaultValue="table" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="table" className="flex items-center gap-2">
                 <Table2 className="h-4 w-4" />
-                Tabela de Dados
+                Tabela
               </TabsTrigger>
               <TabsTrigger value="charts" className="flex items-center gap-2">
                 <PieChart className="h-4 w-4" />
                 Gráficos
+              </TabsTrigger>
+              <TabsTrigger value="students" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Por Aluno
+              </TabsTrigger>
+              <TabsTrigger value="monthly" className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Mensal
               </TabsTrigger>
               <TabsTrigger value="analytics" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
@@ -145,7 +158,7 @@ const Index = () => {
               </TabsTrigger>
               <TabsTrigger value="config" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
-                Configurações
+                Config
               </TabsTrigger>
             </TabsList>
 
@@ -155,6 +168,14 @@ const Index = () => {
 
             <TabsContent value="charts" className="space-y-6">
               <FinancialCharts data={filteredData} />
+            </TabsContent>
+
+            <TabsContent value="students" className="space-y-6">
+              <StudentAnalytics data={filteredData} />
+            </TabsContent>
+
+            <TabsContent value="monthly" className="space-y-6">
+              <MonthlyRevenue data={filteredData} />
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-6">
