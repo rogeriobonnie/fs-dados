@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { FinancialRecord, ConsultantCommission } from '@/types/financial';
 import { formatCurrency } from '@/utils/financialCalculations';
 import { CalendarDays, Users, DollarSign, TrendingUp, Search } from 'lucide-react';
@@ -14,11 +15,22 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth().toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
+  const [selectedConsultant, setSelectedConsultant] = useState('all');
   const [appliedMonth, setAppliedMonth] = useState(currentDate.getMonth().toString());
   const [appliedYear, setAppliedYear] = useState(currentDate.getFullYear().toString());
+  const [appliedConsultant, setAppliedConsultant] = useState('all');
   const [hasSearched, setHasSearched] = useState(false);
 
   // Generate available months and years from data
+  // Generate available consultants from data
+  const availableConsultants = useMemo(() => {
+    const consultants = [...new Set(data.map(record => record.consultant || 'SEM CONSULTOR'))];
+    return consultants.sort().map(consultant => ({
+      value: consultant === 'SEM CONSULTOR' ? '' : consultant,
+      label: consultant === 'SEM CONSULTOR' ? 'Vendas Diretas' : consultant
+    }));
+  }, [data]);
+
   const availableMonths = [
     { value: '0', label: 'Janeiro' },
     { value: '1', label: 'Fevereiro' },
@@ -50,6 +62,7 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
   const handleSearch = () => {
     setAppliedMonth(selectedMonth);
     setAppliedYear(selectedYear);
+    setAppliedConsultant(selectedConsultant);
     setHasSearched(true);
   };
 
@@ -73,7 +86,15 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
       if (record.status !== 'PAGO' || !record.paymentDate) return false;
       
       const paymentDate = new Date(record.paymentDate);
-      return paymentDate.getMonth() === month && paymentDate.getFullYear() === year;
+      const isCorrectMonth = paymentDate.getMonth() === month && paymentDate.getFullYear() === year;
+      
+      // Apply consultant filter
+      if (appliedConsultant !== 'all') {
+        const recordConsultant = record.consultant || '';
+        return isCorrectMonth && recordConsultant === appliedConsultant;
+      }
+      
+      return isCorrectMonth;
     });
 
     // Calculate total received
@@ -116,7 +137,7 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
       recordsCount: monthlyRecords.length,
       records: monthlyRecords
     };
-  }, [data, appliedMonth, appliedYear, hasSearched]);
+  }, [data, appliedMonth, appliedYear, appliedConsultant, hasSearched]);
 
   return (
     <div className="space-y-6">
@@ -139,7 +160,7 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o mês" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-50">
                   {availableMonths.map(month => (
                     <SelectItem key={month.value} value={month.value}>
                       {month.label}
@@ -154,10 +175,26 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o ano" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-50">
                   {availableYears.map(year => (
                     <SelectItem key={year.value} value={year.value}>
                       {year.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-2 block">Vendedor</label>
+              <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os vendedores" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="all">Todos os vendedores</SelectItem>
+                  {availableConsultants.map(consultant => (
+                    <SelectItem key={consultant.value} value={consultant.value}>
+                      {consultant.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -175,9 +212,17 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
       {hasSearched && (
         <Card>
           <CardHeader>
-            <CardTitle>Recebimentos e Comissões - {availableMonths[parseInt(appliedMonth)].label} {appliedYear}</CardTitle>
+            <CardTitle>
+              Recebimentos e Comissões - {availableMonths[parseInt(appliedMonth)].label} {appliedYear}
+              {appliedConsultant !== 'all' && (
+                <Badge variant="secondary" className="ml-2">
+                  {availableConsultants.find(c => c.value === appliedConsultant)?.label || 'Vendas Diretas'}
+                </Badge>
+              )}
+            </CardTitle>
             <CardDescription>
               Total recebido: {formatCurrency(monthlyData.totalReceived)} • Total comissões: {formatCurrency(monthlyData.totalCommissions)}
+              {appliedConsultant !== 'all' && ' • Filtrado por vendedor'}
             </CardDescription>
           </CardHeader>
           <CardContent>
