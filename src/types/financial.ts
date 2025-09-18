@@ -10,6 +10,9 @@ export interface FinancialRecord {
   status: 'PAGO' | 'A PAGAR' | 'VENCIDO';
   invoice?: string;
   contract?: string;
+  scholarshipStudent?: boolean; // Bolsa de estudo
+  fees?: number; // Taxas que descontam
+  interest?: number; // Juros que aumentam
 }
 
 export interface FinancialSummary {
@@ -28,4 +31,18 @@ export interface ConsultantSummary {
   totalReceived: number;
   pendingAmount: number;
   studentsCount: number;
+  commission: number; // 3% do total recebido
+}
+
+export interface MonthlyReport {
+  month: string;
+  year: number;
+  totalReceived: number;
+  consultantCommissions: ConsultantCommission[];
+}
+
+export interface ConsultantCommission {
+  consultant: string;
+  totalReceived: number;
+  commission: number;
 }

@@ -7,6 +7,7 @@ import { StudentsDirectory } from '@/components/StudentsDirectory';
 import { QuickFilters } from '@/components/QuickFilters';
 import { StudentAnalytics } from '@/components/StudentAnalytics';
 import { MonthlyRevenue } from '@/components/MonthlyRevenue';
+import { MonthlyCommissionReport } from '@/components/MonthlyCommissionReport';
 import { ImplementationGuide } from '@/components/ImplementationGuide';
 import { GoogleSheetsConfig } from '@/components/GoogleSheetsConfig';
 import { PinAuth } from '@/components/PinAuth';
@@ -18,7 +19,7 @@ import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { BarChart3, Table2, PieChart, Settings, RefreshCw, Users, TrendingUp, UserCheck, LogOut } from 'lucide-react';
+import { BarChart3, Table2, PieChart, Settings, RefreshCw, Users, TrendingUp, UserCheck, LogOut, DollarSign } from 'lucide-react';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -201,15 +202,15 @@ const Index = () => {
               </TabsTrigger>
               <TabsTrigger value="students" className="flex items-center gap-1 px-2">
                 <Users className="h-3 w-3" />
-                Por Aluno
-              </TabsTrigger>
-              <TabsTrigger value="directory" className="flex items-center gap-1 px-2">
-                <UserCheck className="h-3 w-3" />
                 Alunos
               </TabsTrigger>
               <TabsTrigger value="monthly" className="flex items-center gap-1 px-2">
                 <TrendingUp className="h-3 w-3" />
                 Mensal
+              </TabsTrigger>
+              <TabsTrigger value="commissions" className="flex items-center gap-1 px-2">
+                <DollarSign className="h-3 w-3" />
+                Comissões
               </TabsTrigger>
               <TabsTrigger value="analytics" className="flex items-center gap-1 px-2">
                 <BarChart3 className="h-3 w-3" />
@@ -229,16 +230,16 @@ const Index = () => {
               <FinancialCharts data={filteredData} />
             </TabsContent>
 
-            <TabsContent value="directory" className="space-y-6">
-              <StudentsDirectory data={filteredData} />
-            </TabsContent>
-
             <TabsContent value="students" className="space-y-6">
-              <StudentAnalytics data={filteredData} />
+              <StudentsDirectory data={filteredData} />
             </TabsContent>
 
             <TabsContent value="monthly" className="space-y-6">
               <MonthlyRevenue data={filteredData} />
+            </TabsContent>
+
+            <TabsContent value="commissions" className="space-y-6">
+              <MonthlyCommissionReport data={filteredData} />
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-6">

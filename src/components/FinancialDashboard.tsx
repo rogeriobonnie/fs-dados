@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { FinancialSummary, ConsultantSummary } from '@/types/financial';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { TrendingUp, TrendingDown, Users, CreditCard, AlertTriangle, CheckCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, CreditCard, AlertTriangle, CheckCircle, DollarSign } from 'lucide-react';
 
 interface FinancialDashboardProps {
   summary: FinancialSummary;
@@ -11,6 +11,8 @@ interface FinancialDashboardProps {
 }
 
 export const FinancialDashboard = ({ summary, consultantSummaries }: FinancialDashboardProps) => {
+  const totalCommissions = consultantSummaries.reduce((sum, consultant) => sum + consultant.commission, 0);
+
   return (
     <div className="space-y-6">
       {/* Main KPI Cards */}
@@ -66,7 +68,7 @@ export const FinancialDashboard = ({ summary, consultantSummaries }: FinancialDa
       </div>
 
       {/* Secondary Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -82,6 +84,19 @@ export const FinancialDashboard = ({ summary, consultantSummaries }: FinancialDa
 
         <Card>
           <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Total Comissões
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-primary">{formatCurrency(totalCommissions)}</div>
+            <p className="text-sm text-muted-foreground">3% sobre valores recebidos</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Performance dos Consultores</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -92,7 +107,7 @@ export const FinancialDashboard = ({ summary, consultantSummaries }: FinancialDa
                     {consultant.name === 'SEM CONSULTOR' ? 'Vendas Diretas' : consultant.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {consultant.studentsCount} alunos
+                    {consultant.studentsCount} alunos • {formatCurrency(consultant.commission)} comissão
                   </p>
                 </div>
                 <div className="text-right">

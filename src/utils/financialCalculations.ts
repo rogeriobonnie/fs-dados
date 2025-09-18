@@ -1,16 +1,31 @@
 import { FinancialRecord, FinancialSummary, ConsultantSummary } from '../types/financial';
 
 export const calculateFinancialSummary = (data: FinancialRecord[]): FinancialSummary => {
-  const totalRevenue = data.reduce((sum, record) => sum + record.amount, 0);
+  const totalRevenue = data.reduce((sum, record) => {
+    const finalAmount = record.amount + (record.interest || 0) - (record.fees || 0);
+    return sum + finalAmount;
+  }, 0);
+  
   const totalPaid = data
     .filter(record => record.status === 'PAGO')
-    .reduce((sum, record) => sum + record.amount, 0);
+    .reduce((sum, record) => {
+      const finalAmount = record.amount + (record.interest || 0) - (record.fees || 0);
+      return sum + finalAmount;
+    }, 0);
+    
   const totalPending = data
     .filter(record => record.status === 'A PAGAR')
-    .reduce((sum, record) => sum + record.amount, 0);
+    .reduce((sum, record) => {
+      const finalAmount = record.amount + (record.interest || 0) - (record.fees || 0);
+      return sum + finalAmount;
+    }, 0);
+    
   const totalOverdue = data
     .filter(record => record.status === 'VENCIDO')
-    .reduce((sum, record) => sum + record.amount, 0);
+    .reduce((sum, record) => {
+      const finalAmount = record.amount + (record.interest || 0) - (record.fees || 0);
+      return sum + finalAmount;
+    }, 0);
   
   const uniqueStudents = new Set(data.map(record => record.studentName));
   const totalStudents = uniqueStudents.size;
@@ -50,13 +65,16 @@ export const calculateConsultantSummaries = (data: FinancialRecord[]): Consultan
     }
 
     const consultantData = consultantMap.get(consultant)!;
-    consultantData.totalSales += record.amount;
+    
+    // Calculate final amount with fees and interest
+    const finalAmount = record.amount + (record.interest || 0) - (record.fees || 0);
+    consultantData.totalSales += finalAmount;
     consultantData.students.add(record.studentName);
 
     if (record.status === 'PAGO') {
-      consultantData.totalReceived += record.amount;
+      consultantData.totalReceived += finalAmount;
     } else {
-      consultantData.pendingAmount += record.amount;
+      consultantData.pendingAmount += finalAmount;
     }
   });
 
@@ -65,7 +83,8 @@ export const calculateConsultantSummaries = (data: FinancialRecord[]): Consultan
     totalSales: data.totalSales,
     totalReceived: data.totalReceived,
     pendingAmount: data.pendingAmount,
-    studentsCount: data.students.size
+    studentsCount: data.students.size,
+    commission: data.totalReceived * 0.03 // 3% commission
   }));
 };
 

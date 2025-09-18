@@ -119,6 +119,10 @@ export class GoogleSheetsService {
       const status = this.parseStatus(row[7] || '');
       const invoice = row[8] || '';
       const contract = row[9] || '';
+      // New fields
+      const scholarshipStudent = this.parseBoolean(row[10] || ''); // Bolsa de estudo
+      const fees = this.parseAmount(row[11] || ''); // Taxas
+      const interest = this.parseAmount(row[12] || ''); // Juros
 
       if (i < startIndex + 5) {
         console.log(`Row ${i + 1}: Student='${studentName}', Amount=${amount}, Status='${status}'`);
@@ -138,6 +142,9 @@ export class GoogleSheetsService {
           status,
           invoice,
           contract,
+          scholarshipStudent,
+          fees: fees || 0,
+          interest: interest || 0,
         });
         validRecords++;
       } else {
@@ -187,6 +194,12 @@ export class GoogleSheetsService {
     return 'A PAGAR';
   }
 
+  private static parseBoolean(value: string): boolean {
+    if (!value) return false;
+    const cleanValue = value.toString().trim().toUpperCase();
+    return cleanValue === 'SIM' || cleanValue === 'TRUE' || cleanValue === '1' || cleanValue === 'BOLSA';
+  }
+
   static async updateSheetData(records: FinancialRecord[]): Promise<boolean> {
     const apiKey = this.getApiKey();
     const sheetId = this.getSheetId();
@@ -207,11 +220,14 @@ export class GoogleSheetsService {
         record.paymentDate ? this.formatDateForSheet(record.paymentDate) : '',
         record.status,
         record.invoice || '',
-        record.contract || ''
+        record.contract || '',
+        record.scholarshipStudent ? 'SIM' : 'NÃO',
+        record.fees ? `R$ ${record.fees.toFixed(2).replace('.', ',')}` : '',
+        record.interest ? `R$ ${record.interest.toFixed(2).replace('.', ',')}` : ''
       ]);
 
       const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A8:J${8 + values.length - 1}?valueInputOption=RAW&key=${apiKey}`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A8:M${8 + values.length - 1}?valueInputOption=RAW&key=${apiKey}`,
         {
           method: 'PUT',
           headers: {
