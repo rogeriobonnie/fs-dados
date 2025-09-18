@@ -171,138 +171,91 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
         </CardContent>
       </Card>
 
-      {/* Summary Cards */}
+      {/* Results Table */}
       {hasSearched && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Recebido</p>
-                <p className="text-2xl font-bold text-success">
-                  {formatCurrency(monthlyData.totalReceived)}
-                </p>
-              </div>
-              <DollarSign className="h-8 w-8 text-success" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Comissões</p>
-                <p className="text-2xl font-bold text-primary">
-                  {formatCurrency(monthlyData.totalCommissions)}
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Vendas Pagas</p>
-                <p className="text-2xl font-bold">
-                  {monthlyData.recordsCount}
-                </p>
-              </div>
-              <Users className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      )}
-
-      {/* Detailed Records */}
-      {hasSearched && monthlyData.records.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Recebimentos do Período</CardTitle>
+            <CardTitle>Recebimentos e Comissões - {availableMonths[parseInt(appliedMonth)].label} {appliedYear}</CardTitle>
             <CardDescription>
-              Todos os pagamentos recebidos em {availableMonths[parseInt(appliedMonth)].label} de {appliedYear}
+              Total recebido: {formatCurrency(monthlyData.totalReceived)} • Total comissões: {formatCurrency(monthlyData.totalCommissions)}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {monthlyData.records.map((record, index) => {
-                const finalAmount = record.amount + (record.interest || 0) - (record.fees || 0);
-                return (
-                  <div 
-                    key={record.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card/50"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium">{record.studentName}</p>
+            {monthlyData.records.length > 0 ? (
+              <div className="space-y-3">
+                {monthlyData.records.map((record) => {
+                  const finalAmount = record.amount + (record.interest || 0) - (record.fees || 0);
+                  const commission = finalAmount * 0.03;
+                  
+                  return (
+                    <div 
+                      key={record.id}
+                      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-4">
+                          <p className="font-semibold text-base">{record.studentName}</p>
+                          <span className="text-sm text-muted-foreground">•</span>
+                          <p className="text-sm font-medium text-primary">
+                            {record.consultant || 'SEM CONSULTOR'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>{record.installment}</span>
+                          <span>•</span>
+                          <span>Pago em {new Date(record.paymentDate!).toLocaleDateString('pt-BR')}</span>
+                          {(record.fees || record.interest) && (
+                            <>
+                              <span>•</span>
+                              <span>
+                                {record.interest && `+${formatCurrency(record.interest)} juros`}
+                                {record.interest && record.fees && ' '}
+                                {record.fees && `-${formatCurrency(record.fees)} taxas`}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <p className="text-lg font-bold text-success">
+                          {formatCurrency(finalAmount)}
+                        </p>
+                        <p className="text-sm font-medium text-primary">
+                          Comissão: {formatCurrency(commission)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Summary Footer */}
+                <div className="mt-6 pt-4 border-t bg-muted/30 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
                       <p className="text-sm text-muted-foreground">
-                        {record.consultant || 'SEM CONSULTOR'} • {record.installment}
+                        {monthlyData.records.length} pagamentos • {monthlyData.consultantCommissions.length} consultores
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold">{formatCurrency(finalAmount)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Pago em {new Date(record.paymentDate!).toLocaleDateString('pt-BR')}
+                      <p className="text-lg font-bold text-success">
+                        Total: {formatCurrency(monthlyData.totalReceived)}
+                      </p>
+                      <p className="text-sm font-bold text-primary">
+                        Total Comissões: {formatCurrency(monthlyData.totalCommissions)}
                       </p>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Consultant Commissions Table */}
-      {hasSearched && (
-        <Card>
-        <CardHeader>
-          <CardTitle>Comissões por Consultor</CardTitle>
-          <CardDescription>
-            Detalhamento das comissões de 3% sobre vendas recebidas no período
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {monthlyData.consultantCommissions.length > 0 ? (
-            <div className="space-y-4">
-              {monthlyData.consultantCommissions.map((commission, index) => (
-                <div 
-                  key={commission.consultant}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium">
-                        {commission.consultant || 'SEM CONSULTOR'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Vendas: {formatCurrency(commission.totalReceived)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-success">
-                      {formatCurrency(commission.commission)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">3% comissão</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhuma venda paga encontrada para este período</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum pagamento encontrado</h3>
+                <p>Não há vendas pagas para o período selecionado.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* No search message */}
