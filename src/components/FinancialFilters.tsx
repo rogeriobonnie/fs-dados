@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ChevronDown, ChevronUp, Filter, X } from 'lucide-react';
 
 export interface FilterState {
   status: 'all' | 'PAGO' | 'A PAGAR' | 'VENCIDO';
@@ -22,6 +26,7 @@ interface FinancialFiltersProps {
 }
 
 export const FinancialFilters = ({ filters, onFiltersChange, consultants }: FinancialFiltersProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const months = [
     { value: '01', label: 'Janeiro' },
     { value: '02', label: 'Fevereiro' },
@@ -47,15 +52,78 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
     onFiltersChange({ ...filters, [key]: value });
   };
 
+  const clearAllFilters = () => {
+    onFiltersChange({
+      status: 'all',
+      consultant: 'all',
+      studentName: '',
+      monthFrom: 'all',
+      yearFrom: 'all',
+      monthTo: 'all',
+      yearTo: 'all',
+      amountMin: '',
+      amountMax: ''
+    });
+  };
+
+  const activeFiltersCount = [
+    filters.status !== 'all',
+    filters.consultant !== 'all',
+    filters.studentName !== '',
+    filters.monthFrom !== 'all',
+    filters.yearFrom !== 'all',
+    filters.monthTo !== 'all',
+    filters.yearTo !== 'all',
+    filters.amountMin !== '',
+    filters.amountMax !== ''
+  ].filter(Boolean).length;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Filtros Avançados</CardTitle>
-        <CardDescription>
-          Use os filtros para refinar sua visualização dos dados financeiros
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-4">
+      {/* Toggle Button */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          Filtros Avançados
+          {activeFiltersCount > 0 && (
+            <Badge variant="secondary" className="ml-1">
+              {activeFiltersCount}
+            </Badge>
+          )}
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4 ml-1" />
+          ) : (
+            <ChevronDown className="h-4 w-4 ml-1" />
+          )}
+        </Button>
+        
+        {activeFiltersCount > 0 && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={clearAllFilters}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4 mr-1" />
+            Limpar filtros
+          </Button>
+        )}
+      </div>
+
+      {/* Expandable Filters */}
+      {isExpanded && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtros Avançados</CardTitle>
+            <CardDescription>
+              Use os filtros para refinar sua visualização dos dados financeiros
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
         {/* Row 1: Status and Consultant */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -205,7 +273,9 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };
