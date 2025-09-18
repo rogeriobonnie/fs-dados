@@ -6,8 +6,8 @@ export class GoogleSheetsService {
   
   // Configure aqui suas credenciais padrão (opcional)
   // ATENÇÃO: API keys aqui ficam visíveis no código. Use apenas para planilhas públicas.
-  private static readonly DEFAULT_API_KEY = ''; // Cole sua API key aqui se quiser manter no código
-  private static readonly DEFAULT_SHEET_ID = ''; // Cole o ID da planilha aqui se quiser manter no código
+  private static readonly DEFAULT_API_KEY = 'AIzaSyBbeZZchnUg5I35r_7QHjzNDNbXOL8zmz4'; // Cole sua API key aqui se quiser manter no código
+  private static readonly DEFAULT_SHEET_ID = '1QO7qMomtQlCRZf5sa_SkLgSG3Q3Y-cpDCEKQopz5Yg4'; // Cole o ID da planilha aqui se quiser manter no código
 
   static saveApiKey(apiKey: string): void {
     localStorage.setItem(this.API_KEY_STORAGE_KEY, apiKey);
