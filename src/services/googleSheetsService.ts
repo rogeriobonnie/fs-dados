@@ -3,13 +3,18 @@ import { FinancialRecord } from '@/types/financial';
 export class GoogleSheetsService {
   private static API_KEY_STORAGE_KEY = 'google_sheets_api_key';
   private static SHEET_ID_STORAGE_KEY = 'google_sheets_sheet_id';
+  
+  // Configure aqui suas credenciais padrão (opcional)
+  // ATENÇÃO: API keys aqui ficam visíveis no código. Use apenas para planilhas públicas.
+  private static readonly DEFAULT_API_KEY = ''; // Cole sua API key aqui se quiser manter no código
+  private static readonly DEFAULT_SHEET_ID = ''; // Cole o ID da planilha aqui se quiser manter no código
 
   static saveApiKey(apiKey: string): void {
     localStorage.setItem(this.API_KEY_STORAGE_KEY, apiKey);
   }
 
   static getApiKey(): string | null {
-    return localStorage.getItem(this.API_KEY_STORAGE_KEY);
+    return localStorage.getItem(this.API_KEY_STORAGE_KEY) || this.DEFAULT_API_KEY || null;
   }
 
   static saveSheetId(sheetId: string): void {
@@ -17,7 +22,11 @@ export class GoogleSheetsService {
   }
 
   static getSheetId(): string | null {
-    return localStorage.getItem(this.SHEET_ID_STORAGE_KEY);
+    return localStorage.getItem(this.SHEET_ID_STORAGE_KEY) || this.DEFAULT_SHEET_ID || null;
+  }
+
+  static hasDefaultCredentials(): boolean {
+    return !!(this.DEFAULT_API_KEY && this.DEFAULT_SHEET_ID);
   }
 
   static extractSheetId(url: string): string | null {

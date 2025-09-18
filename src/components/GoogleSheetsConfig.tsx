@@ -26,6 +26,10 @@ export const GoogleSheetsConfig = ({ onConnectionChange }: GoogleSheetsConfigPro
     
     if (existingApiKey && existingSheetId) {
       setApiKey(existingApiKey);
+      // If we have a sheet ID, reconstruct a sample URL for display
+      if (existingSheetId) {
+        setSheetUrl(`https://docs.google.com/spreadsheets/d/${existingSheetId}/edit`);
+      }
       testConnection();
     }
   }, []);
@@ -134,6 +138,15 @@ export const GoogleSheetsConfig = ({ onConnectionChange }: GoogleSheetsConfigPro
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {GoogleSheetsService.hasDefaultCredentials() && (
+          <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+            <p className="text-sm">
+              <strong>ℹ️ Credenciais Padrão:</strong> As credenciais estão configuradas no código. 
+              Você pode sobrescrever usando os campos abaixo ou usar as configurações padrão.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="space-y-2">
