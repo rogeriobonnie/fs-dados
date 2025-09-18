@@ -87,29 +87,30 @@ export class GoogleSheetsService {
     for (let i = 7; i < rows.length; i++) { // Start from row 8 (index 7) based on your sheet structure
       const row = rows[i];
       
-      // Skip empty rows
-      if (!row || row.length < 8 || !row[2]) continue;
+      // Skip completely empty rows
+      if (!row || row.length === 0) continue;
       
       // Parse the row data according to your sheet structure
       const consultant = row[0] || '';
-      const contractDate = this.parseDate(row[1]);
-      const studentName = row[2];
+      const contractDate = this.parseDate(row[1] || '');
+      const studentName = row[2] || '';
       const installment = row[3] || '';
-      const dueDate = this.parseDate(row[4]);
-      const amount = this.parseAmount(row[5]);
-      const paymentDate = this.parseDate(row[6]);
-      const status = this.parseStatus(row[7]);
+      const dueDate = this.parseDate(row[4] || '');
+      const amount = this.parseAmount(row[5] || '');
+      const paymentDate = this.parseDate(row[6] || '');
+      const status = this.parseStatus(row[7] || '');
       const invoice = row[8] || '';
       const contract = row[9] || '';
 
-      if (studentName && dueDate && amount > 0) {
+      // Only require student name and positive amount to include record
+      if (studentName.trim() && amount > 0) {
         records.push({
           id: `${i}`,
           consultant,
           contractDate,
-          studentName,
+          studentName: studentName.trim(),
           installment,
-          dueDate,
+          dueDate: dueDate || new Date().toISOString().split('T')[0], // Use current date if no due date
           amount,
           paymentDate: paymentDate || undefined,
           status,
@@ -119,6 +120,9 @@ export class GoogleSheetsService {
       }
     }
 
+    console.log(`Parsed ${records.length} records from Google Sheets`);
+    console.log(`Total amount: R$ ${records.reduce((sum, r) => sum + r.amount, 0).toFixed(2)}`);
+    
     return records;
   }
 
