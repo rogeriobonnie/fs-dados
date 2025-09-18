@@ -82,18 +82,29 @@ export class GoogleSheetsService {
 
   private static parseSheetData(rows: string[][]): FinancialRecord[] {
     const records: FinancialRecord[] = [];
+    let totalRows = rows.length;
+    let processedRows = 0;
+    let validRecords = 0;
+    let skippedRows = 0;
+    
+    console.log(`Total rows in sheet: ${totalRows}`);
     
     // Skip header rows and empty rows
     for (let i = 7; i < rows.length; i++) { // Start from row 8 (index 7) based on your sheet structure
       const row = rows[i];
+      processedRows++;
       
       // Skip completely empty rows
-      if (!row || row.length === 0) continue;
+      if (!row || row.length === 0) {
+        console.log(`Skipping empty row ${i + 1}`);
+        skippedRows++;
+        continue;
+      }
       
       // Parse the row data according to your sheet structure
       const consultant = row[0] || '';
       const contractDate = this.parseDate(row[1] || '');
-      const studentName = row[2] || '';
+      const studentName = (row[2] || '').trim();
       const installment = row[3] || '';
       const dueDate = this.parseDate(row[4] || '');
       const amount = this.parseAmount(row[5] || '');
@@ -102,13 +113,21 @@ export class GoogleSheetsService {
       const invoice = row[8] || '';
       const contract = row[9] || '';
 
-      // Only require student name and positive amount to include record
-      if (studentName.trim() && amount > 0) {
+      // Log detailed info for debugging
+      if (i < 15) { // Log first few rows for debugging
+        console.log(`Row ${i + 1}: Student='${studentName}', Amount=${amount}, Status='${status}'`);
+      }
+
+      // More lenient criteria - just need student name OR positive amount
+      if (studentName || amount > 0) {
+        // If student name is missing but we have amount, create a generic name
+        const finalStudentName = studentName || `Registro ${i + 1}`;
+        
         records.push({
           id: `${i}`,
           consultant,
           contractDate,
-          studentName: studentName.trim(),
+          studentName: finalStudentName,
           installment,
           dueDate: dueDate || new Date().toISOString().split('T')[0], // Use current date if no due date
           amount,
@@ -117,11 +136,19 @@ export class GoogleSheetsService {
           invoice,
           contract
         });
+        validRecords++;
+      } else {
+        console.log(`Skipping row ${i + 1}: No student name and no amount`);
+        skippedRows++;
       }
     }
 
-    console.log(`Parsed ${records.length} records from Google Sheets`);
-    console.log(`Total amount: R$ ${records.reduce((sum, r) => sum + r.amount, 0).toFixed(2)}`);
+    console.log(`Processing summary:`);
+    console.log(`- Total rows: ${totalRows}`);
+    console.log(`- Processed rows: ${processedRows}`);
+    console.log(`- Valid records: ${validRecords}`);
+    console.log(`- Skipped rows: ${skippedRows}`);
+    console.log(`- Total amount: R$ ${records.reduce((sum, r) => sum + r.amount, 0).toFixed(2)}`);
     
     return records;
   }
