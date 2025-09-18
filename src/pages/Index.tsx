@@ -2,16 +2,11 @@ import { useState, useMemo, useEffect } from 'react';
 import { FinancialDashboard } from '@/components/FinancialDashboard';
 import { FinancialFilters, FilterState } from '@/components/FinancialFilters';
 import { FinancialTable } from '@/components/FinancialTable';
-import { FinancialCharts } from '@/components/FinancialCharts';
 import { StudentsDirectory } from '@/components/StudentsDirectory';
 import { QuickFilters } from '@/components/QuickFilters';
-import { StudentAnalytics } from '@/components/StudentAnalytics';
 import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { MonthlyCommissionReport } from '@/components/MonthlyCommissionReport';
-import { ImplementationGuide } from '@/components/ImplementationGuide';
-import { GoogleSheetsConfig } from '@/components/GoogleSheetsConfig';
 import { PinAuth } from '@/components/PinAuth';
-import { PinSettings } from '@/components/PinSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -19,15 +14,17 @@ import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { BarChart3, Table2, PieChart, Settings, RefreshCw, Users, TrendingUp, UserCheck, LogOut, DollarSign } from 'lucide-react';
+import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign } from 'lucide-react';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
     status: 'all',
     consultant: 'all',
     studentName: '',
-    dateFrom: '',
-    dateTo: '',
+    monthFrom: '',
+    yearFrom: '',
+    monthTo: '',
+    yearTo: '',
     amountMin: '',
     amountMax: ''
   });
@@ -88,16 +85,39 @@ const Index = () => {
   // Filter data based on current filters
   const filteredData = useMemo(() => {
     return data.filter(record => {
+      // Status filter
       if (filters.status && filters.status !== 'all' && record.status !== filters.status) return false;
+      
+      // Consultant filter
       if (filters.consultant && filters.consultant !== 'all') {
         const consultantValue = filters.consultant === 'direct' ? '' : filters.consultant;
         if (record.consultant !== consultantValue) return false;
       }
+      
+      // Student name filter
       if (filters.studentName && !record.studentName.toLowerCase().includes(filters.studentName.toLowerCase())) return false;
-      if (filters.dateFrom && record.dueDate < filters.dateFrom) return false;
-      if (filters.dateTo && record.dueDate > filters.dateTo) return false;
+      
+      // Date range filter
+      const dueDate = new Date(record.dueDate);
+      const dueMonth = String(dueDate.getMonth() + 1).padStart(2, '0');
+      const dueYear = dueDate.getFullYear().toString();
+      
+      // From date filter
+      if (filters.monthFrom && filters.yearFrom) {
+        const fromDate = new Date(parseInt(filters.yearFrom), parseInt(filters.monthFrom) - 1, 1);
+        if (dueDate < fromDate) return false;
+      }
+      
+      // To date filter
+      if (filters.monthTo && filters.yearTo) {
+        const toDate = new Date(parseInt(filters.yearTo), parseInt(filters.monthTo), 0); // Last day of month
+        if (dueDate > toDate) return false;
+      }
+      
+      // Amount filters
       if (filters.amountMin && record.amount < parseFloat(filters.amountMin)) return false;
       if (filters.amountMax && record.amount > parseFloat(filters.amountMax)) return false;
+      
       return true;
     });
   }, [data, filters]);
@@ -191,14 +211,10 @@ const Index = () => {
 
           {/* Tabbed Content */}
           <Tabs defaultValue="table" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7 text-xs">
+            <TabsList className="grid w-full grid-cols-4 text-xs">
               <TabsTrigger value="table" className="flex items-center gap-1 px-2">
                 <Table2 className="h-3 w-3" />
                 Tabela
-              </TabsTrigger>
-              <TabsTrigger value="charts" className="flex items-center gap-1 px-2">
-                <PieChart className="h-3 w-3" />
-                Gráficos
               </TabsTrigger>
               <TabsTrigger value="students" className="flex items-center gap-1 px-2">
                 <Users className="h-3 w-3" />
@@ -212,22 +228,10 @@ const Index = () => {
                 <DollarSign className="h-3 w-3" />
                 Comissões
               </TabsTrigger>
-              <TabsTrigger value="analytics" className="flex items-center gap-1 px-2">
-                <BarChart3 className="h-3 w-3" />
-                Análises
-              </TabsTrigger>
-              <TabsTrigger value="config" className="flex items-center gap-1 px-2">
-                <Settings className="h-3 w-3" />
-                Config
-              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="table" className="space-y-6">
               <FinancialTable data={filteredData} />
-            </TabsContent>
-
-            <TabsContent value="charts" className="space-y-6">
-              <FinancialCharts data={filteredData} />
             </TabsContent>
 
             <TabsContent value="students" className="space-y-6">
@@ -240,23 +244,6 @@ const Index = () => {
 
             <TabsContent value="commissions" className="space-y-6">
               <MonthlyCommissionReport data={filteredData} />
-            </TabsContent>
-
-            <TabsContent value="analytics" className="space-y-6">
-              <div className="text-center py-12">
-                <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Análises Avançadas</h3>
-                <p className="text-muted-foreground">
-                  Funcionalidade em desenvolvimento. Em breve: relatórios de tendências, 
-                  previsões e análises comparativas.
-                </p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="config" className="space-y-6">
-              <PinSettings onAuthChange={() => window.location.reload()} />
-              <GoogleSheetsConfig onConnectionChange={handleConnectionChange} />
-              <ImplementationGuide />
             </TabsContent>
           </Tabs>
         </div>

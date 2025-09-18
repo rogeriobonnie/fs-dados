@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FilterState } from '@/components/FinancialFilters';
-import { AlertTriangle, Clock, CheckCircle, Calendar, DollarSign, Users, X } from 'lucide-react';
+import { FilterState } from './FinancialFilters';
+import { CheckCircle, Clock, AlertTriangle, Users, Calendar, DollarSign, X } from 'lucide-react';
 
 interface QuickFiltersProps {
   filters: FilterState;
@@ -10,256 +11,185 @@ interface QuickFiltersProps {
 }
 
 export const QuickFilters = ({ filters, onFiltersChange, totalRecords }: QuickFiltersProps) => {
-  const today = new Date();
-  const currentMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
-  const next30Days = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const last30Days = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const currentDate = new Date();
+  const currentMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+  const currentYear = currentDate.getFullYear().toString();
+  const lastMonth = String(currentDate.getMonth() === 0 ? 12 : currentDate.getMonth()).padStart(2, '0');
+  const lastMonthYear = currentDate.getMonth() === 0 ? (parseInt(currentYear) - 1).toString() : currentYear;
 
-  const formatDate = (date: Date) => {
-    return date.getFullYear() + '-' + 
-           String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-           String(date.getDate()).padStart(2, '0');
-  };
-
-  const quickFilters = [
-    // Status Filters
+  const quickFilterOptions = [
     {
-      icon: AlertTriangle,
-      label: 'Vencidos',
-      description: 'Pagamentos em atraso',
-      variant: 'destructive' as const,
-      count: 0, // Will be calculated
-      action: () => onFiltersChange({
-        ...filters,
-        status: 'VENCIDO',
-        dateFrom: '',
-        dateTo: ''
-      })
-    },
-    {
-      icon: Clock,
-      label: 'Próximos 30 dias',
-      description: 'Vencimentos próximos',
-      variant: 'secondary' as const,
-      count: 0,
-      action: () => onFiltersChange({
-        ...filters,
-        status: 'A PAGAR',
-        dateFrom: formatDate(today),
-        dateTo: formatDate(next30Days)
-      })
-    },
-    {
+      label: 'Pagos',
       icon: CheckCircle,
-      label: 'Pagos este mês',
-      description: 'Recebimentos atuais',
-      variant: 'default' as const,
-      count: 0,
-      action: () => onFiltersChange({
-        ...filters,
-        status: 'PAGO',
-        dateFrom: currentMonth + '-01',
-        dateTo: currentMonth + '-31'
-      })
+      color: 'bg-success/10 text-success border-success/20 hover:bg-success/20',
+      filters: { status: 'PAGO' as const },
     },
     {
+      label: 'A Pagar',
+      icon: Clock,
+      color: 'bg-warning/10 text-warning border-warning/20 hover:bg-warning/20',
+      filters: { status: 'A PAGAR' as const },
+    },
+    {
+      label: 'Vencidos',
+      icon: AlertTriangle,
+      color: 'bg-danger/10 text-danger border-danger/20 hover:bg-danger/20',
+      filters: { status: 'VENCIDO' as const },
+    },
+    {
+      label: 'Mês Atual',
       icon: Calendar,
-      label: 'Últimos 30 dias',
-      description: 'Atividade recente',
-      variant: 'outline' as const,
-      count: 0,
-      action: () => onFiltersChange({
-        ...filters,
-        status: 'all',
-        dateFrom: formatDate(last30Days),
-        dateTo: formatDate(today)
-      })
-    },
-    // Value Filters
-    {
-      icon: DollarSign,
-      label: 'Acima R$ 1.000',
-      description: 'Valores altos',
-      variant: 'outline' as const,
-      count: 0,
-      action: () => onFiltersChange({
-        ...filters,
-        amountMin: '1000',
-        amountMax: ''
-      })
+      color: 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20',
+      filters: { monthFrom: currentMonth, yearFrom: currentYear, monthTo: currentMonth, yearTo: currentYear },
     },
     {
-      icon: DollarSign,
-      label: 'Acima R$ 5.000',
-      description: 'Valores muito altos',
-      variant: 'outline' as const,
-      count: 0,
-      action: () => onFiltersChange({
-        ...filters,
-        amountMin: '5000',
-        amountMax: ''
-      })
+      label: 'Mês Passado',
+      icon: Calendar,
+      color: 'bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20',
+      filters: { monthFrom: lastMonth, yearFrom: lastMonthYear, monthTo: lastMonth, yearTo: lastMonthYear },
     },
-    // Consultant Filters
     {
+      label: 'Vendas Diretas',
       icon: Users,
-      label: 'Stephanie',
-      description: 'Vendas da Stephanie',
-      variant: 'outline' as const,
-      count: 0,
-      action: () => onFiltersChange({
-        ...filters,
-        consultant: 'STHEPHANIE'
-      })
+      color: 'bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20',
+      filters: { consultant: 'direct' },
     },
     {
-      icon: Users,
-      label: 'Rafaela',
-      description: 'Vendas da Rafaela',
-      variant: 'outline' as const,
-      count: 0,
-      action: () => onFiltersChange({
-        ...filters,
-        consultant: 'RAFAELA'
-      })
-    }
+      label: 'Valores Altos',
+      icon: DollarSign,
+      color: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/20',
+      filters: { amountMin: '5000' },
+    },
   ];
+
+  const applyQuickFilter = (quickFilters: Partial<FilterState>) => {
+    onFiltersChange({
+      status: 'all',
+      consultant: 'all',
+      studentName: '',
+      monthFrom: '',
+      yearFrom: '',
+      monthTo: '',
+      yearTo: '',
+      amountMin: '',
+      amountMax: '',
+      ...quickFilters,
+    });
+  };
 
   const clearAllFilters = () => {
     onFiltersChange({
       status: 'all',
       consultant: 'all',
       studentName: '',
-      dateFrom: '',
-      dateTo: '',
+      monthFrom: '',
+      yearFrom: '',
+      monthTo: '',
+      yearTo: '',
       amountMin: '',
-      amountMax: ''
+      amountMax: '',
     });
   };
 
-  const hasActiveFilters = Object.entries(filters).some(([key, value]) => 
-    value !== '' && value !== 'all'
-  );
+  const hasActiveFilters = 
+    filters.status !== 'all' ||
+    filters.consultant !== 'all' ||
+    filters.studentName !== '' ||
+    filters.monthFrom !== '' ||
+    filters.yearFrom !== '' ||
+    filters.monthTo !== '' ||
+    filters.yearTo !== '' ||
+    filters.amountMin !== '' ||
+    filters.amountMax !== '';
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Filtros Rápidos</h3>
-        {hasActiveFilters && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={clearAllFilters}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4 mr-1" />
-            Limpar todos
-          </Button>
-        )}
-      </div>
-
-      {/* Primary Quick Filters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {quickFilters.slice(0, 4).map((filter, index) => {
-          const Icon = filter.icon;
-          const isActive = 
-            (filter.label === 'Vencidos' && filters.status === 'VENCIDO') ||
-            (filter.label === 'Próximos 30 dias' && filters.status === 'A PAGAR' && filters.dateFrom && filters.dateTo) ||
-            (filter.label === 'Pagos este mês' && filters.status === 'PAGO' && filters.dateFrom?.includes(currentMonth)) ||
-            (filter.label === 'Últimos 30 dias' && filters.dateFrom && filters.dateTo && filters.status === 'all');
-
-          return (
-            <Button
-              key={index}
-              variant={isActive ? "default" : filter.variant}
-              onClick={filter.action}
-              className={`h-auto p-4 flex flex-col items-center gap-2 text-center transition-all ${
-                isActive ? 'ring-2 ring-primary/20' : ''
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-              <div className="space-y-1">
-                <div className="font-medium text-sm">{filter.label}</div>
-                <div className="text-xs opacity-80">{filter.description}</div>
-              </div>
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Secondary Quick Filters */}
-      <div className="flex flex-wrap gap-2">
-        <span className="text-sm text-muted-foreground font-medium">Filtros adicionais:</span>
-        {quickFilters.slice(4).map((filter, index) => {
-          const Icon = filter.icon;
-          const isActive = 
-            (filter.label === 'Acima R$ 1.000' && filters.amountMin === '1000') ||
-            (filter.label === 'Acima R$ 5.000' && filters.amountMin === '5000') ||
-            (filter.label === 'Stephanie' && filters.consultant === 'STHEPHANIE') ||
-            (filter.label === 'Rafaela' && filters.consultant === 'RAFAELA');
-
-          return (
-            <Button
-              key={index + 4}
-              variant={isActive ? "default" : "outline"}
-              size="sm"
-              onClick={filter.action}
-              className="h-8 px-3 text-xs flex items-center gap-1.5"
-            >
-              <Icon className="h-3 w-3" />
-              {filter.label}
-              {isActive && <Badge variant="secondary" className="ml-1 px-1 py-0 text-xs">✓</Badge>}
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Active Filters Summary */}
-      {hasActiveFilters && (
-        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border">
-          <span className="text-sm font-medium">Filtros ativos:</span>
-          <div className="flex flex-wrap gap-1">
-            {filters.status && filters.status !== 'all' && (
-              <Badge variant="outline" className="text-xs">
-                Status: {filters.status}
-              </Badge>
-            )}
-            {filters.consultant && filters.consultant !== 'all' && (
-              <Badge variant="outline" className="text-xs">
-                {filters.consultant === 'direct' ? 'Vendas Diretas' : filters.consultant}
-              </Badge>
-            )}
-            {filters.studentName && (
-              <Badge variant="outline" className="text-xs">
-                Aluno: {filters.studentName}
-              </Badge>
-            )}
-            {filters.amountMin && (
-              <Badge variant="outline" className="text-xs">
-                Min: R$ {filters.amountMin}
-              </Badge>
-            )}
-            {filters.amountMax && (
-              <Badge variant="outline" className="text-xs">
-                Max: R$ {filters.amountMax}
-              </Badge>
-            )}
-            {filters.dateFrom && (
-              <Badge variant="outline" className="text-xs">
-                De: {new Date(filters.dateFrom).toLocaleDateString('pt-BR')}
-              </Badge>
-            )}
-            {filters.dateTo && (
-              <Badge variant="outline" className="text-xs">
-                Até: {new Date(filters.dateTo).toLocaleDateString('pt-BR')}
-              </Badge>
-            )}
+    <Card>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Filtros Rápidos</CardTitle>
+            <CardDescription>
+              {totalRecords} registros encontrados
+            </CardDescription>
           </div>
-          <span className="text-xs text-muted-foreground ml-auto">
-            {totalRecords} registro{totalRecords !== 1 ? 's' : ''}
-          </span>
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearAllFilters}
+              className="flex items-center gap-1 text-xs"
+            >
+              <X className="h-3 w-3" />
+              Limpar
+            </Button>
+          )}
         </div>
-      )}
-    </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2">
+          {quickFilterOptions.map((option) => {
+            const Icon = option.icon;
+            return (
+              <Button
+                key={option.label}
+                variant="outline"
+                size="sm"
+                onClick={() => applyQuickFilter(option.filters)}
+                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 h-auto ${option.color}`}
+              >
+                <Icon className="h-3 w-3" />
+                {option.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Active Filters Display */}
+        {hasActiveFilters && (
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+              Filtros ativos:
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {filters.status !== 'all' && (
+                <Badge variant="secondary" className="text-xs">
+                  Status: {filters.status}
+                </Badge>
+              )}
+              {filters.consultant !== 'all' && (
+                <Badge variant="secondary" className="text-xs">
+                  Consultor: {filters.consultant === 'direct' ? 'Vendas Diretas' : filters.consultant}
+                </Badge>
+              )}
+              {filters.studentName && (
+                <Badge variant="secondary" className="text-xs">
+                  Aluno: {filters.studentName}
+                </Badge>
+              )}
+              {(filters.monthFrom || filters.yearFrom) && (
+                <Badge variant="secondary" className="text-xs">
+                  De: {filters.monthFrom}/{filters.yearFrom}
+                </Badge>
+              )}
+              {(filters.monthTo || filters.yearTo) && (
+                <Badge variant="secondary" className="text-xs">
+                  Até: {filters.monthTo}/{filters.yearTo}
+                </Badge>
+              )}
+              {filters.amountMin && (
+                <Badge variant="secondary" className="text-xs">
+                  Min: R$ {filters.amountMin}
+                </Badge>
+              )}
+              {filters.amountMax && (
+                <Badge variant="secondary" className="text-xs">
+                  Max: R$ {filters.amountMax}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };

@@ -1,16 +1,16 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { X, Filter } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export interface FilterState {
-  status: string;
+  status: 'all' | 'PAGO' | 'A PAGAR' | 'VENCIDO';
   consultant: string;
   studentName: string;
-  dateFrom: string;
-  dateTo: string;
+  monthFrom: string;
+  yearFrom: string;
+  monthTo: string;
+  yearTo: string;
   amountMin: string;
   amountMax: string;
 }
@@ -22,149 +22,190 @@ interface FinancialFiltersProps {
 }
 
 export const FinancialFilters = ({ filters, onFiltersChange, consultants }: FinancialFiltersProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const months = [
+    { value: '01', label: 'Janeiro' },
+    { value: '02', label: 'Fevereiro' },
+    { value: '03', label: 'Março' },
+    { value: '04', label: 'Abril' },
+    { value: '05', label: 'Maio' },
+    { value: '06', label: 'Junho' },
+    { value: '07', label: 'Julho' },
+    { value: '08', label: 'Agosto' },
+    { value: '09', label: 'Setembro' },
+    { value: '10', label: 'Outubro' },
+    { value: '11', label: 'Novembro' },
+    { value: '12', label: 'Dezembro' },
+  ];
 
-  const updateFilter = (key: keyof FilterState, value: string) => {
+  const currentYear = new Date().getFullYear();
+  const years = [];
+  for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+    years.push({ value: year.toString(), label: year.toString() });
+  }
+
+  const updateFilters = (key: keyof FilterState, value: string) => {
     onFiltersChange({ ...filters, [key]: value });
   };
 
-  const clearFilters = () => {
-    onFiltersChange({
-      status: 'all',
-      consultant: 'all',
-      studentName: '',
-      dateFrom: '',
-      dateTo: '',
-      amountMin: '',
-      amountMax: ''
-    });
-  };
-
-  const activeFiltersCount = Object.entries(filters).filter(([key, value]) => 
-    value !== '' && value !== 'all'
-  ).length;
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-2"
-        >
-          <Filter className="h-4 w-4" />
-          Filtros
-          {activeFiltersCount > 0 && (
-            <Badge variant="secondary" className="ml-2">
-              {activeFiltersCount}
-            </Badge>
-          )}
-        </Button>
-        {activeFiltersCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="h-4 w-4 mr-1" />
-            Limpar filtros
-          </Button>
-        )}
-      </div>
-
-      {isExpanded && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg bg-muted/20">
+    <Card>
+      <CardHeader>
+        <CardTitle>Filtros Avançados</CardTitle>
+        <CardDescription>
+          Use os filtros para refinar sua visualização dos dados financeiros
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Row 1: Status and Consultant */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
-            <Select value={filters.status} onValueChange={(value) => updateFilter('status', value)}>
+            <Label htmlFor="status">Status</Label>
+            <Select value={filters.status} onValueChange={(value) => updateFilters('status', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border shadow-lg z-50">
                 <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="PAGO">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-success"></div>
-                    Pago
-                  </div>
-                </SelectItem>
-                <SelectItem value="A PAGAR">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-warning"></div>
-                    A Pagar
-                  </div>
-                </SelectItem>
-                <SelectItem value="VENCIDO">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-danger"></div>
-                    Vencido
-                  </div>
-                </SelectItem>
+                <SelectItem value="PAGO">Pagos</SelectItem>
+                <SelectItem value="A PAGAR">A Pagar</SelectItem>
+                <SelectItem value="VENCIDO">Vencidos</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Consultor</label>
-            <Select value={filters.consultant} onValueChange={(value) => updateFilter('consultant', value)}>
+            <Label htmlFor="consultant">Consultor</Label>
+            <Select value={filters.consultant} onValueChange={(value) => updateFilters('consultant', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Todos os consultores" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border shadow-lg z-50">
                 <SelectItem value="all">Todos os consultores</SelectItem>
-                {consultants.map((consultant, index) => (
-                  <SelectItem key={`${consultant}-${index}`} value={consultant || 'direct'}>
-                    {consultant === '' ? 'Vendas Diretas' : consultant}
-                  </SelectItem>
-                ))}
+                <SelectItem value="direct">Vendas Diretas</SelectItem>
+                {consultants
+                  .filter(consultant => consultant)
+                  .map(consultant => (
+                    <SelectItem key={consultant} value={consultant}>
+                      {consultant}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Nome do Aluno</label>
-            <Input
-              placeholder="Digite o nome..."
-              value={filters.studentName}
-              onChange={(e) => updateFilter('studentName', e.target.value)}
-            />
-          </div>
+        {/* Row 2: Student Name */}
+        <div className="space-y-2">
+          <Label htmlFor="studentName">Nome do Aluno</Label>
+          <Input
+            id="studentName"
+            placeholder="Digite o nome do aluno..."
+            value={filters.studentName}
+            onChange={(e) => updateFilters('studentName', e.target.value)}
+          />
+        </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Valor Mínimo</label>
-            <Input
-              type="number"
-              placeholder="R$ 0,00"
-              value={filters.amountMin}
-              onChange={(e) => updateFilter('amountMin', e.target.value)}
-            />
-          </div>
+        {/* Row 3: Date Range */}
+        <div className="space-y-4">
+          <Label>Período de Vencimento</Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Mês Inicial</Label>
+              <Select value={filters.monthFrom} onValueChange={(value) => updateFilters('monthFrom', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Mês" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="">Todos</SelectItem>
+                  {months.map(month => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Data Inicial</label>
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => updateFilter('dateFrom', e.target.value)}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Ano Inicial</Label>
+              <Select value={filters.yearFrom} onValueChange={(value) => updateFilters('yearFrom', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Ano" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="">Todos</SelectItem>
+                  {years.map(year => (
+                    <SelectItem key={year.value} value={year.value}>
+                      {year.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Data Final</label>
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => updateFilter('dateTo', e.target.value)}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Mês Final</Label>
+              <Select value={filters.monthTo} onValueChange={(value) => updateFilters('monthTo', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Mês" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="">Todos</SelectItem>
+                  {months.map(month => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Valor Máximo</label>
-            <Input
-              type="number"
-              placeholder="R$ 99.999,00"
-              value={filters.amountMax}
-              onChange={(e) => updateFilter('amountMax', e.target.value)}
-            />
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Ano Final</Label>
+              <Select value={filters.yearTo} onValueChange={(value) => updateFilters('yearTo', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Ano" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="">Todos</SelectItem>
+                  {years.map(year => (
+                    <SelectItem key={year.value} value={year.value}>
+                      {year.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Row 4: Amount Range */}
+        <div className="space-y-4">
+          <Label>Faixa de Valores</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="amountMin" className="text-sm text-muted-foreground">Valor Mínimo</Label>
+              <Input
+                id="amountMin"
+                type="number"
+                placeholder="0.00"
+                value={filters.amountMin}
+                onChange={(e) => updateFilters('amountMin', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amountMax" className="text-sm text-muted-foreground">Valor Máximo</Label>
+              <Input
+                id="amountMax"
+                type="number"
+                placeholder="0.00"
+                value={filters.amountMax}
+                onChange={(e) => updateFilters('amountMax', e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
