@@ -9,14 +9,16 @@ import { StudentAnalytics } from '@/components/StudentAnalytics';
 import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { ImplementationGuide } from '@/components/ImplementationGuide';
 import { GoogleSheetsConfig } from '@/components/GoogleSheetsConfig';
+import { PinAuth } from '@/components/PinAuth';
+import { PinSettings } from '@/components/PinSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { BarChart3, Table2, PieChart, Settings, RefreshCw, Users, TrendingUp, UserCheck } from 'lucide-react';
+import { BarChart3, Table2, PieChart, Settings, RefreshCw, Users, TrendingUp, UserCheck, LogOut } from 'lucide-react';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -32,10 +34,19 @@ const Index = () => {
   const [data, setData] = useState<FinancialRecord[]>(financialData);
   const [isConnectedToSheets, setIsConnectedToSheets] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
 
-  // Check connection on mount
+  // Check authentication on mount
   useEffect(() => {
+    const isAuth = localStorage.getItem('financial_dashboard_auth') === 'true';
+    setIsAuthenticated(isAuth);
+  }, []);
+
+  // Check connection on mount (only if authenticated)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
     const checkConnection = async () => {
       const connected = await GoogleSheetsService.testConnection();
       setIsConnectedToSheets(connected);
@@ -44,7 +55,12 @@ const Index = () => {
       }
     };
     checkConnection();
-  }, []);
+  }, [isAuthenticated]);
+
+  // Handle authentication change
+  const handleAuthenticated = (authenticated: boolean) => {
+    setIsAuthenticated(authenticated);
+  };
 
   const loadDataFromSheets = async () => {
     setIsLoading(true);
@@ -96,6 +112,25 @@ const Index = () => {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('financial_dashboard_auth');
+    setIsAuthenticated(false);
+    toast({
+      title: "Logout realizado",
+      description: "Acesso ao dashboard bloqueado",
+    });
+  };
+
+  // Show authentication screen if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <PinAuth 
+        onAuthenticated={handleAuthenticated} 
+        isAuthenticated={isAuthenticated} 
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-8 px-4">
@@ -112,17 +147,28 @@ const Index = () => {
               </p>
             </div>
             
-            {isConnectedToSheets && (
+            <div className="flex gap-2">
+              {isConnectedToSheets && (
+                <Button 
+                  onClick={loadDataFromSheets} 
+                  disabled={isLoading}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  {isLoading ? 'Atualizando...' : 'Atualizar Dados'}
+                </Button>
+              )}
+              
               <Button 
-                onClick={loadDataFromSheets} 
-                disabled={isLoading}
+                onClick={handleLogout} 
                 variant="outline"
                 className="flex items-center gap-2"
               >
-                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                {isLoading ? 'Atualizando...' : 'Atualizar Dados'}
+                <LogOut className="h-4 w-4" />
+                Logout
               </Button>
-            )}
+            </div>
           </div>
 
           {/* Dashboard Overview */}
@@ -207,6 +253,7 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="config" className="space-y-6">
+              <PinSettings onAuthChange={() => window.location.reload()} />
               <GoogleSheetsConfig onConnectionChange={handleConnectionChange} />
               <ImplementationGuide />
             </TabsContent>
