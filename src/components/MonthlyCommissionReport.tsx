@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { FinancialRecord, ConsultantCommission } from '@/types/financial';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { CalendarDays, Users, DollarSign, TrendingUp } from 'lucide-react';
+import { CalendarDays, Users, DollarSign, TrendingUp, Search } from 'lucide-react';
 
 interface MonthlyCommissionReportProps {
   data: FinancialRecord[];
@@ -13,6 +14,9 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth().toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
+  const [appliedMonth, setAppliedMonth] = useState(currentDate.getMonth().toString());
+  const [appliedYear, setAppliedYear] = useState(currentDate.getFullYear().toString());
+  const [hasSearched, setHasSearched] = useState(false);
 
   // Generate available months and years from data
   const availableMonths = [
@@ -43,10 +47,26 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
       .map(year => ({ value: year.toString(), label: year.toString() }));
   }, [data]);
 
+  const handleSearch = () => {
+    setAppliedMonth(selectedMonth);
+    setAppliedYear(selectedYear);
+    setHasSearched(true);
+  };
+
   // Calculate monthly data
   const monthlyData = useMemo(() => {
-    const month = parseInt(selectedMonth);
-    const year = parseInt(selectedYear);
+    if (!hasSearched) {
+      return {
+        totalReceived: 0,
+        consultantCommissions: [],
+        totalCommissions: 0,
+        recordsCount: 0,
+        records: []
+      };
+    }
+
+    const month = parseInt(appliedMonth);
+    const year = parseInt(appliedYear);
 
     // Filter paid records for the selected month/year
     const monthlyRecords = data.filter(record => {
@@ -93,9 +113,10 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
       totalReceived,
       consultantCommissions,
       totalCommissions,
-      recordsCount: monthlyRecords.length
+      recordsCount: monthlyRecords.length,
+      records: monthlyRecords
     };
-  }, [data, selectedMonth, selectedYear]);
+  }, [data, appliedMonth, appliedYear, hasSearched]);
 
   return (
     <div className="space-y-6">
@@ -111,7 +132,7 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-end">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Mês</label>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -142,12 +163,17 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
                 </SelectContent>
               </Select>
             </div>
+            <Button onClick={handleSearch} className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              Buscar
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {hasSearched && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -190,9 +216,49 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
           </CardContent>
         </Card>
       </div>
+      )}
+
+      {/* Detailed Records */}
+      {hasSearched && monthlyData.records.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recebimentos do Período</CardTitle>
+            <CardDescription>
+              Todos os pagamentos recebidos em {availableMonths[parseInt(appliedMonth)].label} de {appliedYear}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {monthlyData.records.map((record, index) => {
+                const finalAmount = record.amount + (record.interest || 0) - (record.fees || 0);
+                return (
+                  <div 
+                    key={record.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card/50"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium">{record.studentName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {record.consultant || 'SEM CONSULTOR'} • {record.installment}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">{formatCurrency(finalAmount)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pago em {new Date(record.paymentDate!).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Consultant Commissions Table */}
-      <Card>
+      {hasSearched && (
+        <Card>
         <CardHeader>
           <CardTitle>Comissões por Consultor</CardTitle>
           <CardDescription>
@@ -237,6 +303,20 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
           )}
         </CardContent>
       </Card>
+      )}
+
+      {/* No search message */}
+      {!hasSearched && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">Selecione um período</h3>
+            <p className="text-muted-foreground">
+              Escolha o mês e ano desejado e clique em "Buscar" para visualizar os recebimentos e comissões.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
