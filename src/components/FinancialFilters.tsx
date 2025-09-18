@@ -116,7 +116,7 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
                   <SelectValue placeholder="Mês" />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {months.map(month => (
                     <SelectItem key={month.value} value={month.value}>
                       {month.label}
@@ -133,7 +133,7 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
                   <SelectValue placeholder="Ano" />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {years.map(year => (
                     <SelectItem key={year.value} value={year.value}>
                       {year.label}
@@ -150,7 +150,7 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
                   <SelectValue placeholder="Mês" />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {months.map(month => (
                     <SelectItem key={month.value} value={month.value}>
                       {month.label}
@@ -167,7 +167,7 @@ export const FinancialFilters = ({ filters, onFiltersChange, consultants }: Fina
                   <SelectValue placeholder="Ano" />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {years.map(year => (
                     <SelectItem key={year.value} value={year.value}>
                       {year.label}

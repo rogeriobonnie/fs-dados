@@ -67,10 +67,10 @@ export const QuickFilters = ({ filters, onFiltersChange, totalRecords }: QuickFi
       status: 'all',
       consultant: 'all',
       studentName: '',
-      monthFrom: '',
-      yearFrom: '',
-      monthTo: '',
-      yearTo: '',
+      monthFrom: 'all',
+      yearFrom: 'all',
+      monthTo: 'all',
+      yearTo: 'all',
       amountMin: '',
       amountMax: '',
       ...quickFilters,
@@ -82,10 +82,10 @@ export const QuickFilters = ({ filters, onFiltersChange, totalRecords }: QuickFi
       status: 'all',
       consultant: 'all',
       studentName: '',
-      monthFrom: '',
-      yearFrom: '',
-      monthTo: '',
-      yearTo: '',
+      monthFrom: 'all',
+      yearFrom: 'all',
+      monthTo: 'all',
+      yearTo: 'all',
       amountMin: '',
       amountMax: '',
     });
@@ -95,10 +95,10 @@ export const QuickFilters = ({ filters, onFiltersChange, totalRecords }: QuickFi
     filters.status !== 'all' ||
     filters.consultant !== 'all' ||
     filters.studentName !== '' ||
-    filters.monthFrom !== '' ||
-    filters.yearFrom !== '' ||
-    filters.monthTo !== '' ||
-    filters.yearTo !== '' ||
+    filters.monthFrom !== 'all' ||
+    filters.yearFrom !== 'all' ||
+    filters.monthTo !== 'all' ||
+    filters.yearTo !== 'all' ||
     filters.amountMin !== '' ||
     filters.amountMax !== '';
 
@@ -166,14 +166,14 @@ export const QuickFilters = ({ filters, onFiltersChange, totalRecords }: QuickFi
                   Aluno: {filters.studentName}
                 </Badge>
               )}
-              {(filters.monthFrom || filters.yearFrom) && (
+              {(filters.monthFrom !== 'all' || filters.yearFrom !== 'all') && (
                 <Badge variant="secondary" className="text-xs">
-                  De: {filters.monthFrom}/{filters.yearFrom}
+                  De: {filters.monthFrom !== 'all' ? filters.monthFrom : ''}/{filters.yearFrom !== 'all' ? filters.yearFrom : ''}
                 </Badge>
               )}
-              {(filters.monthTo || filters.yearTo) && (
+              {(filters.monthTo !== 'all' || filters.yearTo !== 'all') && (
                 <Badge variant="secondary" className="text-xs">
-                  Até: {filters.monthTo}/{filters.yearTo}
+                  Até: {filters.monthTo !== 'all' ? filters.monthTo : ''}/{filters.yearTo !== 'all' ? filters.yearTo : ''}
                 </Badge>
               )}
               {filters.amountMin && (

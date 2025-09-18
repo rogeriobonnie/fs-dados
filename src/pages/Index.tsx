@@ -21,10 +21,10 @@ const Index = () => {
     status: 'all',
     consultant: 'all',
     studentName: '',
-    monthFrom: '',
-    yearFrom: '',
-    monthTo: '',
-    yearTo: '',
+    monthFrom: 'all',
+    yearFrom: 'all',
+    monthTo: 'all',
+    yearTo: 'all',
     amountMin: '',
     amountMax: ''
   });
@@ -103,13 +103,13 @@ const Index = () => {
       const dueYear = dueDate.getFullYear().toString();
       
       // From date filter
-      if (filters.monthFrom && filters.yearFrom) {
+      if (filters.monthFrom && filters.monthFrom !== 'all' && filters.yearFrom && filters.yearFrom !== 'all') {
         const fromDate = new Date(parseInt(filters.yearFrom), parseInt(filters.monthFrom) - 1, 1);
         if (dueDate < fromDate) return false;
       }
       
       // To date filter
-      if (filters.monthTo && filters.yearTo) {
+      if (filters.monthTo && filters.monthTo !== 'all' && filters.yearTo && filters.yearTo !== 'all') {
         const toDate = new Date(parseInt(filters.yearTo), parseInt(filters.monthTo), 0); // Last day of month
         if (dueDate > toDate) return false;
       }
