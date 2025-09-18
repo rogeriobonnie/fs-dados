@@ -3,16 +3,18 @@ export interface FinancialRecord {
   consultant: string;
   contractDate: string;
   studentName: string;
+  specialCondition?: string; // Condição especial (bolsa/desconto)
+  paymentMethod?: string; // Forma de pagamento
   installment: string;
   dueDate: string;
   amount: number;
+  fees?: number; // Taxas que descontam
+  interest?: number; // Juros que aumentam
   paymentDate?: string;
   status: 'PAGO' | 'A PAGAR' | 'VENCIDO';
   invoice?: string;
-  contract?: string;
-  scholarshipStudent?: boolean; // Bolsa de estudo
-  fees?: number; // Taxas que descontam
-  interest?: number; // Juros que aumentam
+  contractObservation?: string; // Observação do contrato
+  scholarshipStudent?: boolean; // Derivado da condição especial
 }
 
 export interface FinancialSummary {

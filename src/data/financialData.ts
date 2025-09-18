@@ -13,7 +13,7 @@ export const financialData: FinancialRecord[] = [
     paymentDate: '2025-06-17',
     status: 'PAGO',
     invoice: 'NF SALVA',
-    contract: 'R$ 5.999,90 pago no pix'
+    contractObservation: 'R$ 5.999,90 pago no pix'
   },
   {
     id: '2',
@@ -26,7 +26,7 @@ export const financialData: FinancialRecord[] = [
     paymentDate: '2025-07-31',
     status: 'PAGO',
     invoice: '',
-    contract: '2X DE 3 MIL'
+    contractObservation: '2X DE 3 MIL'
   },
   {
     id: '3',
@@ -39,7 +39,7 @@ export const financialData: FinancialRecord[] = [
     paymentDate: '2025-08-01',
     status: 'PAGO',
     invoice: '796-2025',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '4',
@@ -52,7 +52,7 @@ export const financialData: FinancialRecord[] = [
     paymentDate: '2025-08-07',
     status: 'PAGO',
     invoice: '791-2025',
-    contract: 'R$ 7.272,30 pago no cartão'
+    contractObservation: 'R$ 7.272,30 pago no cartão'
   },
   {
     id: '5',
@@ -65,7 +65,7 @@ export const financialData: FinancialRecord[] = [
     paymentDate: '2025-08-04',
     status: 'PAGO',
     invoice: '799-2025',
-    contract: '6x parcelas de 1000 no pix'
+    contractObservation: '6x parcelas de 1000 no pix'
   },
   {
     id: '6',
@@ -78,7 +78,7 @@ export const financialData: FinancialRecord[] = [
     paymentDate: '2025-09-07',
     status: 'PAGO',
     invoice: '828-2025',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '7',
@@ -89,7 +89,7 @@ export const financialData: FinancialRecord[] = [
     dueDate: '2025-10-04',
     amount: 1000.00,
     status: 'A PAGAR',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '8',
@@ -100,7 +100,7 @@ export const financialData: FinancialRecord[] = [
     dueDate: '2025-11-04',
     amount: 1000.00,
     status: 'A PAGAR',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '9',
@@ -111,7 +111,7 @@ export const financialData: FinancialRecord[] = [
     dueDate: '2025-12-04',
     amount: 1000.00,
     status: 'A PAGAR',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '10',
@@ -122,7 +122,7 @@ export const financialData: FinancialRecord[] = [
     dueDate: '2026-01-04',
     amount: 1000.00,
     status: 'A PAGAR',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '11',
@@ -135,7 +135,7 @@ export const financialData: FinancialRecord[] = [
     paymentDate: '2025-02-21',
     status: 'PAGO',
     invoice: '',
-    contract: '658 pago na Eduzz + 17x de 389 no boleto'
+    contractObservation: '658 pago na Eduzz + 17x de 389 no boleto'
   },
   {
     id: '12',
@@ -147,7 +147,7 @@ export const financialData: FinancialRecord[] = [
     amount: 389.00,
     paymentDate: '2025-04-15',
     status: 'PAGO',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '13',
@@ -158,7 +158,7 @@ export const financialData: FinancialRecord[] = [
     dueDate: '2025-10-15',
     amount: 389.00,
     status: 'A PAGAR',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '14',
@@ -169,7 +169,7 @@ export const financialData: FinancialRecord[] = [
     dueDate: '2025-09-10',
     amount: 1000.00,
     status: 'VENCIDO',
-    contract: ''
+    contractObservation: ''
   },
   {
     id: '15',
@@ -182,6 +182,6 @@ export const financialData: FinancialRecord[] = [
     paymentDate: '2025-08-20',
     status: 'PAGO',
     invoice: '793-2025',
-    contract: 'R$ 7.272,30 pago no cartão'
+    contractObservation: 'R$ 7.272,30 pago no cartão'
   }
 ];

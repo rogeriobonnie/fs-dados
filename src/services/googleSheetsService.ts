@@ -112,17 +112,20 @@ export class GoogleSheetsService {
       const consultant = row[0] || '';
       const contractDate = this.parseDate(row[1] || '');
       const studentName = (row[2] || '').toString().trim();
-      const installment = row[3] || '';
-      const dueDate = this.parseDate(row[4] || '');
-      const amount = this.parseAmount(row[5] || '');
-      const paymentDate = this.parseDate(row[6] || '');
-      const status = this.parseStatus(row[7] || '');
-      const invoice = row[8] || '';
-      const contract = row[9] || '';
-      // New fields
-      const scholarshipStudent = this.parseBoolean(row[10] || ''); // Bolsa de estudo
-      const fees = this.parseAmount(row[11] || ''); // Taxas
-      const interest = this.parseAmount(row[12] || ''); // Juros
+      const specialCondition = row[3] || ''; // Condição especial
+      const paymentMethod = row[4] || ''; // Forma de pagamento
+      const installment = row[5] || ''; // Parcelas
+      const dueDate = this.parseDate(row[6] || ''); // Vencimento
+      const amount = this.parseAmount(row[7] || ''); // Valor da venda
+      const fees = this.parseAmount(row[8] || ''); // Taxas descontadas
+      const interest = this.parseAmount(row[9] || ''); // Juros recebidos
+      const paymentDate = this.parseDate(row[10] || ''); // Data pagamento
+      const status = this.parseStatus(row[11] || ''); // Status
+      const invoice = row[12] || ''; // Número da nota fiscal
+      const contractObservation = row[13] || ''; // Observação do contrato
+      
+      // Determinar se tem bolsa baseado na condição especial
+      const scholarshipStudent = this.parseScholarship(specialCondition);
 
       if (i < startIndex + 5) {
         console.log(`Row ${i + 1}: Student='${studentName}', Amount=${amount}, Status='${status}'`);
@@ -135,16 +138,18 @@ export class GoogleSheetsService {
           consultant,
           contractDate,
           studentName,
+          specialCondition,
+          paymentMethod,
           installment,
           dueDate: dueDate || new Date().toISOString().split('T')[0],
           amount,
+          fees: fees || 0,
+          interest: interest || 0,
           paymentDate: paymentDate || undefined,
           status,
           invoice,
-          contract,
+          contractObservation,
           scholarshipStudent,
-          fees: fees || 0,
-          interest: interest || 0,
         });
         validRecords++;
       } else {
@@ -200,6 +205,12 @@ export class GoogleSheetsService {
     return cleanValue === 'SIM' || cleanValue === 'TRUE' || cleanValue === '1' || cleanValue === 'BOLSA';
   }
 
+  private static parseScholarship(specialCondition: string): boolean {
+    if (!specialCondition) return false;
+    const cleanValue = specialCondition.toString().trim().toUpperCase();
+    return cleanValue.includes('BOLSA') || cleanValue.includes('SCHOLARSHIP');
+  }
+
   static async updateSheetData(records: FinancialRecord[]): Promise<boolean> {
     const apiKey = this.getApiKey();
     const sheetId = this.getSheetId();
@@ -211,23 +222,24 @@ export class GoogleSheetsService {
     try {
       // Convert records back to sheet format
       const values = records.map(record => [
-        record.consultant,
-        this.formatDateForSheet(record.contractDate),
-        record.studentName,
-        record.installment,
-        this.formatDateForSheet(record.dueDate),
-        `R$ ${record.amount.toFixed(2).replace('.', ',')}`,
-        record.paymentDate ? this.formatDateForSheet(record.paymentDate) : '',
-        record.status,
-        record.invoice || '',
-        record.contract || '',
-        record.scholarshipStudent ? 'SIM' : 'NÃO',
-        record.fees ? `R$ ${record.fees.toFixed(2).replace('.', ',')}` : '',
-        record.interest ? `R$ ${record.interest.toFixed(2).replace('.', ',')}` : ''
+        record.consultant, // A
+        this.formatDateForSheet(record.contractDate), // B
+        record.studentName, // C
+        record.specialCondition || '', // D
+        record.paymentMethod || '', // E
+        record.installment, // F
+        this.formatDateForSheet(record.dueDate), // G
+        `R$ ${record.amount.toFixed(2).replace('.', ',')}`, // H
+        record.fees ? `R$ ${record.fees.toFixed(2).replace('.', ',')}` : '', // I
+        record.interest ? `R$ ${record.interest.toFixed(2).replace('.', ',')}` : '', // J
+        record.paymentDate ? this.formatDateForSheet(record.paymentDate) : '', // K
+        record.status, // L
+        record.invoice || '', // M
+        record.contractObservation || '' // N
       ]);
 
       const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A8:M${8 + values.length - 1}?valueInputOption=RAW&key=${apiKey}`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A8:N${8 + values.length - 1}?valueInputOption=RAW&key=${apiKey}`,
         {
           method: 'PUT',
           headers: {
