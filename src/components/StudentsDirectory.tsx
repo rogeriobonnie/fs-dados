@@ -34,7 +34,7 @@ interface StudentInfo {
 export const StudentsDirectory = ({ data }: StudentsDirectoryProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<StudentInfo | null>(null);
-  const [sortBy, setSortBy] = useState<'name' | 'total' | 'status' | 'dueDate'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'total' | 'status' | 'dueDate'>('status');
 
   const currentDate = new Date();
   const saoPauloTime = new Date(currentDate.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
