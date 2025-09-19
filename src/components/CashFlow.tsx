@@ -35,7 +35,6 @@ const CashFlow: React.FC = () => {
   const { toast } = useToast();
 
   // Process raw cash flow data from Google Sheets into structured format
-
   const processCashFlowData = (rawData: any[]): CashFlowData => {
     const result: CashFlowData = {
       saldoInicial: 0,
@@ -48,40 +47,66 @@ const CashFlow: React.FC = () => {
       totalDespesasVendas: 0
     };
 
+    console.log('Raw data from Página3:', rawData);
+
     let currentSection = '';
     
     rawData.forEach((record, index) => {
-      const description = record.description || record.category || '';
-      const amount = record.amount || 0;
+      // Os dados vêm como: category = coluna A (título), subcategory = coluna B (valor)
+      const titulo = record.category || record.description || ''; // Coluna A
+      const valorStr = record.subcategory || ''; // Coluna B
       
-      if (description.toUpperCase().includes('SALDO INICIAL')) {
-        result.saldoInicial = Math.abs(amount);
-      } else if (description.toUpperCase().includes('ENTRADAS:')) {
+      console.log(`Row ${index}:`, { titulo, valorStr, record });
+      
+      // Converte string brasileira para número
+      const parseValor = (str: string): number => {
+        if (!str) return 0;
+        const cleanStr = str.toString().replace(/[^\d,-]/g, '').replace(',', '.');
+        const num = parseFloat(cleanStr);
+        return isNaN(num) ? 0 : num;
+      };
+      
+      const valor = parseValor(valorStr);
+      
+      if (titulo.toUpperCase().includes('SALDO INICIAL')) {
+        result.saldoInicial = valor;
+        console.log('Saldo inicial:', valor);
+      } else if (titulo.toUpperCase().includes('ENTRADAS:')) {
         currentSection = 'ENTRADAS';
-      } else if (description.toUpperCase().includes('DESPESAS SOBRE VENDAS')) {
+        console.log('Seção: ENTRADAS');
+      } else if (titulo.toUpperCase().includes('DESPESAS SOBRE VENDAS')) {
         currentSection = 'DESPESAS_VENDAS';
-      } else if (description.toUpperCase().includes('TOTAL ENTRADAS')) {
-        result.totalEntradas = Math.abs(amount);
+        console.log('Seção: DESPESAS_VENDAS');
+      } else if (titulo.toUpperCase().includes('TOTAL ENTRADAS')) {
+        result.totalEntradas = valor;
+        console.log('Total entradas:', valor);
         currentSection = '';
-      } else if (description.toUpperCase().includes('SAÍDAS:')) {
+      } else if (titulo.toUpperCase().includes('SAÍDAS:')) {
         currentSection = 'SAIDAS';
-      } else if (description.toUpperCase().includes('TOTAL SAÍDAS')) {
-        result.totalSaidas = Math.abs(amount);
+        console.log('Seção: SAIDAS');
+      } else if (titulo.toUpperCase().includes('TOTAL SAÍDAS')) {
+        result.totalSaidas = Math.abs(valor);
+        console.log('Total saídas:', Math.abs(valor));
         currentSection = '';
-      } else if (description.toUpperCase().includes('SALDO FIM')) {
-        result.saldoFinal = Math.abs(amount);
-      } else if (description && amount !== 0) {
+      } else if (titulo.toUpperCase().includes('SALDO FIM')) {
+        result.saldoFinal = valor;
+        console.log('Saldo final:', valor);
+      } else if (titulo && valor !== 0) {
         if (currentSection === 'ENTRADAS') {
-          result.entradas[description] = Math.abs(amount);
+          result.entradas[titulo] = valor;
+          console.log('Entrada adicionada:', titulo, valor);
         } else if (currentSection === 'DESPESAS_VENDAS') {
-          result.despesasVendas[description] = amount;
-          result.totalDespesasVendas += Math.abs(amount);
+          result.despesasVendas[titulo] = valor;
+          result.totalDespesasVendas += Math.abs(valor);
+          console.log('Despesa sobre vendas adicionada:', titulo, valor);
         } else if (currentSection === 'SAIDAS') {
-          result.saidas[description] = Math.abs(amount);
+          result.saidas[titulo] = Math.abs(valor);
+          console.log('Saída adicionada:', titulo, Math.abs(valor));
         }
       }
     });
 
+    console.log('Processed cash flow data:', result);
     return result;
   };
 
@@ -186,7 +211,7 @@ const CashFlow: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Entradas */}
+          {/* Entradas - VERDE */}
           <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-green-800">
@@ -208,27 +233,33 @@ const CashFlow: React.FC = () => {
                 </div>
               ))}
               
-              {/* Despesas sobre Vendas */}
+              {/* Despesas sobre Vendas - AMARELO */}
               {Object.keys(cashFlowData.despesasVendas).length > 0 && (
                 <>
                   <Separator className="my-4" />
                   <div className="space-y-3">
-                    <h4 className="font-semibold text-orange-700 flex items-center gap-2">
+                    <h4 className="font-semibold text-yellow-700 flex items-center gap-2">
                       <Minus className="h-4 w-4" />
                       Despesas sobre Vendas
                     </h4>
                     {Object.entries(cashFlowData.despesasVendas).map(([key, value], index) => (
                       <div 
                         key={key} 
-                        className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200 hover-scale"
+                        className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200 hover-scale"
                         style={{ animationDelay: `${(index + Object.keys(cashFlowData.entradas).length) * 0.1}s` }}
                       >
-                        <span className="font-medium text-orange-700">{key}</span>
-                        <span className="text-lg font-bold text-orange-800">
+                        <span className="font-medium text-yellow-700">{key}</span>
+                        <span className="text-lg font-bold text-yellow-800">
                           {formatCurrency(value)}
                         </span>
                       </div>
                     ))}
+                    <div className="flex items-center justify-between p-3 bg-yellow-100 rounded-lg border-2 border-yellow-300">
+                      <span className="text-sm font-bold text-yellow-800">Subtotal Despesas Vendas</span>
+                      <span className="text-lg font-bold text-yellow-800">
+                        -{formatCurrency(cashFlowData.totalDespesasVendas)}
+                      </span>
+                    </div>
                   </div>
                 </>
               )}
@@ -243,7 +274,7 @@ const CashFlow: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Saídas */}
+          {/* Saídas - VERMELHO */}
           <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-red-800">

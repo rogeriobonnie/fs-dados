@@ -270,40 +270,42 @@ export class GoogleSheetsService {
     const cashFlowRecords: any[] = [];
     
     console.log('Cash Flow Parsing - Total rows:', rows.length);
-    console.log('First 10 rows preview:', rows.slice(0, 10));
+    console.log('First 20 rows preview:', rows.slice(0, 20));
     
-    // Skip first row (header) and process data
-    for (let i = 1; i < rows.length; i++) {
+    // Process each row - Coluna A = título, Coluna B = valor
+    for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       
       if (!row || row.length === 0) continue;
       
-      // Parse each column based on the structure
-      const category = (row[0] || '').toString().trim();
-      const description = (row[1] || '').toString().trim();
-      const subcategory = (row[2] || '').toString().trim();
-      const detail = (row[3] || '').toString().trim();
-      const amount = this.parseAmount(row[4] || '');
-      const date = (row[5] || '').toString().trim();
-      const bank = (row[6] || '').toString().trim();
+      const titulo = (row[0] || '').toString().trim(); // Coluna A
+      const valorStr = (row[1] || '').toString().trim(); // Coluna B
       
-      // Skip rows without significant data
-      if (!category && !description && amount === 0) continue;
+      // Parse valor brasileiro (vírgula como decimal)
+      const parseValor = (str: string): number => {
+        if (!str) return 0;
+        const cleanStr = str.replace(/[^\d,-]/g, '').replace(',', '.');
+        const num = parseFloat(cleanStr);
+        return isNaN(num) ? 0 : num;
+      };
+      
+      const valor = parseValor(valorStr);
       
       cashFlowRecords.push({
         id: `cf-${i}`,
-        category,
-        description,
-        subcategory,
-        detail,
-        amount,
-        date,
-        bank,
-        type: amount >= 0 ? 'ENTRADA' : 'SAÍDA'
+        category: titulo,        // Coluna A (título)
+        description: titulo,     // Repetição para compatibilidade
+        subcategory: valorStr,   // Coluna B (valor como string)
+        detail: '',
+        amount: valor,           // Valor convertido para número
+        date: '',
+        bank: '',
+        type: valor >= 0 ? 'ENTRADA' : 'SAÍDA'
       });
     }
     
     console.log('Parsed Cash Flow records:', cashFlowRecords.length);
+    console.log('Sample records:', cashFlowRecords.slice(0, 10));
     return cashFlowRecords;
   }
 
