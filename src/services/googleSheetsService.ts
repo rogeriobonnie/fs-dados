@@ -209,7 +209,8 @@ export class GoogleSheetsService {
           date,
           extraDetail1,
           extraDetail2,
-          originalAmount: amount
+          originalAmount: amount,
+          sourceType: type // preserva valor original da coluna A (ex.: 02-SAÍDAS)
         });
         
         // Log specific entries that contain names

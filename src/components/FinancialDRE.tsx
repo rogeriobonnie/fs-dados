@@ -27,6 +27,7 @@ interface DRERecord {
   extraDetail1: string;
   extraDetail2: string;
   originalAmount: number;
+  sourceType?: string; // valor original da coluna A (ex.: 02-SAÍDAS)
 }
 
 interface DREData {
@@ -179,10 +180,16 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       .replace(/[\u0300-\u036f]/g, '')
       .trim();
 
-    const inAnyField = (record: DRERecord, predicate: (t: string) => boolean) => {
-      const fields = [record.description, record.details, record.extraDetail1, record.extraDetail2];
-      return fields.some(f => predicate(normalize(f)));
-    };
+const inAnyField = (record: DRERecord, predicate: (t: string) => boolean) => {
+  const fields = [
+    record.description,
+    record.details,
+    record.extraDetail1,
+    record.extraDetail2,
+    record.sourceType // inclui coluna A original
+  ];
+  return fields.some(f => predicate(normalize(f || '')));
+};
 
     const isOperationalExpense = (record: DRERecord) => {
       if (record.type !== 'DESPESA') return false;
