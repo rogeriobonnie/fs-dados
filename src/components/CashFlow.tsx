@@ -8,12 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
 import { 
-  Search, 
   TrendingUp, 
   TrendingDown, 
   Calendar,
   Building2,
-  Filter,
   Loader2,
   RefreshCw
 } from 'lucide-react';
@@ -35,11 +33,6 @@ const CashFlow: React.FC = () => {
   const [cashFlowData, setCashFlowData] = useState<CashFlowRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedBank, setSelectedBank] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   
   const { toast } = useToast();
 
@@ -65,52 +58,13 @@ const CashFlow: React.FC = () => {
     }
   };
 
-  // Filter and process data
-  const filteredData = useMemo(() => {
-    let filtered = cashFlowData;
-
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(record => 
-        record.description.toLowerCase().includes(searchLower) ||
-        record.category.toLowerCase().includes(searchLower) ||
-        record.subcategory.toLowerCase().includes(searchLower) ||
-        record.detail.toLowerCase().includes(searchLower)
-      );
-    }
-
-    if (selectedCategory) {
-      filtered = filtered.filter(record => record.category === selectedCategory);
-    }
-
-    if (selectedBank) {
-      filtered = filtered.filter(record => record.bank === selectedBank);
-    }
-
-    if (startDate || endDate) {
-      filtered = filtered.filter(record => {
-        if (!record.date) return true;
-        
-        const recordDate = new Date(record.date.split('/').reverse().join('-'));
-        const start = startDate ? new Date(startDate) : null;
-        const end = endDate ? new Date(endDate) : null;
-        
-        if (start && recordDate < start) return false;
-        if (end && recordDate > end) return false;
-        return true;
-      });
-    }
-
-    return filtered;
-  }, [cashFlowData, searchTerm, selectedCategory, selectedBank, startDate, endDate]);
-
   // Calculate summary
   const summary = useMemo(() => {
-    const totalEntradas = filteredData
+    const totalEntradas = cashFlowData
       .filter(record => record.type === 'ENTRADA')
       .reduce((sum, record) => sum + record.amount, 0);
     
-    const totalSaidas = filteredData
+    const totalSaidas = cashFlowData
       .filter(record => record.type === 'SAÍDA')
       .reduce((sum, record) => sum + Math.abs(record.amount), 0);
     
@@ -121,24 +75,13 @@ const CashFlow: React.FC = () => {
       totalSaidas,
       saldoLiquido
     };
-  }, [filteredData]);
-
-  // Get unique values for filters
-  const uniqueCategories = useMemo(() => 
-    [...new Set(cashFlowData.map(record => record.category).filter(Boolean))].sort(),
-    [cashFlowData]
-  );
-
-  const uniqueBanks = useMemo(() => 
-    [...new Set(cashFlowData.map(record => record.bank).filter(Boolean))].sort(),
-    [cashFlowData]
-  );
+  }, [cashFlowData]);
 
   // Group data by category
   const groupedData = useMemo(() => {
     const groups: { [key: string]: CashFlowRecord[] } = {};
     
-    filteredData.forEach(record => {
+    cashFlowData.forEach(record => {
       const key = record.category || 'Outros';
       if (!groups[key]) {
         groups[key] = [];
@@ -147,7 +90,7 @@ const CashFlow: React.FC = () => {
     });
 
     return groups;
-  }, [filteredData]);
+  }, [cashFlowData]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -172,82 +115,6 @@ const CashFlow: React.FC = () => {
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <Label htmlFor="search">Buscar</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Buscar por descrição..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="category">Categoria</Label>
-              <select
-                id="category"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-              >
-                <option value="">Todas as categorias</option>
-                {uniqueCategories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <Label htmlFor="bank">Banco</Label>
-              <select
-                id="bank"
-                value={selectedBank}
-                onChange={(e) => setSelectedBank(e.target.value)}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-              >
-                <option value="">Todos os bancos</option>
-                {uniqueBanks.map(bank => (
-                  <option key={bank} value={bank}>{bank}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <Label htmlFor="startDate">Data Inicial</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="endDate">Data Final</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Summary Cards */}
       {hasSearched && (
@@ -361,11 +228,11 @@ const CashFlow: React.FC = () => {
         </div>
       )}
 
-      {hasSearched && filteredData.length === 0 && (
+      {hasSearched && cashFlowData.length === 0 && (
         <Card>
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">
-              Nenhum registro encontrado com os filtros aplicados.
+              Nenhum registro encontrado na Página3.
             </p>
           </CardContent>
         </Card>
