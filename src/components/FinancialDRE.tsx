@@ -171,9 +171,8 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     };
 
     // Separate into different categories based on description / column A markers
-    const baseReceipts = filteredData.filter(record => record.type === 'RECEITA');
-    
-    // Normalize text for comparison
+    const receipts = filteredData.filter(record => record.type === 'RECEITA');
+
     const normalize = (s?: string) => (s || '')
       .toUpperCase()
       .normalize('NFD')
@@ -195,25 +194,9 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       return inAnyField(record, (t) => /^03[\s\.-]/.test(t) || t.includes('03-DIST') || t.includes('LUCRO'));
     };
 
-    const isInvestmentType = (record: DRERecord) => {
-      return inAnyField(record, (t) => 
-        /^04[\s\.-]/.test(t) || 
-        t.includes('04-INVEST') || 
-        t.includes('INVEST') || 
-        t.includes('APLICACAO') || 
-        t.includes('XP INVEST')
-      );
-    };
-
-    // Separate investments from withdrawals based on amount sign
     const isInvestment = (record: DRERecord) => {
       if (record.type !== 'DESPESA') return false;
-      return isInvestmentType(record) && record.amount >= 0; // Positive = investment
-    };
-
-    const isWithdrawal = (record: DRERecord) => {
-      if (record.type !== 'DESPESA') return false;
-      return isInvestmentType(record) && record.amount < 0; // Negative = withdrawal (like receipt)
+      return inAnyField(record, (t) => /^04[\s\.-]/.test(t) || t.includes('04-INVEST') || t.includes('INVEST') || t.includes('APLICACAO') || t.includes('XP INVEST'));
     };
 
     // Debug logs
@@ -224,21 +207,10 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     const operationalExpenses = filteredData.filter(isOperationalExpense);
     const distributions = filteredData.filter(isDistribution);
     const investments = filteredData.filter(isInvestment);
-    const withdrawals = filteredData.filter(isWithdrawal);
 
     console.log('Operational expenses found:', operationalExpenses.length);
     console.log('Distributions found:', distributions.length);
-    console.log('Investments (positive values) found:', investments.length);
-    console.log('Withdrawals (negative values) found:', withdrawals.length);
-
-    // Convert withdrawals to positive receipts and add to receipts
-    const withdrawalReceipts = withdrawals.map(record => ({
-      ...record,
-      amount: Math.abs(record.amount), // Convert negative to positive
-      description: `${record.description} (Resgate)`
-    }));
-
-    const receipts = [...baseReceipts, ...withdrawalReceipts];
+    console.log('Investments found:', investments.length);
 
     // Group them by description
     const groupedReceipts = groupByDescription(receipts);
@@ -255,11 +227,6 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     const totalExpenses = operationalExpenses.reduce((sum, record) => sum + record.amount, 0);
     const totalDistributions = distributions.reduce((sum, record) => sum + record.amount, 0);
     const totalInvestments = investments.reduce((sum, record) => sum + record.amount, 0);
-
-    console.log('Total receipts (including withdrawals):', totalReceipts);
-    console.log('Total operational expenses:', totalExpenses);
-    console.log('Total distributions:', totalDistributions);
-    console.log('Total investments:', totalInvestments);
 
     const operationalResult = totalReceipts - totalExpenses;
     const netResult = operationalResult - totalDistributions - totalInvestments;
@@ -407,12 +374,12 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-700">Total Receitas + Resgates</p>
+                  <p className="text-sm font-medium text-green-700">Total Receitas</p>
                   <p className="text-2xl font-bold text-green-800">
                     {formatCurrency(processedDREData.receipts.total)}
                   </p>
                   <p className="text-xs text-green-600 mt-1">
-                    {Object.keys(processedDREData.receipts.items).length} categoria{Object.keys(processedDREData.receipts.items).length !== 1 ? 's' : ''} (inc. resgates)
+                    {Object.keys(processedDREData.receipts.items).length} categoria{Object.keys(processedDREData.receipts.items).length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <div className="p-3 bg-green-200 rounded-full">
@@ -490,7 +457,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-green-600">
                   <TrendingUp className="h-5 w-5" />
-                  Receitas + Resgates
+                  Receitas
                 </div>
                 <span className="text-green-600 font-bold">
                   {formatCurrency(processedDREData.receipts.total)}
@@ -940,7 +907,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
           <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span>Total de Receitas + Resgates:</span>
+                <span>Total de Receitas:</span>
                 <span className="text-green-600 font-medium">
                   {formatCurrency(processedDREData.receipts.total)}
                 </span>
