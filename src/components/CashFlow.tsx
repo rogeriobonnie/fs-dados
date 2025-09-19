@@ -1,50 +1,98 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
 import { 
   TrendingUp, 
   TrendingDown, 
-  Calendar,
-  Building2,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  DollarSign,
+  Minus,
+  Plus,
+  BarChart3
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
-interface CashFlowRecord {
-  id: string;
-  category: string;
-  description: string;
-  subcategory: string;
-  detail: string;
-  amount: number;
-  date: string;
-  bank: string;
-  type: 'ENTRADA' | 'SAÍDA';
+interface CashFlowData {
+  saldoInicial: number;
+  entradas: { [key: string]: number };
+  totalEntradas: number;
+  saidas: { [key: string]: number };
+  totalSaidas: number;
+  saldoFinal: number;
+  despesasVendas: { [key: string]: number };
+  totalDespesasVendas: number;
 }
 
 const CashFlow: React.FC = () => {
-  const [cashFlowData, setCashFlowData] = useState<CashFlowRecord[]>([]);
+  const [cashFlowData, setCashFlowData] = useState<CashFlowData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   
   const { toast } = useToast();
 
+  const processCashFlowData = (rawData: any[]): CashFlowData => {
+    const result: CashFlowData = {
+      saldoInicial: 0,
+      entradas: {},
+      totalEntradas: 0,
+      saidas: {},
+      totalSaidas: 0,
+      saldoFinal: 0,
+      despesasVendas: {},
+      totalDespesasVendas: 0
+    };
+
+    let currentSection = '';
+    
+    rawData.forEach((record, index) => {
+      const description = record.description || record.category || '';
+      const amount = record.amount || 0;
+      
+      if (description.toUpperCase().includes('SALDO INICIAL')) {
+        result.saldoInicial = Math.abs(amount);
+      } else if (description.toUpperCase().includes('ENTRADAS:')) {
+        currentSection = 'ENTRADAS';
+      } else if (description.toUpperCase().includes('DESPESAS SOBRE VENDAS')) {
+        currentSection = 'DESPESAS_VENDAS';
+      } else if (description.toUpperCase().includes('TOTAL ENTRADAS')) {
+        result.totalEntradas = Math.abs(amount);
+        currentSection = '';
+      } else if (description.toUpperCase().includes('SAÍDAS:')) {
+        currentSection = 'SAIDAS';
+      } else if (description.toUpperCase().includes('TOTAL SAÍDAS')) {
+        result.totalSaidas = Math.abs(amount);
+        currentSection = '';
+      } else if (description.toUpperCase().includes('SALDO FIM')) {
+        result.saldoFinal = Math.abs(amount);
+      } else if (description && amount !== 0) {
+        if (currentSection === 'ENTRADAS') {
+          result.entradas[description] = Math.abs(amount);
+        } else if (currentSection === 'DESPESAS_VENDAS') {
+          result.despesasVendas[description] = amount;
+          result.totalDespesasVendas += Math.abs(amount);
+        } else if (currentSection === 'SAIDAS') {
+          result.saidas[description] = Math.abs(amount);
+        }
+      }
+    });
+
+    return result;
+  };
+
   const loadCashFlowData = async () => {
     setIsLoading(true);
     try {
-      const data = await GoogleSheetsService.fetchCashFlowData();
-      setCashFlowData(data);
+      const rawData = await GoogleSheetsService.fetchCashFlowData();
+      const processedData = processCashFlowData(rawData);
+      setCashFlowData(processedData);
       setHasSearched(true);
       toast({
         title: "Sucesso",
-        description: `${data.length} registros de fluxo de caixa carregados.`,
+        description: "Dados do fluxo de caixa carregados com sucesso.",
       });
     } catch (error) {
       console.error('Error loading cash flow data:', error);
@@ -58,39 +106,36 @@ const CashFlow: React.FC = () => {
     }
   };
 
-  // Calculate summary
-  const summary = useMemo(() => {
-    const totalEntradas = cashFlowData
-      .filter(record => record.type === 'ENTRADA')
-      .reduce((sum, record) => sum + record.amount, 0);
-    
-    const totalSaidas = cashFlowData
-      .filter(record => record.type === 'SAÍDA')
-      .reduce((sum, record) => sum + Math.abs(record.amount), 0);
-    
-    const saldoLiquido = totalEntradas - totalSaidas;
+  useEffect(() => {
+    loadCashFlowData();
+  }, []);
 
-    return {
-      totalEntradas,
-      totalSaidas,
-      saldoLiquido
-    };
-  }, [cashFlowData]);
-
-  // Group data by category
-  const groupedData = useMemo(() => {
-    const groups: { [key: string]: CashFlowRecord[] } = {};
-    
-    cashFlowData.forEach(record => {
-      const key = record.category || 'Outros';
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(record);
-    });
-
-    return groups;
-  }, [cashFlowData]);
+  if (!hasSearched) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Fluxo de Caixa</h1>
+            <p className="text-muted-foreground">
+              Demonstração detalhada das movimentações financeiras
+            </p>
+          </div>
+          <Button 
+            onClick={loadCashFlowData} 
+            disabled={isLoading}
+            className="flex items-center gap-2"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {isLoading ? 'Carregando...' : 'Carregar Dados'}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -98,7 +143,7 @@ const CashFlow: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Fluxo de Caixa</h1>
           <p className="text-muted-foreground">
-            Análise completa das entradas e saídas financeiras
+            Demonstração detalhada das movimentações financeiras
           </p>
         </div>
         <Button 
@@ -111,57 +156,211 @@ const CashFlow: React.FC = () => {
           ) : (
             <RefreshCw className="h-4 w-4" />
           )}
-          {isLoading ? 'Carregando...' : 'Consultar'}
+          {isLoading ? 'Carregando...' : 'Atualizar'}
         </Button>
       </div>
 
+      {cashFlowData && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Saldo Inicial */}
+          <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-200 rounded-full">
+                    <BarChart3 className="h-6 w-6 text-blue-700" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-blue-800">Saldo Inicial</h2>
+                    <p className="text-sm text-blue-600">Valor disponível no início do período</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-blue-800">
+                    {formatCurrency(cashFlowData.saldoInicial)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Summary Cards */}
-      {hasSearched && (
-        <div className="grid gap-4 md:grid-cols-3">
+          {/* Entradas */}
           <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Total Entradas</p>
-                  <p className="text-2xl font-bold text-green-800">
-                    {formatCurrency(summary.totalEntradas)}
-                  </p>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-800">
+                <Plus className="h-5 w-5" />
+                Entradas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Object.entries(cashFlowData.entradas).map(([key, value], index) => (
+                <div 
+                  key={key} 
+                  className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-green-200 hover-scale"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <span className="font-medium text-green-700">{key}</span>
+                  <span className="text-lg font-bold text-green-800">
+                    +{formatCurrency(value)}
+                  </span>
                 </div>
-                <div className="p-3 bg-green-200 rounded-full">
-                  <TrendingUp className="h-6 w-6 text-green-700" />
-                </div>
+              ))}
+              
+              {/* Despesas sobre Vendas */}
+              {Object.keys(cashFlowData.despesasVendas).length > 0 && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-orange-700 flex items-center gap-2">
+                      <Minus className="h-4 w-4" />
+                      Despesas sobre Vendas
+                    </h4>
+                    {Object.entries(cashFlowData.despesasVendas).map(([key, value], index) => (
+                      <div 
+                        key={key} 
+                        className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200 hover-scale"
+                        style={{ animationDelay: `${(index + Object.keys(cashFlowData.entradas).length) * 0.1}s` }}
+                      >
+                        <span className="font-medium text-orange-700">{key}</span>
+                        <span className="text-lg font-bold text-orange-800">
+                          {formatCurrency(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              
+              <Separator className="my-4" />
+              <div className="flex items-center justify-between p-4 bg-green-100 rounded-lg border-2 border-green-300">
+                <span className="text-lg font-bold text-green-800">Total de Entradas</span>
+                <span className="text-2xl font-bold text-green-800">
+                  {formatCurrency(cashFlowData.totalEntradas)}
+                </span>
               </div>
             </CardContent>
           </Card>
 
+          {/* Saídas */}
           <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Total Saídas</p>
-                  <p className="text-2xl font-bold text-red-800">
-                    {formatCurrency(summary.totalSaidas)}
-                  </p>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-800">
+                <Minus className="h-5 w-5" />
+                Saídas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Object.entries(cashFlowData.saidas).map(([key, value], index) => (
+                <div 
+                  key={key} 
+                  className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-red-200 hover-scale"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <span className="font-medium text-red-700">{key}</span>
+                  <span className="text-lg font-bold text-red-800">
+                    -{formatCurrency(value)}
+                  </span>
                 </div>
-                <div className="p-3 bg-red-200 rounded-full">
-                  <TrendingDown className="h-6 w-6 text-red-700" />
+              ))}
+              
+              <Separator className="my-4" />
+              <div className="flex items-center justify-between p-4 bg-red-100 rounded-lg border-2 border-red-300">
+                <span className="text-lg font-bold text-red-800">Total de Saídas</span>
+                <span className="text-2xl font-bold text-red-800">
+                  -{formatCurrency(cashFlowData.totalSaidas)}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Saldo Final */}
+          <Card className={`border-2 ${
+            cashFlowData.saldoFinal >= 0 
+              ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-emerald-100' 
+              : 'border-orange-300 bg-gradient-to-br from-orange-50 to-orange-100'
+          }`}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-full ${
+                    cashFlowData.saldoFinal >= 0 ? 'bg-emerald-200' : 'bg-orange-200'
+                  }`}>
+                    <DollarSign className={`h-6 w-6 ${
+                      cashFlowData.saldoFinal >= 0 ? 'text-emerald-700' : 'text-orange-700'
+                    }`} />
+                  </div>
+                  <div>
+                    <h2 className={`text-xl font-bold ${
+                      cashFlowData.saldoFinal >= 0 ? 'text-emerald-800' : 'text-orange-800'
+                    }`}>
+                      Saldo Final
+                    </h2>
+                    <p className={`text-sm ${
+                      cashFlowData.saldoFinal >= 0 ? 'text-emerald-600' : 'text-orange-600'
+                    }`}>
+                      Resultado final do período
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-3xl font-bold ${
+                    cashFlowData.saldoFinal >= 0 ? 'text-emerald-800' : 'text-orange-800'
+                  }`}>
+                    {formatCurrency(cashFlowData.saldoFinal)}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`border-2 ${summary.saldoLiquido >= 0 ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100' : 'border-orange-300 bg-gradient-to-br from-orange-50 to-orange-100'}`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Saldo Líquido</p>
-                  <p className={`text-2xl font-bold ${summary.saldoLiquido >= 0 ? 'text-blue-800' : 'text-orange-800'}`}>
-                    {formatCurrency(summary.saldoLiquido)}
+          {/* Resumo Visual */}
+          <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Resumo do Período
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="text-center p-4 bg-green-100 rounded-lg hover-scale">
+                  <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                  <p className="text-sm text-green-600">Total Entradas</p>
+                  <p className="text-xl font-bold text-green-800">
+                    {formatCurrency(cashFlowData.totalEntradas)}
                   </p>
                 </div>
-                <div className={`p-3 rounded-full ${summary.saldoLiquido >= 0 ? 'bg-blue-200' : 'bg-orange-200'}`}>
-                  <Building2 className={`h-6 w-6 ${summary.saldoLiquido >= 0 ? 'text-blue-700' : 'text-orange-700'}`} />
+                <div className="text-center p-4 bg-red-100 rounded-lg hover-scale">
+                  <TrendingDown className="h-8 w-8 text-red-600 mx-auto mb-2" />
+                  <p className="text-sm text-red-600">Total Saídas</p>
+                  <p className="text-xl font-bold text-red-800">
+                    {formatCurrency(cashFlowData.totalSaidas)}
+                  </p>
+                </div>
+                <div className={`text-center p-4 rounded-lg hover-scale ${
+                  (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
+                    ? 'bg-blue-100' 
+                    : 'bg-orange-100'
+                }`}>
+                  <DollarSign className={`h-8 w-8 mx-auto mb-2 ${
+                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
+                      ? 'text-blue-600' 
+                      : 'text-orange-600'
+                  }`} />
+                  <p className={`text-sm ${
+                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
+                      ? 'text-blue-600' 
+                      : 'text-orange-600'
+                  }`}>
+                    Resultado
+                  </p>
+                  <p className={`text-xl font-bold ${
+                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
+                      ? 'text-blue-800' 
+                      : 'text-orange-800'
+                  }`}>
+                    {formatCurrency(cashFlowData.totalEntradas - cashFlowData.totalSaidas)}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -169,70 +368,11 @@ const CashFlow: React.FC = () => {
         </div>
       )}
 
-      {/* Data Display */}
-      {hasSearched && (
-        <div className="space-y-6">
-          {Object.entries(groupedData).map(([category, records]) => (
-            <Card key={category}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{category}</span>
-                  <Badge variant="secondary">
-                    {records.length} registro{records.length !== 1 ? 's' : ''}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {records.map((record, index) => (
-                    <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium">{record.description}</h4>
-                          <Badge variant={record.type === 'ENTRADA' ? 'default' : 'destructive'}>
-                            {record.type}
-                          </Badge>
-                        </div>
-                        {record.subcategory && (
-                          <p className="text-sm text-muted-foreground">{record.subcategory}</p>
-                        )}
-                        {record.detail && (
-                          <p className="text-sm text-muted-foreground">{record.detail}</p>
-                        )}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          {record.date && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {record.date}
-                            </div>
-                          )}
-                          {record.bank && (
-                            <div className="flex items-center gap-1">
-                              <Building2 className="h-3 w-3" />
-                              {record.bank}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-lg font-bold ${record.type === 'ENTRADA' ? 'text-green-600' : 'text-red-600'}`}>
-                          {record.type === 'ENTRADA' ? '+' : '-'}{formatCurrency(Math.abs(record.amount))}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {hasSearched && cashFlowData.length === 0 && (
+      {hasSearched && !cashFlowData && (
         <Card>
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">
-              Nenhum registro encontrado na Página3.
+              Nenhum dado encontrado na Página3.
             </p>
           </CardContent>
         </Card>
