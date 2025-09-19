@@ -172,9 +172,22 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
 
     // Separate into different categories based on description
     const receipts = filteredData.filter(record => record.type === 'RECEITA');
-    const operationalExpenses = filteredData.filter(record => 
-      record.type === 'DESPESA' && record.description.startsWith('02-')
-    );
+    
+    // Debug: Log all DESPESA records to see their descriptions
+    const allExpenses = filteredData.filter(record => record.type === 'DESPESA');
+    console.log('All DESPESA records found:', allExpenses.length);
+    console.log('DESPESA descriptions:', allExpenses.map(r => r.description));
+    
+    const operationalExpenses = filteredData.filter(record => {
+      const isExpense = record.type === 'DESPESA';
+      const startsWithO2 = record.description.startsWith('02-');
+      console.log(`Record: ${record.description}, isExpense: ${isExpense}, startsWithO2: ${startsWithO2}`);
+      return isExpense && startsWithO2;
+    });
+    
+    console.log('Operational expenses found:', operationalExpenses.length);
+    console.log('Operational expenses descriptions:', operationalExpenses.map(r => r.description));
+    
     const distributions = filteredData.filter(record => 
       record.type === 'DESPESA' && record.description.startsWith('03-')
     );
