@@ -193,23 +193,6 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Dashboard Overview */}
-          <FinancialDashboard summary={summary} consultantSummaries={consultantSummaries} />
-
-          {/* Quick Filters */}
-          <QuickFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            totalRecords={filteredData.length}
-          />
-
-          {/* Advanced Filters */}
-          <FinancialFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            consultants={uniqueConsultants}
-          />
-
           {/* Main Tabs */}
           <Tabs defaultValue="fs-turma" className="space-y-6">
             <TabsList className="grid w-full grid-cols-2">
@@ -224,6 +207,23 @@ const Index = () => {
             </TabsList>
 
             <TabsContent value="fs-turma" className="space-y-6">
+              {/* Dashboard Overview */}
+              <FinancialDashboard summary={summary} consultantSummaries={consultantSummaries} />
+
+              {/* Quick Filters */}
+              <QuickFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                totalRecords={filteredData.length}
+              />
+
+              {/* Advanced Filters */}
+              <FinancialFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                consultants={uniqueConsultants}
+              />
+
               {/* Nested Tabs for FS Turma IV content */}
               <Tabs defaultValue="table" className="space-y-6">
                 <TabsList className="grid w-full grid-cols-4 text-xs">
