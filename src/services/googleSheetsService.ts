@@ -113,6 +113,7 @@ export class GoogleSheetsService {
     const dreRecords: any[] = [];
     
     console.log('DRE Parsing - Total rows:', rows.length);
+    console.log('First 10 rows preview:', rows.slice(0, 10));
     
     // Skip first few rows and find data starting from row with actual content
     for (let i = 1; i < rows.length; i++) {
@@ -128,6 +129,22 @@ export class GoogleSheetsService {
       const date = (row[5] || '').toString().trim(); // Column F - date
       const extraDetail2 = (row[6] || '').toString().trim(); // Column G
       
+      // Log rows that contain specific names for debugging
+      const fullRowText = row.join(' ').toUpperCase();
+      if (fullRowText.includes('MARIA') || fullRowText.includes('EDLAMAR') || fullRowText.includes('PRISCILA')) {
+        console.log(`Found name in row ${i}:`, {
+          rowIndex: i,
+          fullRow: row,
+          type,
+          description,
+          details,
+          extraDetail1,
+          extraDetail2,
+          amount,
+          date
+        });
+      }
+      
       // Log first few rows for debugging
       if (i <= 10) {
         console.log(`DRE Row ${i}:`, {
@@ -141,8 +158,8 @@ export class GoogleSheetsService {
         });
       }
       
-      // Check if this is a valid DRE entry
-      if (description && (amount !== 0 || type || date)) {
+      // Check if this is a valid DRE entry - be more flexible with criteria
+      if (description || type || amount !== 0 || date || extraDetail1 || extraDetail2) {
         // Extract month and year from date
         let month = '';
         let year = '';
@@ -170,14 +187,21 @@ export class GoogleSheetsService {
           year = year || String(currentDate.getFullYear());
         }
         
-        const recordType = type.toUpperCase().includes('ENTRADA') || 
-                          type.toUpperCase().includes('RECEITA') || 
-                          description.toUpperCase().includes('RECEITA') ? 'RECEITA' : 'DESPESA';
+        // Determine type more flexibly
+        let recordType = 'DESPESA'; // default
+        if (type.toUpperCase().includes('ENTRADA') || 
+            type.toUpperCase().includes('RECEITA') || 
+            description.toUpperCase().includes('RECEITA') ||
+            description.toUpperCase().includes('CLUBE') ||
+            extraDetail1.toUpperCase().includes('CLUBE') ||
+            extraDetail2.toUpperCase().includes('CLUBE')) {
+          recordType = 'RECEITA';
+        }
         
         dreRecords.push({
           id: `dre_${i}`,
           type: recordType,
-          description,
+          description: description || `Item ${i}`,
           details,
           amount: Math.abs(amount) || 0,
           month,
@@ -188,10 +212,15 @@ export class GoogleSheetsService {
           originalAmount: amount
         });
         
-        if (i <= 5) {
-          console.log(`DRE Record ${i} created:`, {
+        // Log specific entries that contain names
+        const fullRowText = row.join(' ').toUpperCase();
+        if (fullRowText.includes('MARIA') || fullRowText.includes('EDLAMAR') || fullRowText.includes('PRISCILA')) {
+          console.log(`Created DRE record for ${description}:`, {
             type: recordType,
             description,
+            details,
+            extraDetail1,
+            extraDetail2,
             amount: Math.abs(amount),
             month,
             year

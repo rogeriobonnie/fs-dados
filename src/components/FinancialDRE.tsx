@@ -127,15 +127,33 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
 
   // Filter and process DRE data
   const processedDREData = useMemo((): DREData => {
+    console.log('Processing DRE data - Total records:', dreData.length);
+    
+    // Log records that contain specific names
+    const namedRecords = dreData.filter(record => {
+      const searchText = `${record.description} ${record.details} ${record.extraDetail1} ${record.extraDetail2}`.toUpperCase();
+      return searchText.includes('MARIA') || searchText.includes('EDLAMAR') || searchText.includes('PRISCILA') || searchText.includes('CLUBE');
+    });
+    console.log('Records with names (Maria, Edlamar, Priscila, Clube):', namedRecords);
+
     let filteredData = dreData;
 
     // Apply month/year filters if selected
     if (selectedMonth !== 'all' || selectedYear !== 'all') {
+      const beforeFilter = filteredData.length;
       filteredData = dreData.filter(record => {
         const monthMatches = selectedMonth === 'all' || record.month === selectedMonth;
         const yearMatches = selectedYear === 'all' || record.year === selectedYear;
         return monthMatches && yearMatches;
       });
+      console.log(`Filter applied: ${beforeFilter} -> ${filteredData.length} records`);
+      
+      // Log filtered named records
+      const filteredNamedRecords = filteredData.filter(record => {
+        const searchText = `${record.description} ${record.details} ${record.extraDetail1} ${record.extraDetail2}`.toUpperCase();
+        return searchText.includes('MARIA') || searchText.includes('EDLAMAR') || searchText.includes('PRISCILA') || searchText.includes('CLUBE');
+      });
+      console.log('Named records after filter:', filteredNamedRecords);
     }
 
     // Separate receipts and expenses
