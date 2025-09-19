@@ -210,48 +210,60 @@ const Index = () => {
             consultants={uniqueConsultants}
           />
 
-          {/* Tabbed Content */}
-          <Tabs defaultValue="table" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 text-xs">
-              <TabsTrigger value="table" className="flex items-center gap-1 px-2">
-                <Table2 className="h-3 w-3" />
-                Tabela
+          {/* Main Tabs */}
+          <Tabs defaultValue="fs-turma" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="fs-turma" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                FS Turma IV
               </TabsTrigger>
-              <TabsTrigger value="students" className="flex items-center gap-1 px-2">
-                <Users className="h-3 w-3" />
-                Alunos
-              </TabsTrigger>
-              <TabsTrigger value="monthly" className="flex items-center gap-1 px-2">
-                <TrendingUp className="h-3 w-3" />
-                Mensal
-              </TabsTrigger>
-              <TabsTrigger value="commissions" className="flex items-center gap-1 px-2">
-                <DollarSign className="h-3 w-3" />
-                Comissões
-              </TabsTrigger>
-              <TabsTrigger value="dre" className="flex items-center gap-1 px-2">
-                <BarChart3 className="h-3 w-3" />
+              <TabsTrigger value="demonstracoes" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
                 Demonstrações
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="table" className="space-y-6">
-              <FinancialTable data={filteredData} />
+            <TabsContent value="fs-turma" className="space-y-6">
+              {/* Nested Tabs for FS Turma IV content */}
+              <Tabs defaultValue="table" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-4 text-xs">
+                  <TabsTrigger value="table" className="flex items-center gap-1 px-2">
+                    <Table2 className="h-3 w-3" />
+                    Tabela
+                  </TabsTrigger>
+                  <TabsTrigger value="students" className="flex items-center gap-1 px-2">
+                    <Users className="h-3 w-3" />
+                    Alunos
+                  </TabsTrigger>
+                  <TabsTrigger value="monthly" className="flex items-center gap-1 px-2">
+                    <TrendingUp className="h-3 w-3" />
+                    Mensal
+                  </TabsTrigger>
+                  <TabsTrigger value="commissions" className="flex items-center gap-1 px-2">
+                    <DollarSign className="h-3 w-3" />
+                    Comissões
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="table" className="space-y-6">
+                  <FinancialTable data={filteredData} />
+                </TabsContent>
+
+                <TabsContent value="students" className="space-y-6">
+                  <StudentsDirectory data={filteredData} />
+                </TabsContent>
+
+                <TabsContent value="monthly" className="space-y-6">
+                  <MonthlyRevenue data={filteredData} />
+                </TabsContent>
+
+                <TabsContent value="commissions" className="space-y-6">
+                  <MonthlyCommissionReport data={filteredData} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
-            <TabsContent value="students" className="space-y-6">
-              <StudentsDirectory data={filteredData} />
-            </TabsContent>
-
-            <TabsContent value="monthly" className="space-y-6">
-              <MonthlyRevenue data={filteredData} />
-            </TabsContent>
-
-            <TabsContent value="commissions" className="space-y-6">
-              <MonthlyCommissionReport data={filteredData} />
-            </TabsContent>
-
-            <TabsContent value="dre" className="space-y-6">
+            <TabsContent value="demonstracoes" className="space-y-6">
               <FinancialDRE data={filteredData} />
             </TabsContent>
           </Tabs>
