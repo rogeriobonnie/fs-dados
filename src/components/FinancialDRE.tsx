@@ -361,19 +361,31 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                       </CollapsibleTrigger>
                       {(item.details || item.extraDetails) && (
                         <CollapsibleContent className="mt-3 pt-3 border-t border-green-200">
-                          <div className="space-y-2 text-sm">
-                            {item.details && (
-                              <div className="flex gap-2">
-                                <span className="font-medium text-muted-foreground">Detalhes:</span>
-                                <span>{item.details}</span>
+                          <div className="flex flex-wrap gap-2">
+                            {item.details && item.details.trim() && (
+                              <div className="bg-blue-100 border border-blue-200 rounded-md px-3 py-1">
+                                <span className="text-blue-800 text-sm font-medium">{item.details}</span>
                               </div>
                             )}
-                            {item.extraDetails && (
-                              <div className="flex gap-2">
-                                <span className="font-medium text-muted-foreground">Informações:</span>
-                                <span>{item.extraDetails}</span>
-                              </div>
-                            )}
+                            {item.extraDetails && item.extraDetails.split(',').map((detail, idx) => {
+                              const trimmedDetail = detail.trim();
+                              if (!trimmedDetail) return null;
+                              
+                              // Different colors for different types of details
+                              const colorClasses = [
+                                "bg-purple-100 border-purple-200 text-purple-800",
+                                "bg-orange-100 border-orange-200 text-orange-800", 
+                                "bg-cyan-100 border-cyan-200 text-cyan-800",
+                                "bg-pink-100 border-pink-200 text-pink-800"
+                              ];
+                              const colorClass = colorClasses[idx % colorClasses.length];
+                              
+                              return (
+                                <div key={idx} className={`${colorClass} border rounded-md px-3 py-1 animate-fade-in`}>
+                                  <span className="text-sm font-medium">{trimmedDetail}</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </CollapsibleContent>
                       )}
@@ -426,19 +438,31 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                       </CollapsibleTrigger>
                       {(item.details || item.extraDetails) && (
                         <CollapsibleContent className="mt-3 pt-3 border-t border-red-200">
-                          <div className="space-y-2 text-sm">
-                            {item.details && (
-                              <div className="flex gap-2">
-                                <span className="font-medium text-muted-foreground">Detalhes:</span>
-                                <span>{item.details}</span>
+                          <div className="flex flex-wrap gap-2">
+                            {item.details && item.details.trim() && (
+                              <div className="bg-blue-100 border border-blue-200 rounded-md px-3 py-1">
+                                <span className="text-blue-800 text-sm font-medium">{item.details}</span>
                               </div>
                             )}
-                            {item.extraDetails && (
-                              <div className="flex gap-2">
-                                <span className="font-medium text-muted-foreground">Informações:</span>
-                                <span>{item.extraDetails}</span>
-                              </div>
-                            )}
+                            {item.extraDetails && item.extraDetails.split(',').map((detail, idx) => {
+                              const trimmedDetail = detail.trim();
+                              if (!trimmedDetail) return null;
+                              
+                              // Different colors for different types of details
+                              const colorClasses = [
+                                "bg-purple-100 border-purple-200 text-purple-800",
+                                "bg-orange-100 border-orange-200 text-orange-800", 
+                                "bg-cyan-100 border-cyan-200 text-cyan-800",
+                                "bg-pink-100 border-pink-200 text-pink-800"
+                              ];
+                              const colorClass = colorClasses[idx % colorClasses.length];
+                              
+                              return (
+                                <div key={idx} className={`${colorClass} border rounded-md px-3 py-1 animate-fade-in hover-scale`}>
+                                  <span className="text-sm font-medium">{trimmedDetail}</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </CollapsibleContent>
                       )}
