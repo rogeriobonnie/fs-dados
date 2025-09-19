@@ -32,11 +32,11 @@ interface DRERecord {
 interface DREData {
   receipts: {
     total: number;
-    items: DRERecord[];
+    items: { [key: string]: DRERecord[] };
   };
   expenses: {
     total: number;
-    items: DRERecord[];
+    items: { [key: string]: DRERecord[] };
   };
   netResult: number;
 }
@@ -146,12 +146,31 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       console.log('Named records after filter:', filteredNamedRecords);
     }
 
-    // Separate receipts and expenses - NO GROUPING, show individual records
+    // Group records by description for both receipts and expenses
+    const groupByDescription = (records: DRERecord[]) => {
+      const groups: { [key: string]: DRERecord[] } = {};
+      
+      records.forEach(record => {
+        const key = record.description;
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(record);
+      });
+      
+      return groups;
+    };
+
+    // Separate receipts and expenses
     const receipts = filteredData.filter(record => record.type === 'RECEITA');
     const expenses = filteredData.filter(record => record.type === 'DESPESA');
 
-    console.log('Individual receipts:', receipts.length);
-    console.log('Individual expenses:', expenses.length);
+    // Group them by description
+    const groupedReceipts = groupByDescription(receipts);
+    const groupedExpenses = groupByDescription(expenses);
+
+    console.log('Grouped receipts:', Object.keys(groupedReceipts).length, 'groups');
+    console.log('Grouped expenses:', Object.keys(groupedExpenses).length, 'groups');
 
     const totalReceipts = receipts.reduce((sum, record) => sum + record.amount, 0);
     const totalExpenses = expenses.reduce((sum, record) => sum + record.amount, 0);
@@ -159,11 +178,11 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     return {
       receipts: {
         total: totalReceipts,
-        items: receipts // Show each record individually
+        items: groupedReceipts
       },
       expenses: {
         total: totalExpenses,
-        items: expenses // Show each record individually
+        items: groupedExpenses
       },
       netResult: totalReceipts - totalExpenses
     };
@@ -299,40 +318,59 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-              {processedDREData.receipts.items.length === 0 ? (
+            <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+              {Object.keys(processedDREData.receipts.items).length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma receita encontrada no período
                 </p>
               ) : (
-                processedDREData.receipts.items.map((record, index) => (
-                  <div key={record.id} className="border rounded-md p-2 bg-green-50/30 border-green-200 text-sm">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium text-green-800 block truncate">{record.description}</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {record.details && record.details.trim() && (
-                            <span className="bg-blue-100 border border-blue-200 rounded px-2 py-0.5 text-xs text-blue-800">
-                              {record.details}
-                            </span>
-                          )}
-                          {record.extraDetail1 && record.extraDetail1.trim() && (
-                            <span className="bg-purple-100 border border-purple-200 rounded px-2 py-0.5 text-xs text-purple-800">
-                              {record.extraDetail1}
-                            </span>
-                          )}
-                          {record.extraDetail2 && record.extraDetail2.trim() && (
-                            <span className="bg-orange-100 border border-orange-200 rounded px-2 py-0.5 text-xs text-orange-800">
-                              {record.extraDetail2}
-                            </span>
-                          )}
-                        </div>
+                Object.entries(processedDREData.receipts.items).map(([description, records]) => (
+                  <Collapsible key={description} className="border rounded-md bg-green-50/30 border-green-200">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between p-3 hover:bg-green-50/50">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-800">{description}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {records.length} registro{records.length > 1 ? 's' : ''}
+                        </Badge>
                       </div>
-                      <span className="text-green-600 font-bold text-sm whitespace-nowrap">
-                        {formatCurrency(record.amount)}
-                      </span>
-                    </div>
-                  </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-600 font-bold">
+                          {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0))}
+                        </span>
+                        <ChevronDown className="h-4 w-4" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="p-3 pt-0 space-y-2">
+                      {records.map((record) => (
+                        <div key={record.id} className="border rounded-md p-2 bg-white/50 border-green-300 text-sm ml-4">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap gap-1">
+                                {record.details && record.details.trim() && (
+                                  <span className="bg-blue-100 border border-blue-200 rounded px-2 py-0.5 text-xs text-blue-800">
+                                    {record.details}
+                                  </span>
+                                )}
+                                {record.extraDetail1 && record.extraDetail1.trim() && (
+                                  <span className="bg-purple-100 border border-purple-200 rounded px-2 py-0.5 text-xs text-purple-800">
+                                    {record.extraDetail1}
+                                  </span>
+                                )}
+                                {record.extraDetail2 && record.extraDetail2.trim() && (
+                                  <span className="bg-orange-100 border border-orange-200 rounded px-2 py-0.5 text-xs text-orange-800">
+                                    {record.extraDetail2}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-green-600 font-bold text-sm whitespace-nowrap">
+                              {formatCurrency(record.amount)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
                 ))
               )}
             </CardContent>
@@ -351,40 +389,59 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 max-h-96 overflow-y-auto">
-              {processedDREData.expenses.items.length === 0 ? (
+            <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+              {Object.keys(processedDREData.expenses.items).length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma despesa encontrada no período
                 </p>
               ) : (
-                processedDREData.expenses.items.map((record, index) => (
-                  <div key={record.id} className="border rounded-md p-2 bg-red-50/30 border-red-200 text-sm">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium text-red-800 block truncate">{record.description}</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {record.details && record.details.trim() && (
-                            <span className="bg-blue-100 border border-blue-200 rounded px-2 py-0.5 text-xs text-blue-800">
-                              {record.details}
-                            </span>
-                          )}
-                          {record.extraDetail1 && record.extraDetail1.trim() && (
-                            <span className="bg-purple-100 border border-purple-200 rounded px-2 py-0.5 text-xs text-purple-800">
-                              {record.extraDetail1}
-                            </span>
-                          )}
-                          {record.extraDetail2 && record.extraDetail2.trim() && (
-                            <span className="bg-orange-100 border border-orange-200 rounded px-2 py-0.5 text-xs text-orange-800">
-                              {record.extraDetail2}
-                            </span>
-                          )}
-                        </div>
+                Object.entries(processedDREData.expenses.items).map(([description, records]) => (
+                  <Collapsible key={description} className="border rounded-md bg-red-50/30 border-red-200">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between p-3 hover:bg-red-50/50">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-red-800">{description}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {records.length} registro{records.length > 1 ? 's' : ''}
+                        </Badge>
                       </div>
-                      <span className="text-red-600 font-bold text-sm whitespace-nowrap">
-                        {formatCurrency(record.amount)}
-                      </span>
-                    </div>
-                  </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-red-600 font-bold">
+                          {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0))}
+                        </span>
+                        <ChevronDown className="h-4 w-4" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="p-3 pt-0 space-y-2">
+                      {records.map((record) => (
+                        <div key={record.id} className="border rounded-md p-2 bg-white/50 border-red-300 text-sm ml-4">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap gap-1">
+                                {record.details && record.details.trim() && (
+                                  <span className="bg-blue-100 border border-blue-200 rounded px-2 py-0.5 text-xs text-blue-800">
+                                    {record.details}
+                                  </span>
+                                )}
+                                {record.extraDetail1 && record.extraDetail1.trim() && (
+                                  <span className="bg-purple-100 border border-purple-200 rounded px-2 py-0.5 text-xs text-purple-800">
+                                    {record.extraDetail1}
+                                  </span>
+                                )}
+                                {record.extraDetail2 && record.extraDetail2.trim() && (
+                                  <span className="bg-orange-100 border border-orange-200 rounded px-2 py-0.5 text-xs text-orange-800">
+                                    {record.extraDetail2}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-red-600 font-bold text-sm whitespace-nowrap">
+                              {formatCurrency(record.amount)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
                 ))
               )}
             </CardContent>
