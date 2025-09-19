@@ -32,21 +32,11 @@ interface DRERecord {
 interface DREData {
   receipts: {
     total: number;
-    items: Array<{
-      description: string;
-      amount: number;
-      details?: string;
-      extraDetails?: string;
-    }>;
+    items: DRERecord[];
   };
   expenses: {
     total: number;
-    items: Array<{
-      description: string;
-      amount: number;
-      details?: string;
-      extraDetails?: string;
-    }>;
+    items: DRERecord[];
   };
   netResult: number;
 }
@@ -156,65 +146,24 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       console.log('Named records after filter:', filteredNamedRecords);
     }
 
-    // Separate receipts and expenses
+    // Separate receipts and expenses - NO GROUPING, show individual records
     const receipts = filteredData.filter(record => record.type === 'RECEITA');
     const expenses = filteredData.filter(record => record.type === 'DESPESA');
 
-    // Group receipts by description
-    const receiptsByDescription = receipts.reduce((acc, record) => {
-      if (!acc[record.description]) {
-        acc[record.description] = {
-          amount: 0,
-          details: record.details,
-          extraDetails: []
-        };
-      }
-      acc[record.description].amount += record.amount;
-      if (record.extraDetail1) acc[record.description].extraDetails.push(record.extraDetail1);
-      if (record.extraDetail2) acc[record.description].extraDetails.push(record.extraDetail2);
-      return acc;
-    }, {} as Record<string, { amount: number; details: string; extraDetails: string[] }>);
+    console.log('Individual receipts:', receipts.length);
+    console.log('Individual expenses:', expenses.length);
 
-    // Group expenses by description
-    const expensesByDescription = expenses.reduce((acc, record) => {
-      if (!acc[record.description]) {
-        acc[record.description] = {
-          amount: 0,
-          details: record.details,
-          extraDetails: []
-        };
-      }
-      acc[record.description].amount += record.amount;
-      if (record.extraDetail1) acc[record.description].extraDetails.push(record.extraDetail1);
-      if (record.extraDetail2) acc[record.description].extraDetails.push(record.extraDetail2);
-      return acc;
-    }, {} as Record<string, { amount: number; details: string; extraDetails: string[] }>);
-
-    const receiptsItems = Object.entries(receiptsByDescription).map(([description, data]) => ({
-      description,
-      amount: data.amount,
-      details: data.details,
-      extraDetails: data.extraDetails.filter(detail => detail.trim() !== '').join(', ')
-    }));
-
-    const expensesItems = Object.entries(expensesByDescription).map(([description, data]) => ({
-      description,
-      amount: data.amount,
-      details: data.details,
-      extraDetails: data.extraDetails.filter(detail => detail.trim() !== '').join(', ')
-    }));
-
-    const totalReceipts = receiptsItems.reduce((sum, item) => sum + item.amount, 0);
-    const totalExpenses = expensesItems.reduce((sum, item) => sum + item.amount, 0);
+    const totalReceipts = receipts.reduce((sum, record) => sum + record.amount, 0);
+    const totalExpenses = expenses.reduce((sum, record) => sum + record.amount, 0);
 
     return {
       receipts: {
         total: totalReceipts,
-        items: receiptsItems
+        items: receipts // Show each record individually
       },
       expenses: {
         total: totalExpenses,
-        items: expensesItems
+        items: expenses // Show each record individually
       },
       netResult: totalReceipts - totalExpenses
     };
@@ -350,65 +299,40 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 max-h-96 overflow-y-auto">
               {processedDREData.receipts.items.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma receita encontrada no período
                 </p>
               ) : (
-                processedDREData.receipts.items.map((item, index) => (
-                  <Collapsible key={index}>
-                    <div className="border rounded-lg p-3 bg-green-50/50 border-green-200">
-                      <CollapsibleTrigger className="w-full">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-left">{item.description}</span>
-                            {(item.details || item.extraDetails) && (
-                              <Info className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-green-600 font-bold">
-                              {formatCurrency(item.amount)}
+                processedDREData.receipts.items.map((record, index) => (
+                  <div key={record.id} className="border rounded-md p-2 bg-green-50/30 border-green-200 text-sm">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-green-800 block truncate">{record.description}</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {record.details && record.details.trim() && (
+                            <span className="bg-blue-100 border border-blue-200 rounded px-2 py-0.5 text-xs text-blue-800">
+                              {record.details}
                             </span>
-                            {(item.details || item.extraDetails) && (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
+                          )}
+                          {record.extraDetail1 && record.extraDetail1.trim() && (
+                            <span className="bg-purple-100 border border-purple-200 rounded px-2 py-0.5 text-xs text-purple-800">
+                              {record.extraDetail1}
+                            </span>
+                          )}
+                          {record.extraDetail2 && record.extraDetail2.trim() && (
+                            <span className="bg-orange-100 border border-orange-200 rounded px-2 py-0.5 text-xs text-orange-800">
+                              {record.extraDetail2}
+                            </span>
+                          )}
                         </div>
-                      </CollapsibleTrigger>
-                      {(item.details || item.extraDetails) && (
-                        <CollapsibleContent className="mt-3 pt-3 border-t border-green-200">
-                          <div className="flex flex-wrap gap-2">
-                            {item.details && item.details.trim() && (
-                              <div className="bg-blue-100 border border-blue-200 rounded-md px-3 py-1">
-                                <span className="text-blue-800 text-sm font-medium">{item.details}</span>
-                              </div>
-                            )}
-                            {item.extraDetails && item.extraDetails.split(',').map((detail, idx) => {
-                              const trimmedDetail = detail.trim();
-                              if (!trimmedDetail) return null;
-                              
-                              // Different colors for different types of details
-                              const colorClasses = [
-                                "bg-purple-100 border-purple-200 text-purple-800",
-                                "bg-orange-100 border-orange-200 text-orange-800", 
-                                "bg-cyan-100 border-cyan-200 text-cyan-800",
-                                "bg-pink-100 border-pink-200 text-pink-800"
-                              ];
-                              const colorClass = colorClasses[idx % colorClasses.length];
-                              
-                              return (
-                                <div key={idx} className={`${colorClass} border rounded-md px-3 py-1 animate-fade-in`}>
-                                  <span className="text-sm font-medium">{trimmedDetail}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </CollapsibleContent>
-                      )}
+                      </div>
+                      <span className="text-green-600 font-bold text-sm whitespace-nowrap">
+                        {formatCurrency(record.amount)}
+                      </span>
                     </div>
-                  </Collapsible>
+                  </div>
                 ))
               )}
             </CardContent>
@@ -427,65 +351,40 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 max-h-96 overflow-y-auto">
               {processedDREData.expenses.items.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma despesa encontrada no período
                 </p>
               ) : (
-                processedDREData.expenses.items.map((item, index) => (
-                  <Collapsible key={index}>
-                    <div className="border rounded-lg p-3 bg-red-50/50 border-red-200">
-                      <CollapsibleTrigger className="w-full">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-left">{item.description}</span>
-                            {(item.details || item.extraDetails) && (
-                              <Info className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-red-600 font-bold">
-                              {formatCurrency(item.amount)}
+                processedDREData.expenses.items.map((record, index) => (
+                  <div key={record.id} className="border rounded-md p-2 bg-red-50/30 border-red-200 text-sm">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-red-800 block truncate">{record.description}</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {record.details && record.details.trim() && (
+                            <span className="bg-blue-100 border border-blue-200 rounded px-2 py-0.5 text-xs text-blue-800">
+                              {record.details}
                             </span>
-                            {(item.details || item.extraDetails) && (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
+                          )}
+                          {record.extraDetail1 && record.extraDetail1.trim() && (
+                            <span className="bg-purple-100 border border-purple-200 rounded px-2 py-0.5 text-xs text-purple-800">
+                              {record.extraDetail1}
+                            </span>
+                          )}
+                          {record.extraDetail2 && record.extraDetail2.trim() && (
+                            <span className="bg-orange-100 border border-orange-200 rounded px-2 py-0.5 text-xs text-orange-800">
+                              {record.extraDetail2}
+                            </span>
+                          )}
                         </div>
-                      </CollapsibleTrigger>
-                      {(item.details || item.extraDetails) && (
-                        <CollapsibleContent className="mt-3 pt-3 border-t border-red-200">
-                          <div className="flex flex-wrap gap-2">
-                            {item.details && item.details.trim() && (
-                              <div className="bg-blue-100 border border-blue-200 rounded-md px-3 py-1">
-                                <span className="text-blue-800 text-sm font-medium">{item.details}</span>
-                              </div>
-                            )}
-                            {item.extraDetails && item.extraDetails.split(',').map((detail, idx) => {
-                              const trimmedDetail = detail.trim();
-                              if (!trimmedDetail) return null;
-                              
-                              // Different colors for different types of details
-                              const colorClasses = [
-                                "bg-purple-100 border-purple-200 text-purple-800",
-                                "bg-orange-100 border-orange-200 text-orange-800", 
-                                "bg-cyan-100 border-cyan-200 text-cyan-800",
-                                "bg-pink-100 border-pink-200 text-pink-800"
-                              ];
-                              const colorClass = colorClasses[idx % colorClasses.length];
-                              
-                              return (
-                                <div key={idx} className={`${colorClass} border rounded-md px-3 py-1 animate-fade-in hover-scale`}>
-                                  <span className="text-sm font-medium">{trimmedDetail}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </CollapsibleContent>
-                      )}
+                      </div>
+                      <span className="text-red-600 font-bold text-sm whitespace-nowrap">
+                        {formatCurrency(record.amount)}
+                      </span>
                     </div>
-                  </Collapsible>
+                  </div>
                 ))
               )}
             </CardContent>
