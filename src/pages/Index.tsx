@@ -6,6 +6,7 @@ import { StudentsDirectory } from '@/components/StudentsDirectory';
 import { QuickFilters } from '@/components/QuickFilters';
 import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { MonthlyCommissionReport } from '@/components/MonthlyCommissionReport';
+import FinancialDRE from '@/components/FinancialDRE';
 import { PinAuth } from '@/components/PinAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign } from 'lucide-react';
+import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3 } from 'lucide-react';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -211,7 +212,7 @@ const Index = () => {
 
           {/* Tabbed Content */}
           <Tabs defaultValue="table" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 text-xs">
+            <TabsList className="grid w-full grid-cols-5 text-xs">
               <TabsTrigger value="table" className="flex items-center gap-1 px-2">
                 <Table2 className="h-3 w-3" />
                 Tabela
@@ -227,6 +228,10 @@ const Index = () => {
               <TabsTrigger value="commissions" className="flex items-center gap-1 px-2">
                 <DollarSign className="h-3 w-3" />
                 Comissões
+              </TabsTrigger>
+              <TabsTrigger value="dre" className="flex items-center gap-1 px-2">
+                <BarChart3 className="h-3 w-3" />
+                Demonstrações
               </TabsTrigger>
             </TabsList>
 
@@ -244,6 +249,10 @@ const Index = () => {
 
             <TabsContent value="commissions" className="space-y-6">
               <MonthlyCommissionReport data={filteredData} />
+            </TabsContent>
+
+            <TabsContent value="dre" className="space-y-6">
+              <FinancialDRE data={filteredData} />
             </TabsContent>
           </Tabs>
         </div>
