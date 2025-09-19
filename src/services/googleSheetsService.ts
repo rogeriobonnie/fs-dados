@@ -118,25 +118,54 @@ export class GoogleSheetsService {
       
       if (!row || row.length === 0) continue;
       
+      const type = (row[0] || '').toString().trim(); // Column A - type (ENTRADA/SAÍDA)
       const description = (row[1] || '').toString().trim(); // Column B - names of receipts/expenses
-      const type = (row[0] || '').toString().trim(); // Column A - type (RECEITA/DESPESA)
-      const amount = this.parseAmount(row[2] || ''); // Column C - amounts
-      const month = (row[3] || '').toString().trim(); // Column D - month
-      const year = (row[4] || '').toString().trim(); // Column E - year
+      const details = (row[2] || '').toString().trim(); // Column C - detalhamento
+      const amount = this.parseAmount(row[4] || ''); // Column E - amounts (valor)
+      const date = (row[5] || '').toString().trim(); // Column F - date
       
-      if (description && amount !== 0 && (type.toUpperCase().includes('RECEITA') || type.toUpperCase().includes('DESPESA'))) {
+      // Additional details from columns D and G if needed
+      const extraDetail1 = (row[3] || '').toString().trim(); // Column D
+      const extraDetail2 = (row[6] || '').toString().trim(); // Column G
+      
+      if (description && amount !== 0 && (type.toUpperCase().includes('ENTRADA') || type.toUpperCase().includes('SAÍDA') || type.toUpperCase().includes('RECEITA') || type.toUpperCase().includes('DESPESA'))) {
+        // Extract month and year from date
+        let month = '';
+        let year = '';
+        
+        if (date) {
+          // Try to parse Brazilian date format (DD/MM/YYYY)
+          const dateParts = date.split('/');
+          if (dateParts.length === 3) {
+            month = dateParts[1]; // MM
+            year = dateParts[2]; // YYYY
+          } else {
+            // Try other date formats
+            const parsedDate = new Date(date);
+            if (!isNaN(parsedDate.getTime())) {
+              month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+              year = String(parsedDate.getFullYear());
+            }
+          }
+        }
+        
         dreRecords.push({
           id: `dre_${i}`,
-          type: type.toUpperCase().includes('RECEITA') ? 'RECEITA' : 'DESPESA',
+          type: type.toUpperCase().includes('ENTRADA') || type.toUpperCase().includes('RECEITA') ? 'RECEITA' : 'DESPESA',
           description,
+          details,
           amount: Math.abs(amount), // Ensure positive amount
           month,
           year: year || '2025',
+          date,
+          extraDetail1,
+          extraDetail2,
           originalAmount: amount // Keep original sign
         });
       }
     }
     
+    console.log('DRE Records parsed:', dreRecords);
     return dreRecords;
   }
 

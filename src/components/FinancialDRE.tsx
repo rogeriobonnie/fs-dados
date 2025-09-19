@@ -18,9 +18,13 @@ interface DRERecord {
   id: string;
   type: 'RECEITA' | 'DESPESA';
   description: string;
+  details: string;
   amount: number;
   month: string;
   year: string;
+  date: string;
+  extraDetail1: string;
+  extraDetail2: string;
   originalAmount: number;
 }
 
@@ -30,6 +34,8 @@ interface DREData {
     items: Array<{
       description: string;
       amount: number;
+      details?: string;
+      extraDetails?: string;
     }>;
   };
   expenses: {
@@ -37,6 +43,8 @@ interface DREData {
     items: Array<{
       description: string;
       amount: number;
+      details?: string;
+      extraDetails?: string;
     }>;
   };
   netResult: number;
@@ -93,7 +101,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     return Array.from(years).sort().reverse();
   }, [dreData]);
 
-  const monthNames = {
+  const monthNames: Record<string, string> = {
     '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
     '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
     '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
@@ -119,29 +127,45 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     // Group receipts by description
     const receiptsByDescription = receipts.reduce((acc, record) => {
       if (!acc[record.description]) {
-        acc[record.description] = 0;
+        acc[record.description] = {
+          amount: 0,
+          details: record.details,
+          extraDetails: []
+        };
       }
-      acc[record.description] += record.amount;
+      acc[record.description].amount += record.amount;
+      if (record.extraDetail1) acc[record.description].extraDetails.push(record.extraDetail1);
+      if (record.extraDetail2) acc[record.description].extraDetails.push(record.extraDetail2);
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, { amount: number; details: string; extraDetails: string[] }>);
 
     // Group expenses by description
     const expensesByDescription = expenses.reduce((acc, record) => {
       if (!acc[record.description]) {
-        acc[record.description] = 0;
+        acc[record.description] = {
+          amount: 0,
+          details: record.details,
+          extraDetails: []
+        };
       }
-      acc[record.description] += record.amount;
+      acc[record.description].amount += record.amount;
+      if (record.extraDetail1) acc[record.description].extraDetails.push(record.extraDetail1);
+      if (record.extraDetail2) acc[record.description].extraDetails.push(record.extraDetail2);
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, { amount: number; details: string; extraDetails: string[] }>);
 
-    const receiptsItems = Object.entries(receiptsByDescription).map(([description, amount]) => ({
+    const receiptsItems = Object.entries(receiptsByDescription).map(([description, data]) => ({
       description,
-      amount
+      amount: data.amount,
+      details: data.details,
+      extraDetails: data.extraDetails.filter(detail => detail.trim() !== '').join(', ')
     }));
 
-    const expensesItems = Object.entries(expensesByDescription).map(([description, amount]) => ({
+    const expensesItems = Object.entries(expensesByDescription).map(([description, data]) => ({
       description,
-      amount
+      amount: data.amount,
+      details: data.details,
+      extraDetails: data.extraDetails.filter(detail => detail.trim() !== '').join(', ')
     }));
 
     const totalReceipts = receiptsItems.reduce((sum, item) => sum + item.amount, 0);
@@ -207,7 +231,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                   <SelectItem value="all">Todos os meses</SelectItem>
                   {availableMonths.map(month => (
                     <SelectItem key={month} value={month}>
-                      {month}
+                      {monthNames[month] || month}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -260,7 +284,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             <div className="mt-4 flex gap-2">
               {selectedMonth !== 'all' && (
                 <Badge variant="secondary">
-                  Mês: {selectedMonth}
+                  Mês: {monthNames[selectedMonth] || selectedMonth}
                 </Badge>
               )}
               {selectedYear !== 'all' && (
@@ -296,11 +320,17 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </p>
               ) : (
                 processedDREData.receipts.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <div>
+                  <div key={index} className="flex justify-between items-start">
+                    <div className="flex-1">
                       <span className="font-medium">{item.description}</span>
+                      {item.details && (
+                        <p className="text-sm text-muted-foreground mt-1">{item.details}</p>
+                      )}
+                      {item.extraDetails && (
+                        <p className="text-xs text-muted-foreground mt-1">{item.extraDetails}</p>
+                      )}
                     </div>
-                    <span className="text-green-600 font-medium">
+                    <span className="text-green-600 font-medium ml-4">
                       {formatCurrency(item.amount)}
                     </span>
                   </div>
@@ -329,11 +359,17 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </p>
               ) : (
                 processedDREData.expenses.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <div>
+                  <div key={index} className="flex justify-between items-start">
+                    <div className="flex-1">
                       <span className="font-medium">{item.description}</span>
+                      {item.details && (
+                        <p className="text-sm text-muted-foreground mt-1">{item.details}</p>
+                      )}
+                      {item.extraDetails && (
+                        <p className="text-xs text-muted-foreground mt-1">{item.extraDetails}</p>
+                      )}
                     </div>
-                    <span className="text-red-600 font-medium">
+                    <span className="text-red-600 font-medium ml-4">
                       {formatCurrency(item.amount)}
                     </span>
                   </div>
