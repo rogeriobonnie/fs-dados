@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { FinancialRecord } from '@/types/financial';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { TrendingUp, TrendingDown, DollarSign, Search, Filter, RefreshCw, ChevronDown, ChevronUp, Calendar, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Search, Filter, RefreshCw, ChevronDown, ChevronUp, Calendar, Info, BarChart3, PieChart, Users, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
@@ -302,7 +302,69 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
         </CardContent>
       </Card>
 
-      {/* DRE Results */}
+      {/* Summary Cards */}
+      {hasSearched && (
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-700">Total Receitas</p>
+                  <p className="text-2xl font-bold text-green-800">
+                    {formatCurrency(processedDREData.receipts.total)}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {Object.keys(processedDREData.receipts.items).length} categoria{Object.keys(processedDREData.receipts.items).length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-200 rounded-full">
+                  <TrendingUp className="h-6 w-6 text-green-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-red-700">Total Despesas</p>
+                  <p className="text-2xl font-bold text-red-800">
+                    {formatCurrency(processedDREData.expenses.total)}
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">
+                    {Object.keys(processedDREData.expenses.items).length} categoria{Object.keys(processedDREData.expenses.items).length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="p-3 bg-red-200 rounded-full">
+                  <TrendingDown className="h-6 w-6 text-red-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`border-2 ${processedDREData.netResult >= 0 ? 'border-green-300 bg-gradient-to-br from-green-50 to-green-100' : 'border-red-300 bg-gradient-to-br from-red-50 to-red-100'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Resultado Líquido</p>
+                  <p className={`text-2xl font-bold ${getResultColor(processedDREData.netResult)}`}>
+                    {formatCurrency(processedDREData.netResult)}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {processedDREData.netResult >= 0 ? 'Lucro' : 'Prejuízo'} do período
+                  </p>
+                </div>
+                <div className={`p-3 rounded-full ${processedDREData.netResult >= 0 ? 'bg-green-200' : 'bg-red-200'}`}>
+                  {getResultIcon(processedDREData.netResult)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* DRE Results - Detailed View */}
       {hasSearched && (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Receitas */}
@@ -325,50 +387,86 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </p>
               ) : (
                 Object.entries(processedDREData.receipts.items).map(([description, records]) => (
-                  <Collapsible key={description} className="border rounded-md bg-green-50/30 border-green-200">
-                    <CollapsibleTrigger className="flex w-full items-center justify-between p-3 hover:bg-green-50/50">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-800">{description}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {records.length} registro{records.length > 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-600 font-bold">
-                          {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0))}
-                        </span>
-                        <ChevronDown className="h-4 w-4" />
-                      </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-3 pt-0 space-y-2">
-                      {records.map((record) => (
-                        <div key={record.id} className="border rounded-md p-2 bg-white/50 border-green-300 text-sm ml-4">
-                          <div className="flex justify-between items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap gap-1">
-                                {record.details && record.details.trim() && (
-                                  <span className="bg-blue-100 border border-blue-200 rounded px-2 py-0.5 text-xs text-blue-800">
-                                    {record.details}
-                                  </span>
-                                )}
-                                {record.extraDetail1 && record.extraDetail1.trim() && (
-                                  <span className="bg-purple-100 border border-purple-200 rounded px-2 py-0.5 text-xs text-purple-800">
-                                    {record.extraDetail1}
-                                  </span>
-                                )}
-                                {record.extraDetail2 && record.extraDetail2.trim() && (
-                                  <span className="bg-orange-100 border border-orange-200 rounded px-2 py-0.5 text-xs text-orange-800">
-                                    {record.extraDetail2}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <span className="text-green-600 font-bold text-sm whitespace-nowrap">
-                              {formatCurrency(record.amount)}
+                  <Collapsible key={description} className="border rounded-lg bg-green-50/50 border-green-200 shadow-sm hover:shadow-md transition-all duration-200">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-green-50/70 rounded-lg transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 rounded-full">
+                          {description.toLowerCase().includes('clube') || description.toLowerCase().includes('curso') ? (
+                            <Users className="h-4 w-4 text-green-700" />
+                          ) : description.toLowerCase().includes('banco') || description.toLowerCase().includes('pix') ? (
+                            <Building2 className="h-4 w-4 text-green-700" />
+                          ) : (
+                            <BarChart3 className="h-4 w-4 text-green-700" />
+                          )}
+                        </div>
+                        <div>
+                          <span className="font-semibold text-green-800 text-base">{description}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200">
+                              {records.length} registro{records.length > 1 ? 's' : ''}
+                            </Badge>
+                            <span className="text-xs text-green-600">
+                              Clique para expandir
                             </span>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-green-700 font-bold text-lg">
+                            {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0))}
+                          </span>
+                          <div className="text-xs text-green-600">
+                            Média: {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0) / records.length)}
+                          </div>
+                        </div>
+                        <ChevronDown className="h-5 w-5 text-green-600 transform transition-transform group-data-[state=open]:rotate-180" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-4 pb-4 animate-accordion-down">
+                      <div className="border-t border-green-200 pt-3 space-y-2">
+                        {records.map((record, idx) => (
+                          <div key={record.id} className="border rounded-lg p-3 bg-white/80 border-green-200 hover:bg-white transition-colors shadow-sm">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {record.date || `${record.month}/${record.year}`}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {record.details && record.details.trim() && (
+                                    <span className="bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs text-blue-700 font-medium">
+                                      <Users className="h-3 w-3 inline mr-1" />
+                                      {record.details}
+                                    </span>
+                                  )}
+                                  {record.extraDetail1 && record.extraDetail1.trim() && (
+                                    <span className="bg-purple-50 border border-purple-200 rounded-full px-3 py-1 text-xs text-purple-700 font-medium">
+                                      <Building2 className="h-3 w-3 inline mr-1" />
+                                      {record.extraDetail1}
+                                    </span>
+                                  )}
+                                  {record.extraDetail2 && record.extraDetail2.trim() && (
+                                    <span className="bg-orange-50 border border-orange-200 rounded-full px-3 py-1 text-xs text-orange-700 font-medium">
+                                      <Info className="h-3 w-3 inline mr-1" />
+                                      {record.extraDetail2}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-green-700 font-bold text-base">
+                                  {formatCurrency(record.amount)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </CollapsibleContent>
                   </Collapsible>
                 ))
@@ -396,50 +494,86 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </p>
               ) : (
                 Object.entries(processedDREData.expenses.items).map(([description, records]) => (
-                  <Collapsible key={description} className="border rounded-md bg-red-50/30 border-red-200">
-                    <CollapsibleTrigger className="flex w-full items-center justify-between p-3 hover:bg-red-50/50">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-red-800">{description}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {records.length} registro{records.length > 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-red-600 font-bold">
-                          {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0))}
-                        </span>
-                        <ChevronDown className="h-4 w-4" />
-                      </div>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-3 pt-0 space-y-2">
-                      {records.map((record) => (
-                        <div key={record.id} className="border rounded-md p-2 bg-white/50 border-red-300 text-sm ml-4">
-                          <div className="flex justify-between items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap gap-1">
-                                {record.details && record.details.trim() && (
-                                  <span className="bg-blue-100 border border-blue-200 rounded px-2 py-0.5 text-xs text-blue-800">
-                                    {record.details}
-                                  </span>
-                                )}
-                                {record.extraDetail1 && record.extraDetail1.trim() && (
-                                  <span className="bg-purple-100 border border-purple-200 rounded px-2 py-0.5 text-xs text-purple-800">
-                                    {record.extraDetail1}
-                                  </span>
-                                )}
-                                {record.extraDetail2 && record.extraDetail2.trim() && (
-                                  <span className="bg-orange-100 border border-orange-200 rounded px-2 py-0.5 text-xs text-orange-800">
-                                    {record.extraDetail2}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <span className="text-red-600 font-bold text-sm whitespace-nowrap">
-                              {formatCurrency(record.amount)}
+                  <Collapsible key={description} className="border rounded-lg bg-red-50/50 border-red-200 shadow-sm hover:shadow-md transition-all duration-200">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-red-50/70 rounded-lg transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-100 rounded-full">
+                          {description.toLowerCase().includes('salario') || description.toLowerCase().includes('pagamento') ? (
+                            <Users className="h-4 w-4 text-red-700" />
+                          ) : description.toLowerCase().includes('banco') || description.toLowerCase().includes('taxa') ? (
+                            <Building2 className="h-4 w-4 text-red-700" />
+                          ) : (
+                            <PieChart className="h-4 w-4 text-red-700" />
+                          )}
+                        </div>
+                        <div>
+                          <span className="font-semibold text-red-800 text-base">{description}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs bg-red-100 text-red-700 border-red-200">
+                              {records.length} registro{records.length > 1 ? 's' : ''}
+                            </Badge>
+                            <span className="text-xs text-red-600">
+                              Clique para expandir
                             </span>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-red-700 font-bold text-lg">
+                            {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0))}
+                          </span>
+                          <div className="text-xs text-red-600">
+                            Média: {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0) / records.length)}
+                          </div>
+                        </div>
+                        <ChevronDown className="h-5 w-5 text-red-600 transform transition-transform group-data-[state=open]:rotate-180" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-4 pb-4 animate-accordion-down">
+                      <div className="border-t border-red-200 pt-3 space-y-2">
+                        {records.map((record, idx) => (
+                          <div key={record.id} className="border rounded-lg p-3 bg-white/80 border-red-200 hover:bg-white transition-colors shadow-sm">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="w-6 h-6 bg-red-100 text-red-700 rounded-full flex items-center justify-center text-xs font-bold">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {record.date || `${record.month}/${record.year}`}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {record.details && record.details.trim() && (
+                                    <span className="bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs text-blue-700 font-medium">
+                                      <Users className="h-3 w-3 inline mr-1" />
+                                      {record.details}
+                                    </span>
+                                  )}
+                                  {record.extraDetail1 && record.extraDetail1.trim() && (
+                                    <span className="bg-purple-50 border border-purple-200 rounded-full px-3 py-1 text-xs text-purple-700 font-medium">
+                                      <Building2 className="h-3 w-3 inline mr-1" />
+                                      {record.extraDetail1}
+                                    </span>
+                                  )}
+                                  {record.extraDetail2 && record.extraDetail2.trim() && (
+                                    <span className="bg-orange-50 border border-orange-200 rounded-full px-3 py-1 text-xs text-orange-700 font-medium">
+                                      <Info className="h-3 w-3 inline mr-1" />
+                                      {record.extraDetail2}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-red-700 font-bold text-base">
+                                  {formatCurrency(record.amount)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </CollapsibleContent>
                   </Collapsible>
                 ))
