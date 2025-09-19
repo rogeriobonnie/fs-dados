@@ -38,7 +38,16 @@ interface DREData {
     total: number;
     items: { [key: string]: DRERecord[] };
   };
+  distributions: {
+    total: number;
+    items: { [key: string]: DRERecord[] };
+  };
+  investments: {
+    total: number;
+    items: { [key: string]: DRERecord[] };
+  };
   netResult: number;
+  operationalResult: number;
 }
 
 const FinancialDRE = ({ data }: FinancialDREProps) => {
@@ -146,7 +155,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       console.log('Named records after filter:', filteredNamedRecords);
     }
 
-    // Group records by description for both receipts and expenses
+    // Group records by description for all categories
     const groupByDescription = (records: DRERecord[]) => {
       const groups: { [key: string]: DRERecord[] } = {};
       
@@ -161,19 +170,36 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       return groups;
     };
 
-    // Separate receipts and expenses
+    // Separate into different categories based on description
     const receipts = filteredData.filter(record => record.type === 'RECEITA');
-    const expenses = filteredData.filter(record => record.type === 'DESPESA');
+    const operationalExpenses = filteredData.filter(record => 
+      record.type === 'DESPESA' && record.description.startsWith('02-')
+    );
+    const distributions = filteredData.filter(record => 
+      record.type === 'DESPESA' && record.description.startsWith('03-')
+    );
+    const investments = filteredData.filter(record => 
+      record.type === 'DESPESA' && record.description.startsWith('04-')
+    );
 
     // Group them by description
     const groupedReceipts = groupByDescription(receipts);
-    const groupedExpenses = groupByDescription(expenses);
+    const groupedExpenses = groupByDescription(operationalExpenses);
+    const groupedDistributions = groupByDescription(distributions);
+    const groupedInvestments = groupByDescription(investments);
 
     console.log('Grouped receipts:', Object.keys(groupedReceipts).length, 'groups');
-    console.log('Grouped expenses:', Object.keys(groupedExpenses).length, 'groups');
+    console.log('Grouped operational expenses:', Object.keys(groupedExpenses).length, 'groups');
+    console.log('Grouped distributions:', Object.keys(groupedDistributions).length, 'groups');
+    console.log('Grouped investments:', Object.keys(groupedInvestments).length, 'groups');
 
     const totalReceipts = receipts.reduce((sum, record) => sum + record.amount, 0);
-    const totalExpenses = expenses.reduce((sum, record) => sum + record.amount, 0);
+    const totalExpenses = operationalExpenses.reduce((sum, record) => sum + record.amount, 0);
+    const totalDistributions = distributions.reduce((sum, record) => sum + record.amount, 0);
+    const totalInvestments = investments.reduce((sum, record) => sum + record.amount, 0);
+
+    const operationalResult = totalReceipts - totalExpenses;
+    const netResult = operationalResult - totalDistributions - totalInvestments;
 
     return {
       receipts: {
@@ -184,7 +210,16 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
         total: totalExpenses,
         items: groupedExpenses
       },
-      netResult: totalReceipts - totalExpenses
+      distributions: {
+        total: totalDistributions,
+        items: groupedDistributions
+      },
+      investments: {
+        total: totalInvestments,
+        items: groupedInvestments
+      },
+      operationalResult,
+      netResult
     };
   }, [dreData, selectedMonth, selectedYear]);
 
@@ -304,7 +339,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
 
       {/* Summary Cards */}
       {hasSearched && (
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <div className="grid gap-4 md:grid-cols-4 mb-6">
           <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -328,7 +363,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-red-700">Total Despesas</p>
+                  <p className="text-sm font-medium text-red-700">Despesas (02-saidas)</p>
                   <p className="text-2xl font-bold text-red-800">
                     {formatCurrency(processedDREData.expenses.total)}
                   </p>
@@ -343,6 +378,25 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             </CardContent>
           </Card>
 
+          <Card className={`border-2 ${processedDREData.operationalResult >= 0 ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100' : 'border-orange-300 bg-gradient-to-br from-orange-50 to-orange-100'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Resultado Operacional</p>
+                  <p className={`text-2xl font-bold ${processedDREData.operationalResult >= 0 ? 'text-blue-800' : 'text-orange-800'}`}>
+                    {formatCurrency(processedDREData.operationalResult)}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Receitas - Despesas
+                  </p>
+                </div>
+                <div className={`p-3 rounded-full ${processedDREData.operationalResult >= 0 ? 'bg-blue-200' : 'bg-orange-200'}`}>
+                  <BarChart3 className={`h-6 w-6 ${processedDREData.operationalResult >= 0 ? 'text-blue-700' : 'text-orange-700'}`} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className={`border-2 ${processedDREData.netResult >= 0 ? 'border-green-300 bg-gradient-to-br from-green-50 to-green-100' : 'border-red-300 bg-gradient-to-br from-red-50 to-red-100'}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -352,7 +406,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                     {formatCurrency(processedDREData.netResult)}
                   </p>
                   <p className="text-xs text-gray-600 mt-1">
-                    {processedDREData.netResult >= 0 ? 'Lucro' : 'Prejuízo'} do período
+                    {processedDREData.netResult >= 0 ? 'Lucro' : 'Prejuízo'} final
                   </p>
                 </div>
                 <div className={`p-3 rounded-full ${processedDREData.netResult >= 0 ? 'bg-green-200' : 'bg-red-200'}`}>
@@ -366,7 +420,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
 
       {/* DRE Results - Detailed View */}
       {hasSearched && (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
           {/* Receitas */}
           <Card>
             <CardHeader>
@@ -480,13 +534,13 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             </CardContent>
           </Card>
 
-          {/* Despesas */}
+          {/* Despesas Operacionais (02-saidas) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-red-600">
                   <TrendingDown className="h-5 w-5" />
-                  Despesas
+                  Despesas (02-saidas)
                 </div>
                 <span className="text-red-600 font-bold">
                   {formatCurrency(processedDREData.expenses.total)}
@@ -496,7 +550,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
               {Object.keys(processedDREData.expenses.items).length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
-                  Nenhuma despesa encontrada no período
+                  Nenhuma despesa operacional encontrada no período
                 </p>
               ) : (
                 Object.entries(processedDREData.expenses.items)
@@ -595,6 +649,217 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
         </div>
       )}
 
+      {/* Distribuições e Investimentos */}
+      {hasSearched && (processedDREData.distributions.total > 0 || processedDREData.investments.total > 0) && (
+        <div className="grid gap-6 md:grid-cols-2 mt-6">
+          {/* Distribuição de Lucros (03-dist.lucros) */}
+          {processedDREData.distributions.total > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-purple-600">
+                    <Users className="h-5 w-5" />
+                    Distribuição de Lucros (03-*)
+                  </div>
+                  <span className="text-purple-600 font-bold">
+                    {formatCurrency(processedDREData.distributions.total)}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
+                {Object.entries(processedDREData.distributions.items)
+                  .sort(([, recordsA], [, recordsB]) => {
+                    const totalA = recordsA.reduce((sum, record) => sum + record.amount, 0);
+                    const totalB = recordsB.reduce((sum, record) => sum + record.amount, 0);
+                    return totalB - totalA;
+                  })
+                  .map(([description, records]) => (
+                  <Collapsible key={description} className="border rounded-lg bg-purple-50/50 border-purple-200 shadow-sm hover:shadow-md transition-all duration-200">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-purple-50/70 rounded-lg transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 rounded-full">
+                          <Users className="h-4 w-4 text-purple-700" />
+                        </div>
+                        <div>
+                          <span className="font-semibold text-purple-800 text-base">{description}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 border-purple-200">
+                              {records.length} registro{records.length > 1 ? 's' : ''}
+                            </Badge>
+                            <span className="text-xs text-purple-600">
+                              Clique para expandir
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-purple-700 font-bold text-lg">
+                            {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0))}
+                          </span>
+                          <div className="text-xs text-purple-600">
+                            Média: {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0) / records.length)}
+                          </div>
+                        </div>
+                        <ChevronDown className="h-5 w-5 text-purple-600 transform transition-transform group-data-[state=open]:rotate-180" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-4 pb-4 animate-accordion-down">
+                      <div className="border-t border-purple-200 pt-3 space-y-2">
+                        {records.map((record, idx) => (
+                          <div key={record.id} className="border rounded-lg p-3 bg-white/80 border-purple-200 hover:bg-white transition-colors shadow-sm">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="w-6 h-6 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-xs font-bold">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {record.date || `${record.month}/${record.year}`}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {record.details && record.details.trim() && (
+                                    <span className="bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs text-blue-700 font-medium">
+                                      <Users className="h-3 w-3 inline mr-1" />
+                                      {record.details}
+                                    </span>
+                                  )}
+                                  {record.extraDetail1 && record.extraDetail1.trim() && (
+                                    <span className="bg-purple-50 border border-purple-200 rounded-full px-3 py-1 text-xs text-purple-700 font-medium">
+                                      <Building2 className="h-3 w-3 inline mr-1" />
+                                      {record.extraDetail1}
+                                    </span>
+                                  )}
+                                  {record.extraDetail2 && record.extraDetail2.trim() && (
+                                    <span className="bg-orange-50 border border-orange-200 rounded-full px-3 py-1 text-xs text-orange-700 font-medium">
+                                      <Info className="h-3 w-3 inline mr-1" />
+                                      {record.extraDetail2}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-purple-700 font-bold text-base">
+                                  {formatCurrency(record.amount)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Investimentos (04-investimentos) */}
+          {processedDREData.investments.total > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-blue-600">
+                    <Building2 className="h-5 w-5" />
+                    Investimentos (04-*)
+                  </div>
+                  <span className="text-blue-600 font-bold">
+                    {formatCurrency(processedDREData.investments.total)}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
+                {Object.entries(processedDREData.investments.items)
+                  .sort(([, recordsA], [, recordsB]) => {
+                    const totalA = recordsA.reduce((sum, record) => sum + record.amount, 0);
+                    const totalB = recordsB.reduce((sum, record) => sum + record.amount, 0);
+                    return totalB - totalA;
+                  })
+                  .map(([description, records]) => (
+                  <Collapsible key={description} className="border rounded-lg bg-blue-50/50 border-blue-200 shadow-sm hover:shadow-md transition-all duration-200">
+                    <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-blue-50/70 rounded-lg transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 rounded-full">
+                          <Building2 className="h-4 w-4 text-blue-700" />
+                        </div>
+                        <div>
+                          <span className="font-semibold text-blue-800 text-base">{description}</span>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                              {records.length} registro{records.length > 1 ? 's' : ''}
+                            </Badge>
+                            <span className="text-xs text-blue-600">
+                              Clique para expandir
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-blue-700 font-bold text-lg">
+                            {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0))}
+                          </span>
+                          <div className="text-xs text-blue-600">
+                            Média: {formatCurrency(records.reduce((sum, record) => sum + record.amount, 0) / records.length)}
+                          </div>
+                        </div>
+                        <ChevronDown className="h-5 w-5 text-blue-600 transform transition-transform group-data-[state=open]:rotate-180" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-4 pb-4 animate-accordion-down">
+                      <div className="border-t border-blue-200 pt-3 space-y-2">
+                        {records.map((record, idx) => (
+                          <div key={record.id} className="border rounded-lg p-3 bg-white/80 border-blue-200 hover:bg-white transition-colors shadow-sm">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {record.date || `${record.month}/${record.year}`}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {record.details && record.details.trim() && (
+                                    <span className="bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-xs text-blue-700 font-medium">
+                                      <Users className="h-3 w-3 inline mr-1" />
+                                      {record.details}
+                                    </span>
+                                  )}
+                                  {record.extraDetail1 && record.extraDetail1.trim() && (
+                                    <span className="bg-purple-50 border border-purple-200 rounded-full px-3 py-1 text-xs text-purple-700 font-medium">
+                                      <Building2 className="h-3 w-3 inline mr-1" />
+                                      {record.extraDetail1}
+                                    </span>
+                                  )}
+                                  {record.extraDetail2 && record.extraDetail2.trim() && (
+                                    <span className="bg-orange-50 border border-orange-200 rounded-full px-3 py-1 text-xs text-orange-700 font-medium">
+                                      <Info className="h-3 w-3 inline mr-1" />
+                                      {record.extraDetail2}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-blue-700 font-bold text-base">
+                                  {formatCurrency(record.amount)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Resultado Líquido */}
       {hasSearched && (
         <Card className="border-2">
@@ -602,7 +867,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             <CardTitle className="flex items-center justify-between">
               <div className={`flex items-center gap-2 ${getResultColor(processedDREData.netResult)}`}>
                 {getResultIcon(processedDREData.netResult)}
-                Resultado Líquido do Período
+                Demonstração do Resultado Consolidado
               </div>
               <span className={`text-2xl font-bold ${getResultColor(processedDREData.netResult)}`}>
                 {formatCurrency(processedDREData.netResult)}
@@ -610,7 +875,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex justify-between">
                 <span>Total de Receitas:</span>
                 <span className="text-green-600 font-medium">
@@ -618,14 +883,44 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Total de Despesas:</span>
+                <span>(-) Despesas Operacionais (02-saidas):</span>
                 <span className="text-red-600 font-medium">
                   ({formatCurrency(processedDREData.expenses.total)})
                 </span>
               </div>
               <Separator />
-              <div className="flex justify-between font-bold text-lg">
-                <span>Resultado:</span>
+              <div className="flex justify-between font-semibold text-lg">
+                <span>= Resultado Operacional:</span>
+                <span className={`${processedDREData.operationalResult >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                  {formatCurrency(processedDREData.operationalResult)}
+                </span>
+              </div>
+              
+              {(processedDREData.distributions.total > 0 || processedDREData.investments.total > 0) && (
+                <>
+                  <Separator className="my-3" />
+                  {processedDREData.distributions.total > 0 && (
+                    <div className="flex justify-between">
+                      <span>(-) Distribuição de Lucros (03-*):</span>
+                      <span className="text-purple-600 font-medium">
+                        ({formatCurrency(processedDREData.distributions.total)})
+                      </span>
+                    </div>
+                  )}
+                  {processedDREData.investments.total > 0 && (
+                    <div className="flex justify-between">
+                      <span>(-) Investimentos (04-*):</span>
+                      <span className="text-blue-600 font-medium">
+                        ({formatCurrency(processedDREData.investments.total)})
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              <Separator />
+              <div className="flex justify-between font-bold text-xl">
+                <span>= Resultado Líquido Final:</span>
                 <span className={getResultColor(processedDREData.netResult)}>
                   {formatCurrency(processedDREData.netResult)}
                 </span>
