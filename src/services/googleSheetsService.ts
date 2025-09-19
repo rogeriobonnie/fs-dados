@@ -112,6 +112,8 @@ export class GoogleSheetsService {
   private static parseDREData(rows: string[][]): any[] {
     const dreRecords: any[] = [];
     
+    console.log('DRE Parsing - Total rows:', rows.length);
+    
     // Skip first few rows and find data starting from row with actual content
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
@@ -121,14 +123,26 @@ export class GoogleSheetsService {
       const type = (row[0] || '').toString().trim(); // Column A - type (ENTRADA/SAÍDA)
       const description = (row[1] || '').toString().trim(); // Column B - names of receipts/expenses
       const details = (row[2] || '').toString().trim(); // Column C - detalhamento
+      const extraDetail1 = (row[3] || '').toString().trim(); // Column D
       const amount = this.parseAmount(row[4] || ''); // Column E - amounts (valor)
       const date = (row[5] || '').toString().trim(); // Column F - date
-      
-      // Additional details from columns D and G if needed
-      const extraDetail1 = (row[3] || '').toString().trim(); // Column D
       const extraDetail2 = (row[6] || '').toString().trim(); // Column G
       
-      if (description && amount !== 0 && (type.toUpperCase().includes('ENTRADA') || type.toUpperCase().includes('SAÍDA') || type.toUpperCase().includes('RECEITA') || type.toUpperCase().includes('DESPESA'))) {
+      // Log first few rows for debugging
+      if (i <= 10) {
+        console.log(`DRE Row ${i}:`, {
+          type,
+          description,
+          details,
+          amount,
+          date,
+          extraDetail1,
+          extraDetail2
+        });
+      }
+      
+      // Check if this is a valid DRE entry
+      if (description && (amount !== 0 || type || date)) {
         // Extract month and year from date
         let month = '';
         let year = '';
@@ -137,7 +151,7 @@ export class GoogleSheetsService {
           // Try to parse Brazilian date format (DD/MM/YYYY)
           const dateParts = date.split('/');
           if (dateParts.length === 3) {
-            month = dateParts[1]; // MM
+            month = dateParts[1].padStart(2, '0'); // MM
             year = dateParts[2]; // YYYY
           } else {
             // Try other date formats
@@ -149,23 +163,47 @@ export class GoogleSheetsService {
           }
         }
         
+        // If no date, try to extract from other fields or use current date
+        if (!month || !year) {
+          const currentDate = new Date();
+          month = month || String(currentDate.getMonth() + 1).padStart(2, '0');
+          year = year || String(currentDate.getFullYear());
+        }
+        
+        const recordType = type.toUpperCase().includes('ENTRADA') || 
+                          type.toUpperCase().includes('RECEITA') || 
+                          description.toUpperCase().includes('RECEITA') ? 'RECEITA' : 'DESPESA';
+        
         dreRecords.push({
           id: `dre_${i}`,
-          type: type.toUpperCase().includes('ENTRADA') || type.toUpperCase().includes('RECEITA') ? 'RECEITA' : 'DESPESA',
+          type: recordType,
           description,
           details,
-          amount: Math.abs(amount), // Ensure positive amount
+          amount: Math.abs(amount) || 0,
           month,
-          year: year || '2025',
+          year,
           date,
           extraDetail1,
           extraDetail2,
-          originalAmount: amount // Keep original sign
+          originalAmount: amount
         });
+        
+        if (i <= 5) {
+          console.log(`DRE Record ${i} created:`, {
+            type: recordType,
+            description,
+            amount: Math.abs(amount),
+            month,
+            year
+          });
+        }
       }
     }
     
-    console.log('DRE Records parsed:', dreRecords);
+    console.log('DRE Records parsed total:', dreRecords.length);
+    console.log('Available months:', [...new Set(dreRecords.map(r => r.month))]);
+    console.log('Available years:', [...new Set(dreRecords.map(r => r.year))]);
+    
     return dreRecords;
   }
 

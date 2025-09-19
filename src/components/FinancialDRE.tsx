@@ -64,6 +64,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     setIsLoading(true);
     try {
       const sheetData = await GoogleSheetsService.fetchDREData();
+      console.log('DRE data loaded:', sheetData);
       setDreData(sheetData);
       toast({
         title: "Dados DRE carregados!",
@@ -71,6 +72,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       });
     } catch (error) {
       console.error('Error loading DRE data:', error);
+      setDreData([]); // Set empty array on error
       toast({
         title: "Erro ao carregar DRE",
         description: "Falha ao conectar com a Página2 da planilha.",
@@ -81,8 +83,16 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     }
   };
 
+  // Auto-load DRE data when component mounts
+  useEffect(() => {
+    if (dreData.length === 0) {
+      loadDREData();
+    }
+  }, []);
+
   // Get available months and years from DRE data
   const availableMonths = useMemo(() => {
+    console.log('Calculating available months from:', dreData);
     const months = new Set<string>();
     dreData.forEach(record => {
       if (record.month) {
@@ -91,17 +101,22 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
         months.add(month);
       }
     });
-    return Array.from(months).sort();
+    const monthsArray = Array.from(months).sort();
+    console.log('Available months:', monthsArray);
+    return monthsArray;
   }, [dreData]);
 
   const availableYears = useMemo(() => {
+    console.log('Calculating available years from:', dreData);
     const years = new Set<string>();
     dreData.forEach(record => {
       if (record.year) {
         years.add(record.year);
       }
     });
-    return Array.from(years).sort().reverse();
+    const yearsArray = Array.from(years).sort().reverse();
+    console.log('Available years:', yearsArray);
+    return yearsArray;
   }, [dreData]);
 
   const monthNames: Record<string, string> = {
