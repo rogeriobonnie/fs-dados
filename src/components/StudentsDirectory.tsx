@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { StudentDetailModal } from '@/components/StudentDetailModal';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { User, Search, Eye, CheckCircle, Clock, AlertTriangle, TrendingUp, Calendar } from 'lucide-react';
+import { User, Search, Eye, CheckCircle, Clock, AlertTriangle, TrendingUp, Calendar, Percent, DollarSign } from 'lucide-react';
 
 interface StudentsDirectoryProps {
   data: FinancialRecord[];
@@ -28,6 +28,8 @@ interface StudentInfo {
   daysOverdue: number;
   consultant: string;
   contractDate: string;
+  totalFees: number;
+  totalInterest: number;
   records: FinancialRecord[];
 }
 
@@ -59,6 +61,8 @@ export const StudentsDirectory = ({ data }: StudentsDirectoryProps) => {
           daysOverdue: 0,
           consultant: record.consultant || 'Venda Direta',
           contractDate: record.contractDate,
+          totalFees: 0,
+          totalInterest: 0,
           records: []
         });
       }
@@ -67,6 +71,14 @@ export const StudentsDirectory = ({ data }: StudentsDirectoryProps) => {
       student.records.push(record);
       student.totalAmount += record.amount;
       student.totalInstallments++;
+
+      // Aggregate fees and interest
+      if (record.fees) {
+        student.totalFees += record.fees;
+      }
+      if (record.interest) {
+        student.totalInterest += record.interest;
+      }
 
       if (record.status === 'PAGO') {
         student.paidAmount += record.amount;
@@ -278,7 +290,23 @@ export const StudentsDirectory = ({ data }: StudentsDirectoryProps) => {
                     {student.name}
                   </CardTitle>
                 </div>
-                {getStatusBadge(student)}
+                <div className="flex flex-col gap-1 items-end">
+                  {getStatusBadge(student)}
+                  <div className="flex gap-1">
+                    {student.totalFees > 0 && (
+                      <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                        <Percent className="h-3 w-3 mr-1" />
+                        Taxa
+                      </Badge>
+                    )}
+                    {student.totalInterest > 0 && (
+                      <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                        <DollarSign className="h-3 w-3 mr-1" />
+                        Juros
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardHeader>
             
@@ -315,6 +343,28 @@ export const StudentsDirectory = ({ data }: StudentsDirectoryProps) => {
                   <div className="flex justify-between">
                     <span className="text-danger">Vencido:</span>
                     <span className="text-danger font-medium">{formatCurrency(student.overdueAmount)}</span>
+                  </div>
+                )}
+                {(student.totalFees > 0 || student.totalInterest > 0) && (
+                  <div className="pt-1 border-t border-muted">
+                    {student.totalFees > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-orange-600 flex items-center">
+                          <Percent className="h-3 w-3 mr-1" />
+                          Taxas:
+                        </span>
+                        <span className="text-orange-600 font-medium">-{formatCurrency(student.totalFees)}</span>
+                      </div>
+                    )}
+                    {student.totalInterest > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-red-600 flex items-center">
+                          <DollarSign className="h-3 w-3 mr-1" />
+                          Juros:
+                        </span>
+                        <span className="text-red-600 font-medium">+{formatCurrency(student.totalInterest)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
