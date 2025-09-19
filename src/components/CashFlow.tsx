@@ -34,6 +34,8 @@ const CashFlow: React.FC = () => {
   
   const { toast } = useToast();
 
+  // Process raw cash flow data from Google Sheets into structured format
+
   const processCashFlowData = (rawData: any[]): CashFlowData => {
     const result: CashFlowData = {
       saldoInicial: 0,
