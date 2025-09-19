@@ -170,30 +170,47 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       return groups;
     };
 
-    // Separate into different categories based on description
+    // Separate into different categories based on description / column A markers
     const receipts = filteredData.filter(record => record.type === 'RECEITA');
-    
-    // Debug: Log all DESPESA records to see their descriptions
+
+    const normalize = (s?: string) => (s || '')
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+    const inAnyField = (record: DRERecord, predicate: (t: string) => boolean) => {
+      const fields = [record.description, record.details, record.extraDetail1, record.extraDetail2];
+      return fields.some(f => predicate(normalize(f)));
+    };
+
+    const isOperationalExpense = (record: DRERecord) => {
+      if (record.type !== 'DESPESA') return false;
+      return inAnyField(record, (t) => /^02[\s\.-]/.test(t) || t.includes('02-SAIDAS'));
+    };
+
+    const isDistribution = (record: DRERecord) => {
+      if (record.type !== 'DESPESA') return false;
+      return inAnyField(record, (t) => /^03[\s\.-]/.test(t) || t.includes('03-DIST') || t.includes('LUCRO'));
+    };
+
+    const isInvestment = (record: DRERecord) => {
+      if (record.type !== 'DESPESA') return false;
+      return inAnyField(record, (t) => /^04[\s\.-]/.test(t) || t.includes('04-INVEST') || t.includes('INVEST') || t.includes('APLICACAO') || t.includes('XP INVEST'));
+    };
+
+    // Debug logs
     const allExpenses = filteredData.filter(record => record.type === 'DESPESA');
     console.log('All DESPESA records found:', allExpenses.length);
-    console.log('DESPESA descriptions:', allExpenses.map(r => r.description));
-    
-    const operationalExpenses = filteredData.filter(record => {
-      const isExpense = record.type === 'DESPESA';
-      const startsWithO2 = record.description.startsWith('02-');
-      console.log(`Record: ${record.description}, isExpense: ${isExpense}, startsWithO2: ${startsWithO2}`);
-      return isExpense && startsWithO2;
-    });
-    
+    console.log('DESPESA sample descriptions:', allExpenses.slice(0, 10).map(r => r.description));
+
+    const operationalExpenses = filteredData.filter(isOperationalExpense);
+    const distributions = filteredData.filter(isDistribution);
+    const investments = filteredData.filter(isInvestment);
+
     console.log('Operational expenses found:', operationalExpenses.length);
-    console.log('Operational expenses descriptions:', operationalExpenses.map(r => r.description));
-    
-    const distributions = filteredData.filter(record => 
-      record.type === 'DESPESA' && record.description.startsWith('03-')
-    );
-    const investments = filteredData.filter(record => 
-      record.type === 'DESPESA' && record.description.startsWith('04-')
-    );
+    console.log('Distributions found:', distributions.length);
+    console.log('Investments found:', investments.length);
 
     // Group them by description
     const groupedReceipts = groupByDescription(receipts);
