@@ -380,13 +380,19 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+            <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
               {Object.keys(processedDREData.receipts.items).length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma receita encontrada no período
                 </p>
               ) : (
-                Object.entries(processedDREData.receipts.items).map(([description, records]) => (
+                Object.entries(processedDREData.receipts.items)
+                  .sort(([, recordsA], [, recordsB]) => {
+                    const totalA = recordsA.reduce((sum, record) => sum + record.amount, 0);
+                    const totalB = recordsB.reduce((sum, record) => sum + record.amount, 0);
+                    return totalB - totalA; // Maior para menor
+                  })
+                  .map(([description, records]) => (
                   <Collapsible key={description} className="border rounded-lg bg-green-50/50 border-green-200 shadow-sm hover:shadow-md transition-all duration-200">
                     <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-green-50/70 rounded-lg transition-colors">
                       <div className="flex items-center gap-3">
@@ -487,13 +493,19 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+            <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
               {Object.keys(processedDREData.expenses.items).length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma despesa encontrada no período
                 </p>
               ) : (
-                Object.entries(processedDREData.expenses.items).map(([description, records]) => (
+                Object.entries(processedDREData.expenses.items)
+                  .sort(([, recordsA], [, recordsB]) => {
+                    const totalA = recordsA.reduce((sum, record) => sum + record.amount, 0);
+                    const totalB = recordsB.reduce((sum, record) => sum + record.amount, 0);
+                    return totalB - totalA; // Maior para menor
+                  })
+                  .map(([description, records]) => (
                   <Collapsible key={description} className="border rounded-lg bg-red-50/50 border-red-200 shadow-sm hover:shadow-md transition-all duration-200">
                     <CollapsibleTrigger className="flex w-full items-center justify-between p-4 hover:bg-red-50/70 rounded-lg transition-colors">
                       <div className="flex items-center gap-3">
