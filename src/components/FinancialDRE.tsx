@@ -376,7 +376,7 @@ const inAnyField = (record: DRERecord, predicate: (t: string) => boolean) => {
 
       {/* Summary Cards */}
       {hasSearched && (
-        <div className="grid gap-4 md:grid-cols-4 mb-6">
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
           <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -410,25 +410,6 @@ const inAnyField = (record: DRERecord, predicate: (t: string) => boolean) => {
                 </div>
                 <div className="p-3 bg-red-200 rounded-full">
                   <TrendingDown className="h-6 w-6 text-red-700" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`border-2 ${processedDREData.operationalResult >= 0 ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100' : 'border-orange-300 bg-gradient-to-br from-orange-50 to-orange-100'}`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Resultado Operacional</p>
-                  <p className={`text-2xl font-bold ${processedDREData.operationalResult >= 0 ? 'text-blue-800' : 'text-orange-800'}`}>
-                    {formatCurrency(processedDREData.operationalResult)}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Receitas - Despesas
-                  </p>
-                </div>
-                <div className={`p-3 rounded-full ${processedDREData.operationalResult >= 0 ? 'bg-blue-200' : 'bg-orange-200'}`}>
-                  <BarChart3 className={`h-6 w-6 ${processedDREData.operationalResult >= 0 ? 'text-blue-700' : 'text-orange-700'}`} />
                 </div>
               </div>
             </CardContent>
@@ -923,13 +904,6 @@ const inAnyField = (record: DRERecord, predicate: (t: string) => boolean) => {
                 <span>(-) Despesas Operacionais (02-saidas):</span>
                 <span className="text-red-600 font-medium">
                   ({formatCurrency(processedDREData.expenses.total)})
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between font-semibold text-lg">
-                <span>= Resultado Operacional:</span>
-                <span className={`${processedDREData.operationalResult >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                  {formatCurrency(processedDREData.operationalResult)}
                 </span>
               </div>
               
