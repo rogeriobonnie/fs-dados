@@ -1,15 +1,27 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { FinancialRecord } from '@/types/financial';
+import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { TrendingUp, TrendingDown, DollarSign, Search, Filter } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Search, Filter, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface FinancialDREProps {
   data: FinancialRecord[];
+}
+
+interface DRERecord {
+  id: string;
+  type: 'RECEITA' | 'DESPESA';
+  description: string;
+  amount: number;
+  month: string;
+  year: string;
+  originalAmount: number;
 }
 
 interface DREData {
@@ -18,7 +30,6 @@ interface DREData {
     items: Array<{
       description: string;
       amount: number;
-      count: number;
     }>;
   };
   expenses: {
@@ -26,7 +37,6 @@ interface DREData {
     items: Array<{
       description: string;
       amount: number;
-      count: number;
     }>;
   };
   netResult: number;
@@ -36,29 +46,52 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [hasSearched, setHasSearched] = useState(false);
+  const [dreData, setDreData] = useState<DRERecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  // Get available months and years from data
+  // Load DRE data from Google Sheets
+  const loadDREData = async () => {
+    setIsLoading(true);
+    try {
+      const sheetData = await GoogleSheetsService.fetchDREData();
+      setDreData(sheetData);
+      toast({
+        title: "Dados DRE carregados!",
+        description: `${sheetData.length} registros carregados da Página2`,
+      });
+    } catch (error) {
+      console.error('Error loading DRE data:', error);
+      toast({
+        title: "Erro ao carregar DRE",
+        description: "Falha ao conectar com a Página2 da planilha.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Get available months and years from DRE data
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    data.forEach(record => {
-      if (record.paymentDate) {
-        const date = new Date(record.paymentDate);
-        months.add(String(date.getMonth() + 1).padStart(2, '0'));
+    dreData.forEach(record => {
+      if (record.month) {
+        months.add(record.month);
       }
     });
     return Array.from(months).sort();
-  }, [data]);
+  }, [dreData]);
 
   const availableYears = useMemo(() => {
     const years = new Set<string>();
-    data.forEach(record => {
-      if (record.paymentDate) {
-        const date = new Date(record.paymentDate);
-        years.add(String(date.getFullYear()));
+    dreData.forEach(record => {
+      if (record.year) {
+        years.add(record.year);
       }
     });
     return Array.from(years).sort().reverse();
-  }, [data]);
+  }, [dreData]);
 
   const monthNames = {
     '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
@@ -67,75 +100,52 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
   };
 
   // Filter and process DRE data
-  const dreData = useMemo((): DREData => {
-    let filteredData = data;
+  const processedDREData = useMemo((): DREData => {
+    let filteredData = dreData;
 
     // Apply month/year filters if selected
     if (selectedMonth !== 'all' || selectedYear !== 'all') {
-      filteredData = data.filter(record => {
-        if (!record.paymentDate) return false;
-        
-        const paymentDate = new Date(record.paymentDate);
-        const recordMonth = String(paymentDate.getMonth() + 1).padStart(2, '0');
-        const recordYear = String(paymentDate.getFullYear());
-
-        const monthMatches = selectedMonth === 'all' || recordMonth === selectedMonth;
-        const yearMatches = selectedYear === 'all' || recordYear === selectedYear;
-
+      filteredData = dreData.filter(record => {
+        const monthMatches = selectedMonth === 'all' || record.month === selectedMonth;
+        const yearMatches = selectedYear === 'all' || record.year === selectedYear;
         return monthMatches && yearMatches;
       });
     }
 
-    // Calculate receipts (only paid amounts)
-    const paidRecords = filteredData.filter(record => record.status === 'PAGO');
-    const totalReceipts = paidRecords.reduce((sum, record) => sum + record.amount, 0);
-    
-    // Group receipts by payment method
-    const receiptsByMethod = paidRecords.reduce((acc, record) => {
-      let method = 'Outros';
-      if (record.installment?.includes('CARTÃO')) method = 'Cartão de Crédito';
-      else if (record.installment?.includes('PIX') || record.contractObservation?.toLowerCase().includes('pix')) method = 'PIX';
-      else if (record.installment?.includes('BOLETO') || record.contractObservation?.toLowerCase().includes('boleto')) method = 'Boleto';
-      else if (record.installment?.includes('A VISTA')) method = 'À Vista';
-      else if (record.installment?.match(/\d+ DE \d+/)) method = 'Parcelado';
+    // Separate receipts and expenses
+    const receipts = filteredData.filter(record => record.type === 'RECEITA');
+    const expenses = filteredData.filter(record => record.type === 'DESPESA');
 
-      if (!acc[method]) {
-        acc[method] = { amount: 0, count: 0 };
+    // Group receipts by description
+    const receiptsByDescription = receipts.reduce((acc, record) => {
+      if (!acc[record.description]) {
+        acc[record.description] = 0;
       }
-      acc[method].amount += record.amount;
-      acc[method].count += 1;
+      acc[record.description] += record.amount;
       return acc;
-    }, {} as Record<string, { amount: number; count: number }>);
+    }, {} as Record<string, number>);
 
-    const receiptsItems = Object.entries(receiptsByMethod).map(([description, data]) => ({
+    // Group expenses by description
+    const expensesByDescription = expenses.reduce((acc, record) => {
+      if (!acc[record.description]) {
+        acc[record.description] = 0;
+      }
+      acc[record.description] += record.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const receiptsItems = Object.entries(receiptsByDescription).map(([description, amount]) => ({
       description,
-      amount: data.amount,
-      count: data.count
+      amount
     }));
 
-    // Calculate expenses (fees from all records)
-    const totalFees = filteredData.reduce((sum, record) => sum + (record.fees || 0), 0);
-    const totalInterest = filteredData.reduce((sum, record) => sum + (record.interest || 0), 0);
-    
-    const expensesItems = [];
-    if (totalFees > 0) {
-      const feeCount = filteredData.filter(r => r.fees && r.fees > 0).length;
-      expensesItems.push({
-        description: 'Taxas de Processamento',
-        amount: totalFees,
-        count: feeCount
-      });
-    }
-    if (totalInterest > 0) {
-      const interestCount = filteredData.filter(r => r.interest && r.interest > 0).length;
-      expensesItems.push({
-        description: 'Juros',
-        amount: totalInterest,
-        count: interestCount
-      });
-    }
+    const expensesItems = Object.entries(expensesByDescription).map(([description, amount]) => ({
+      description,
+      amount
+    }));
 
-    const totalExpenses = totalFees + totalInterest;
+    const totalReceipts = receiptsItems.reduce((sum, item) => sum + item.amount, 0);
+    const totalExpenses = expensesItems.reduce((sum, item) => sum + item.amount, 0);
 
     return {
       receipts: {
@@ -148,10 +158,13 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
       },
       netResult: totalReceipts - totalExpenses
     };
-  }, [data, selectedMonth, selectedYear]);
+  }, [dreData, selectedMonth, selectedYear]);
 
   const handleSearch = () => {
     setHasSearched(true);
+    if (dreData.length === 0) {
+      loadDREData();
+    }
   };
 
   const handleClearFilters = () => {
@@ -194,7 +207,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                   <SelectItem value="all">Todos os meses</SelectItem>
                   {availableMonths.map(month => (
                     <SelectItem key={month} value={month}>
-                      {monthNames[month as keyof typeof monthNames]}
+                      {month}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -219,14 +232,25 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             </div>
 
             <div className="flex gap-2">
-              <Button onClick={handleSearch} className="flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                Consultar
+              <Button onClick={handleSearch} className="flex items-center gap-2" disabled={isLoading}>
+                {isLoading ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                {isLoading ? 'Carregando...' : 'Consultar'}
               </Button>
               
               {(selectedMonth !== 'all' || selectedYear !== 'all') && (
                 <Button variant="outline" onClick={handleClearFilters}>
                   Limpar Filtros
+                </Button>
+              )}
+
+              {dreData.length > 0 && (
+                <Button variant="outline" onClick={loadDREData} disabled={isLoading}>
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  Atualizar
                 </Button>
               )}
             </div>
@@ -236,7 +260,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
             <div className="mt-4 flex gap-2">
               {selectedMonth !== 'all' && (
                 <Badge variant="secondary">
-                  {monthNames[selectedMonth as keyof typeof monthNames]}
+                  Mês: {selectedMonth}
                 </Badge>
               )}
               {selectedYear !== 'all' && (
@@ -261,23 +285,20 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                   Receitas
                 </div>
                 <span className="text-green-600 font-bold">
-                  {formatCurrency(dreData.receipts.total)}
+                  {formatCurrency(processedDREData.receipts.total)}
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {dreData.receipts.items.length === 0 ? (
+              {processedDREData.receipts.items.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma receita encontrada no período
                 </p>
               ) : (
-                dreData.receipts.items.map((item, index) => (
+                processedDREData.receipts.items.map((item, index) => (
                   <div key={index} className="flex justify-between items-center">
                     <div>
                       <span className="font-medium">{item.description}</span>
-                      <span className="text-sm text-muted-foreground ml-2">
-                        ({item.count} transações)
-                      </span>
                     </div>
                     <span className="text-green-600 font-medium">
                       {formatCurrency(item.amount)}
@@ -297,23 +318,20 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                   Despesas
                 </div>
                 <span className="text-red-600 font-bold">
-                  {formatCurrency(dreData.expenses.total)}
+                  {formatCurrency(processedDREData.expenses.total)}
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {dreData.expenses.items.length === 0 ? (
+              {processedDREData.expenses.items.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma despesa encontrada no período
                 </p>
               ) : (
-                dreData.expenses.items.map((item, index) => (
+                processedDREData.expenses.items.map((item, index) => (
                   <div key={index} className="flex justify-between items-center">
                     <div>
                       <span className="font-medium">{item.description}</span>
-                      <span className="text-sm text-muted-foreground ml-2">
-                        ({item.count} ocorrências)
-                      </span>
                     </div>
                     <span className="text-red-600 font-medium">
                       {formatCurrency(item.amount)}
@@ -331,12 +349,12 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
         <Card className="border-2">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <div className={`flex items-center gap-2 ${getResultColor(dreData.netResult)}`}>
-                {getResultIcon(dreData.netResult)}
+              <div className={`flex items-center gap-2 ${getResultColor(processedDREData.netResult)}`}>
+                {getResultIcon(processedDREData.netResult)}
                 Resultado Líquido do Período
               </div>
-              <span className={`text-2xl font-bold ${getResultColor(dreData.netResult)}`}>
-                {formatCurrency(dreData.netResult)}
+              <span className={`text-2xl font-bold ${getResultColor(processedDREData.netResult)}`}>
+                {formatCurrency(processedDREData.netResult)}
               </span>
             </CardTitle>
           </CardHeader>
@@ -345,20 +363,20 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
               <div className="flex justify-between">
                 <span>Total de Receitas:</span>
                 <span className="text-green-600 font-medium">
-                  {formatCurrency(dreData.receipts.total)}
+                  {formatCurrency(processedDREData.receipts.total)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Total de Despesas:</span>
                 <span className="text-red-600 font-medium">
-                  ({formatCurrency(dreData.expenses.total)})
+                  ({formatCurrency(processedDREData.expenses.total)})
                 </span>
               </div>
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Resultado:</span>
-                <span className={getResultColor(dreData.netResult)}>
-                  {formatCurrency(dreData.netResult)}
+                <span className={getResultColor(processedDREData.netResult)}>
+                  {formatCurrency(processedDREData.netResult)}
                 </span>
               </div>
             </div>

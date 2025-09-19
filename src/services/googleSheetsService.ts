@@ -80,6 +80,66 @@ export class GoogleSheetsService {
     }
   }
 
+  static async fetchDREData(): Promise<any[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+    
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      // Fetch data from Página2 for DRE data
+      const range = 'Página2!A:Z';
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados do DRE: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+      
+      return this.parseDREData(rows);
+    } catch (error) {
+      console.error('Error fetching DRE data:', error);
+      throw error;
+    }
+  }
+
+  private static parseDREData(rows: string[][]): any[] {
+    const dreRecords: any[] = [];
+    
+    // Skip first few rows and find data starting from row with actual content
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      
+      if (!row || row.length === 0) continue;
+      
+      const description = (row[1] || '').toString().trim(); // Column B - names of receipts/expenses
+      const type = (row[0] || '').toString().trim(); // Column A - type (RECEITA/DESPESA)
+      const amount = this.parseAmount(row[2] || ''); // Column C - amounts
+      const month = (row[3] || '').toString().trim(); // Column D - month
+      const year = (row[4] || '').toString().trim(); // Column E - year
+      
+      if (description && amount !== 0 && (type.toUpperCase().includes('RECEITA') || type.toUpperCase().includes('DESPESA'))) {
+        dreRecords.push({
+          id: `dre_${i}`,
+          type: type.toUpperCase().includes('RECEITA') ? 'RECEITA' : 'DESPESA',
+          description,
+          amount: Math.abs(amount), // Ensure positive amount
+          month,
+          year: year || '2025',
+          originalAmount: amount // Keep original sign
+        });
+      }
+    }
+    
+    return dreRecords;
+  }
+
   private static parseSheetData(rows: string[][]): FinancialRecord[] {
     const records: FinancialRecord[] = [];
 
