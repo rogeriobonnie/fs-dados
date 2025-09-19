@@ -109,6 +109,35 @@ export class GoogleSheetsService {
     }
   }
 
+  static async fetchCashFlowData(): Promise<any[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+    
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      // Fetch data from Página3 for Cash Flow data
+      const range = 'Página3!A:Z';
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados do Fluxo de Caixa: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+      
+      return this.parseCashFlowData(rows);
+    } catch (error) {
+      console.error('Error fetching Cash Flow data:', error);
+      throw error;
+    }
+  }
+
   private static parseDREData(rows: string[][]): any[] {
     const dreRecords: any[] = [];
     
@@ -235,6 +264,47 @@ export class GoogleSheetsService {
     console.log('Available years:', [...new Set(dreRecords.map(r => r.year))]);
     
     return dreRecords;
+  }
+
+  private static parseCashFlowData(rows: string[][]): any[] {
+    const cashFlowRecords: any[] = [];
+    
+    console.log('Cash Flow Parsing - Total rows:', rows.length);
+    console.log('First 10 rows preview:', rows.slice(0, 10));
+    
+    // Skip first row (header) and process data
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      
+      if (!row || row.length === 0) continue;
+      
+      // Parse each column based on the structure
+      const category = (row[0] || '').toString().trim();
+      const description = (row[1] || '').toString().trim();
+      const subcategory = (row[2] || '').toString().trim();
+      const detail = (row[3] || '').toString().trim();
+      const amount = this.parseAmount(row[4] || '');
+      const date = (row[5] || '').toString().trim();
+      const bank = (row[6] || '').toString().trim();
+      
+      // Skip rows without significant data
+      if (!category && !description && amount === 0) continue;
+      
+      cashFlowRecords.push({
+        id: `cf-${i}`,
+        category,
+        description,
+        subcategory,
+        detail,
+        amount,
+        date,
+        bank,
+        type: amount >= 0 ? 'ENTRADA' : 'SAÍDA'
+      });
+    }
+    
+    console.log('Parsed Cash Flow records:', cashFlowRecords.length);
+    return cashFlowRecords;
   }
 
   private static parseSheetData(rows: string[][]): FinancialRecord[] {

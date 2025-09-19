@@ -7,6 +7,7 @@ import { QuickFilters } from '@/components/QuickFilters';
 import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { MonthlyCommissionReport } from '@/components/MonthlyCommissionReport';
 import FinancialDRE from '@/components/FinancialDRE';
+import CashFlow from '@/components/CashFlow';
 import { PinAuth } from '@/components/PinAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -264,7 +265,24 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="demonstracoes" className="space-y-6">
-              <FinancialDRE data={filteredData} />
+              <Tabs defaultValue="dre" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="dre" className="flex items-center gap-1">
+                    <BarChart3 className="h-4 w-4" />
+                    DRE
+                  </TabsTrigger>
+                  <TabsTrigger value="fluxo-caixa" className="flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" />
+                    Fluxo de Caixa
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="dre" className="space-y-6">
+                  <FinancialDRE data={filteredData} />
+                </TabsContent>
+                <TabsContent value="fluxo-caixa" className="space-y-6">
+                  <CashFlow />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>
