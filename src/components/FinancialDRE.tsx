@@ -7,8 +7,9 @@ import { Separator } from '@/components/ui/separator';
 import { FinancialRecord } from '@/types/financial';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { TrendingUp, TrendingDown, DollarSign, Search, Filter, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Search, Filter, RefreshCw, ChevronDown, ChevronUp, Calendar, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface FinancialDREProps {
   data: FinancialRecord[];
@@ -85,7 +86,9 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
     const months = new Set<string>();
     dreData.forEach(record => {
       if (record.month) {
-        months.add(record.month);
+        // Ensure month is in MM format
+        const month = record.month.padStart(2, '0');
+        months.add(month);
       }
     });
     return Array.from(months).sort();
@@ -227,11 +230,11 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Selecione o mês" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border z-50">
                   <SelectItem value="all">Todos os meses</SelectItem>
                   {availableMonths.map(month => (
                     <SelectItem key={month} value={month}>
-                      {monthNames[month] || month}
+                      {monthNames[month] || `Mês ${month}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -244,7 +247,7 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Selecione o ano" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border z-50">
                   <SelectItem value="all">Todos os anos</SelectItem>
                   {availableYears.map(year => (
                     <SelectItem key={year} value={year}>
@@ -283,8 +286,9 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
           {(selectedMonth !== 'all' || selectedYear !== 'all') && (
             <div className="mt-4 flex gap-2">
               {selectedMonth !== 'all' && (
-                <Badge variant="secondary">
-                  Mês: {monthNames[selectedMonth] || selectedMonth}
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {monthNames[selectedMonth] || `Mês ${selectedMonth}`}
                 </Badge>
               )}
               {selectedYear !== 'all' && (
@@ -313,27 +317,53 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {processedDREData.receipts.items.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma receita encontrada no período
                 </p>
               ) : (
                 processedDREData.receipts.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <span className="font-medium">{item.description}</span>
-                      {item.details && (
-                        <p className="text-sm text-muted-foreground mt-1">{item.details}</p>
-                      )}
-                      {item.extraDetails && (
-                        <p className="text-xs text-muted-foreground mt-1">{item.extraDetails}</p>
+                  <Collapsible key={index}>
+                    <div className="border rounded-lg p-3 bg-green-50/50 border-green-200">
+                      <CollapsibleTrigger className="w-full">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-left">{item.description}</span>
+                            {(item.details || item.extraDetails) && (
+                              <Info className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-600 font-bold">
+                              {formatCurrency(item.amount)}
+                            </span>
+                            {(item.details || item.extraDetails) && (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
+                      </CollapsibleTrigger>
+                      {(item.details || item.extraDetails) && (
+                        <CollapsibleContent className="mt-3 pt-3 border-t border-green-200">
+                          <div className="space-y-2 text-sm">
+                            {item.details && (
+                              <div className="flex gap-2">
+                                <span className="font-medium text-muted-foreground">Detalhes:</span>
+                                <span>{item.details}</span>
+                              </div>
+                            )}
+                            {item.extraDetails && (
+                              <div className="flex gap-2">
+                                <span className="font-medium text-muted-foreground">Informações:</span>
+                                <span>{item.extraDetails}</span>
+                              </div>
+                            )}
+                          </div>
+                        </CollapsibleContent>
                       )}
                     </div>
-                    <span className="text-green-600 font-medium ml-4">
-                      {formatCurrency(item.amount)}
-                    </span>
-                  </div>
+                  </Collapsible>
                 ))
               )}
             </CardContent>
@@ -352,27 +382,53 @@ const FinancialDRE = ({ data }: FinancialDREProps) => {
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {processedDREData.expenses.items.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">
                   Nenhuma despesa encontrada no período
                 </p>
               ) : (
                 processedDREData.expenses.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <span className="font-medium">{item.description}</span>
-                      {item.details && (
-                        <p className="text-sm text-muted-foreground mt-1">{item.details}</p>
-                      )}
-                      {item.extraDetails && (
-                        <p className="text-xs text-muted-foreground mt-1">{item.extraDetails}</p>
+                  <Collapsible key={index}>
+                    <div className="border rounded-lg p-3 bg-red-50/50 border-red-200">
+                      <CollapsibleTrigger className="w-full">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-left">{item.description}</span>
+                            {(item.details || item.extraDetails) && (
+                              <Info className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-red-600 font-bold">
+                              {formatCurrency(item.amount)}
+                            </span>
+                            {(item.details || item.extraDetails) && (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
+                      </CollapsibleTrigger>
+                      {(item.details || item.extraDetails) && (
+                        <CollapsibleContent className="mt-3 pt-3 border-t border-red-200">
+                          <div className="space-y-2 text-sm">
+                            {item.details && (
+                              <div className="flex gap-2">
+                                <span className="font-medium text-muted-foreground">Detalhes:</span>
+                                <span>{item.details}</span>
+                              </div>
+                            )}
+                            {item.extraDetails && (
+                              <div className="flex gap-2">
+                                <span className="font-medium text-muted-foreground">Informações:</span>
+                                <span>{item.extraDetails}</span>
+                              </div>
+                            )}
+                          </div>
+                        </CollapsibleContent>
                       )}
                     </div>
-                    <span className="text-red-600 font-medium ml-4">
-                      {formatCurrency(item.amount)}
-                    </span>
-                  </div>
+                  </Collapsible>
                 ))
               )}
             </CardContent>
