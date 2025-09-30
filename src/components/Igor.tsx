@@ -116,9 +116,7 @@ const Igor = () => {
 
   // Auto-load data when component mounts
   useEffect(() => {
-    if (igorData.length === 0) {
-      loadIgorData();
-    }
+    loadIgorData();
   }, []);
 
   // Get available months and years
@@ -825,12 +823,24 @@ const Igor = () => {
         </>
       )}
 
-      {processedData.count === 0 && hasSearched && (
+      {processedData.count === 0 && !isLoading && (
         <Card>
           <CardContent className="py-8">
             <div className="text-center text-muted-foreground">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum registro encontrado para os filtros selecionados.</p>
+              <p>Nenhum registro com "Igor" encontrado para os filtros selecionados.</p>
+              <p className="text-xs mt-2">Certifique-se de que há receitas ou despesas com "Igor" no nome na planilha.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading && (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
+              <RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-50 animate-spin" />
+              <p>Carregando dados Igor...</p>
             </div>
           </CardContent>
         </Card>
