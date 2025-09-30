@@ -67,24 +67,59 @@ const Igor = () => {
   const loadIgorData = async () => {
     setIsLoading(true);
     try {
-      const [lanceDataResult, taxInfo, consultantsData] = await Promise.all([
-        GoogleSheetsService.fetchLanceADoisData(),
-        GoogleSheetsService.fetchLanceADoisTaxData(),
+      const [dreData, consultantsData] = await Promise.all([
+        GoogleSheetsService.fetchDREData(),
         GoogleSheetsService.fetchConsultantData()
       ]);
       
-      // Filter only records with "IGOR" in column G (extraDetail2)
-      const igorRevenues = lanceDataResult.revenues.filter(record => 
-        record.extraDetail2?.toUpperCase().includes('IGOR')
+      // Filter only rows with "IGOR" in column G (extraDetail2)
+      const igorRows = dreData.filter((row: any) =>
+        (row.extraDetail2 || '').toString().toUpperCase().includes('IGOR')
       );
+
+      // Separate revenues (ENTRADAS) and expenses (SAÍDAS)
+      const igorRevenues = igorRows
+        .filter((r: any) => (r.type || '').toUpperCase() === 'RECEITA')
+        .map((r: any) => ({
+          id: r.id,
+          description: r.description || 'Sem descrição',
+          details: r.details || 'Sem detalhes',
+          amount: Math.abs(r.amount) || 0,
+          month: r.month || '',
+          year: r.year || '',
+          date: r.date || '',
+          extraDetail1: r.extraDetail1 || '',
+          extraDetail2: r.extraDetail2 || ''
+        }));
       
-      const igorExpensesFiltered = lanceDataResult.expenses.filter(expense =>
-        expense.extraDetail2?.toUpperCase().includes('IGOR')
-      );
+      const igorExpensesFiltered = igorRows
+        .filter((r: any) => (r.type || '').toUpperCase() === 'DESPESA' && !((r.sourceType || '').toUpperCase().includes('05-IMPOSTOS')))
+        .map((r: any) => ({
+          id: r.id,
+          description: r.description || 'Sem descrição',
+          details: r.details || 'Sem detalhes',
+          amount: Math.abs(r.amount) || 0,
+          month: r.month || '',
+          year: r.year || '',
+          date: r.date || '',
+          extraDetail1: r.extraDetail1 || '',
+          extraDetail2: r.extraDetail2 || ''
+        }));
       
-      console.log('Igor data loaded:', igorRevenues);
+      // Try to get specific tax percentage for IGOR from DRE (row with 05-IMPOSTOS)
+      let taxInfo: { taxPercentage: number; month: string; year: string } | null = null;
+      const taxRow = igorRows.find((r: any) => (r.sourceType || '').toUpperCase().includes('05-IMPOSTOS'));
+      if (taxRow) {
+        taxInfo = {
+          taxPercentage: Math.abs(taxRow.amount) || 12.89269,
+          month: taxRow.month || '',
+          year: taxRow.year || ''
+        };
+      }
+      
+      console.log('Igor revenues loaded:', igorRevenues);
       console.log('Igor expenses loaded:', igorExpensesFiltered);
-      console.log('Tax data loaded:', taxInfo);
+      console.log('Tax (Igor) data:', taxInfo);
       console.log('Consultant data loaded:', consultantsData);
       
       setIgorData(igorRevenues);
