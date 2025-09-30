@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { TrendingUp, Search, Filter, RefreshCw, Calendar } from 'lucide-react';
+import { TrendingUp, Search, Filter, RefreshCw, Calendar, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 interface LanceADoisRecord {
   id: string;
@@ -303,6 +303,219 @@ const LanceADois = () => {
     setHasSearched(false);
   };
 
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatorio Lance a Dois', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 10;
+
+    // Period info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const periodText = selectedMonth !== 'all' || selectedYear !== 'all' 
+      ? `Periodo: ${selectedMonth !== 'all' ? monthNames[selectedMonth] : 'Todos os meses'} ${selectedYear !== 'all' ? selectedYear : ''}`
+      : 'Periodo: Todos';
+    doc.text(periodText, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Gross Revenue Section
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(34, 197, 94); // green
+    doc.text('RECEITAS BRUTAS LANCE A DOIS', 20, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(12);
+    doc.text(`Total: ${formatCurrency(processedData.total)}`, 20, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${processedData.count} registro(s) - ${Object.keys(processedData.grouped).length} categoria(s)`, 20, yPosition);
+    yPosition += 10;
+
+    // Revenue breakdown by category
+    Object.entries(processedData.grouped).forEach(([category, records]) => {
+      if (yPosition > pageHeight - 30) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      const categoryTotal = records.reduce((sum, r) => sum + r.amount, 0);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${category}:`, 25, yPosition);
+      doc.text(formatCurrency(categoryTotal), pageWidth - 25, yPosition, { align: 'right' });
+      yPosition += 6;
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      records.forEach((record) => {
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`- ${record.details}`, 30, yPosition);
+        doc.text(formatCurrency(record.amount), pageWidth - 30, yPosition, { align: 'right' });
+        yPosition += 4;
+      });
+      yPosition += 4;
+    });
+
+    yPosition += 5;
+
+    // Taxes Section
+    if (processedData.taxAmount > 0) {
+      if (yPosition > pageHeight - 40) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(239, 68, 68); // red
+      doc.text('IMPOSTOS', 20, yPosition);
+      yPosition += 7;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.text(`${processedData.taxPercentage.toFixed(2)}%: ${formatCurrency(processedData.taxAmount)}`, 25, yPosition);
+      yPosition += 10;
+    }
+
+    // Expenses Section
+    if (processedData.totalExpenses > 0 || processedData.totalConsultantCommissions > 0) {
+      if (yPosition > pageHeight - 40) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(239, 68, 68); // red
+      doc.text('DESPESAS LANCE A DOIS', 20, yPosition);
+      yPosition += 7;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Total: ${formatCurrency(processedData.totalExpenses + processedData.totalConsultantCommissions)}`, 25, yPosition);
+      yPosition += 8;
+
+      // Regular expenses
+      if (processedData.totalExpenses > 0) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Despesas Gerais:', 25, yPosition);
+        yPosition += 5;
+
+        doc.setFont('helvetica', 'normal');
+        Object.entries(processedData.groupedExpenses)
+          .flatMap(([category, expenses]) =>
+            expenses.map((expense) => ({
+              ...expense,
+              category
+            }))
+          )
+          .sort((a, b) => b.amount - a.amount)
+          .forEach((expense) => {
+            if (yPosition > pageHeight - 20) {
+              doc.addPage();
+              yPosition = 20;
+            }
+            doc.text(`- ${expense.category} (${expense.details})`, 30, yPosition);
+            doc.text(formatCurrency(expense.amount), pageWidth - 30, yPosition, { align: 'right' });
+            yPosition += 5;
+          });
+        yPosition += 3;
+      }
+
+      // Consultant commissions
+      if (processedData.totalConsultantCommissions > 0) {
+        if (yPosition > pageHeight - 30) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Comissoes Consultoras (3%):', 25, yPosition);
+        doc.text(formatCurrency(processedData.totalConsultantCommissions), pageWidth - 30, yPosition, { align: 'right' });
+        yPosition += 5;
+
+        doc.setFont('helvetica', 'normal');
+        Object.entries(processedData.consultantCommissions)
+          .sort(([, a], [, b]) => b.commission - a.commission)
+          .forEach(([name, data]) => {
+            if (yPosition > pageHeight - 20) {
+              doc.addPage();
+              yPosition = 20;
+            }
+            doc.text(`- ${name} (${data.records.length} venda(s))`, 30, yPosition);
+            doc.text(formatCurrency(data.commission), pageWidth - 30, yPosition, { align: 'right' });
+            yPosition += 5;
+          });
+        yPosition += 3;
+      }
+    }
+
+    yPosition += 5;
+
+    // Net Revenue Section
+    if (yPosition > pageHeight - 30) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(34, 197, 94); // green
+    doc.text('RECEITAS LIQUIDAS', 20, yPosition);
+    yPosition += 7;
+
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text(formatCurrency(processedData.revenueAfterTaxAndExpenses), 25, yPosition);
+    yPosition += 10;
+
+    // Lance a Dois Commission
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(234, 179, 8); // yellow
+    doc.text('COMISSAO LANCE A DOIS (10%)', 20, yPosition);
+    yPosition += 7;
+
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text(formatCurrency(processedData.lanceADoisCommission), 25, yPosition);
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Pagina ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+    }
+
+    doc.save(`lance_a_dois_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    toast({
+      title: "PDF gerado!",
+      description: "O relatorio foi baixado com sucesso.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -391,6 +604,16 @@ const LanceADois = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Action Buttons */}
+      {hasSearched && (
+        <div className="flex justify-end">
+          <Button onClick={generatePDF} className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Gerar PDF
+          </Button>
+        </div>
+      )}
 
       {/* Summary Card */}
       {hasSearched && (
