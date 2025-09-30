@@ -413,27 +413,42 @@ const Consultoras = () => {
 
               {/* Stella Records Detail */}
               {stellaOpen && processedData.stella.records.length > 0 && (
-                <div className="mt-4 space-y-2 bg-blue-950/20 dark:bg-blue-50/10 p-4 rounded-lg border border-blue-400/30 max-h-96 overflow-y-auto">
+                <div className="mt-4 space-y-3 bg-blue-950/20 dark:bg-blue-50/10 p-4 rounded-lg border border-blue-400/30 max-h-96 overflow-y-auto">
                   <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-3">Detalhamento:</p>
-                  {processedData.stella.records
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((record) => (
-                      <div key={record.id} className="bg-blue-900/10 dark:bg-blue-100/5 p-3 rounded-lg border border-blue-400/20">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex flex-col flex-1">
-                            <span className="font-semibold text-blue-900 dark:text-blue-200">{record.customerName}</span>
-                            <span className="text-sm text-blue-800 dark:text-blue-300 mt-1">{record.product}</span>
+                  {(() => {
+                    let accumulatedCommission = 0;
+                    return processedData.stella.records
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((record) => {
+                        const commission = record.amount * COMMISSION_RATE;
+                        accumulatedCommission += commission;
+                        return (
+                          <div key={record.id} className="bg-blue-900/10 dark:bg-blue-100/5 p-3 rounded-lg border border-blue-400/20">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex flex-col flex-1">
+                                <span className="font-semibold text-blue-900 dark:text-blue-200">{record.customerName}</span>
+                                <span className="text-sm text-blue-800 dark:text-blue-300 mt-1">{record.product}</span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="font-bold text-lg text-blue-700 dark:text-blue-300">{formatCurrency(record.amount)}</span>
+                                <span className="text-xs text-success font-semibold mt-1">Comissão 3%: {formatCurrency(commission)}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-blue-400/20">
+                              {record.date && (
+                                <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>Data: {record.date}</span>
+                                </div>
+                              )}
+                              <div className="text-xs font-semibold text-success bg-success/10 px-2 py-1 rounded">
+                                Acumulado: {formatCurrency(accumulatedCommission)}
+                              </div>
+                            </div>
                           </div>
-                          <span className="font-bold text-lg text-blue-700 dark:text-blue-300">{formatCurrency(record.amount)}</span>
-                        </div>
-                        {record.date && (
-                          <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400 mt-2 pt-2 border-t border-blue-400/20">
-                            <Calendar className="h-3 w-3" />
-                            <span>Data: {record.date}</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                        );
+                      });
+                  })()}
                 </div>
               )}
             </CardContent>
@@ -480,27 +495,42 @@ const Consultoras = () => {
 
               {/* Stephanie Records Detail */}
               {stephanieOpen && processedData.stephanie.records.length > 0 && (
-                <div className="mt-4 space-y-2 bg-purple-950/20 dark:bg-purple-50/10 p-4 rounded-lg border border-purple-400/30 max-h-96 overflow-y-auto">
+                <div className="mt-4 space-y-3 bg-purple-950/20 dark:bg-purple-50/10 p-4 rounded-lg border border-purple-400/30 max-h-96 overflow-y-auto">
                   <p className="text-sm font-semibold text-purple-900 dark:text-purple-200 mb-3">Detalhamento:</p>
-                  {processedData.stephanie.records
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((record) => (
-                      <div key={record.id} className="bg-purple-900/10 dark:bg-purple-100/5 p-3 rounded-lg border border-purple-400/20">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex flex-col flex-1">
-                            <span className="font-semibold text-purple-900 dark:text-purple-200">{record.customerName}</span>
-                            <span className="text-sm text-purple-800 dark:text-purple-300 mt-1">{record.product}</span>
+                  {(() => {
+                    let accumulatedCommission = 0;
+                    return processedData.stephanie.records
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((record) => {
+                        const commission = record.amount * COMMISSION_RATE;
+                        accumulatedCommission += commission;
+                        return (
+                          <div key={record.id} className="bg-purple-900/10 dark:bg-purple-100/5 p-3 rounded-lg border border-purple-400/20">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex flex-col flex-1">
+                                <span className="font-semibold text-purple-900 dark:text-purple-200">{record.customerName}</span>
+                                <span className="text-sm text-purple-800 dark:text-purple-300 mt-1">{record.product}</span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="font-bold text-lg text-purple-700 dark:text-purple-300">{formatCurrency(record.amount)}</span>
+                                <span className="text-xs text-success font-semibold mt-1">Comissão 3%: {formatCurrency(commission)}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-purple-400/20">
+                              {record.date && (
+                                <div className="flex items-center gap-2 text-xs text-purple-700 dark:text-purple-400">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>Data: {record.date}</span>
+                                </div>
+                              )}
+                              <div className="text-xs font-semibold text-success bg-success/10 px-2 py-1 rounded">
+                                Acumulado: {formatCurrency(accumulatedCommission)}
+                              </div>
+                            </div>
                           </div>
-                          <span className="font-bold text-lg text-purple-700 dark:text-purple-300">{formatCurrency(record.amount)}</span>
-                        </div>
-                        {record.date && (
-                          <div className="flex items-center gap-2 text-xs text-purple-700 dark:text-purple-400 mt-2 pt-2 border-t border-purple-400/20">
-                            <Calendar className="h-3 w-3" />
-                            <span>Data: {record.date}</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                        );
+                      });
+                  })()}
                 </div>
               )}
             </CardContent>
