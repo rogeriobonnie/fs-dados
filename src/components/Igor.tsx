@@ -73,15 +73,13 @@ const Igor = () => {
         GoogleSheetsService.fetchConsultantData()
       ]);
       
-      // Filter only records with "Igor" in description or details
+      // Filter only records with "IGOR" in column G (extraDetail2)
       const igorRevenues = lanceDataResult.revenues.filter(record => 
-        record.description?.toLowerCase().includes('igor') || 
-        record.details?.toLowerCase().includes('igor')
+        record.extraDetail2?.toUpperCase().includes('IGOR')
       );
       
       const igorExpensesFiltered = lanceDataResult.expenses.filter(expense =>
-        expense.description?.toLowerCase().includes('igor') || 
-        expense.details?.toLowerCase().includes('igor')
+        expense.extraDetail2?.toUpperCase().includes('IGOR')
       );
       
       console.log('Igor data loaded:', igorRevenues);
