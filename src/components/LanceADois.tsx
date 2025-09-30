@@ -395,14 +395,21 @@ const LanceADois = () => {
                       
                       {expensesOpen && (
                         <div className="mt-2 ml-6 space-y-1 bg-red-50/50 p-3 rounded">
-                          {Object.entries(processedData.groupedExpenses).flatMap(([category, expenses]) =>
-                            expenses.map((expense) => (
+                          {Object.entries(processedData.groupedExpenses)
+                            .flatMap(([category, expenses]) =>
+                              expenses.map((expense) => ({
+                                ...expense,
+                                category
+                              }))
+                            )
+                            .sort((a, b) => b.amount - a.amount)
+                            .map((expense) => (
                               <div key={expense.id} className="flex items-center justify-between text-sm text-red-700">
-                                <span className="font-medium">{category} ({expense.details})</span>
+                                <span className="font-medium">{expense.category} ({expense.details})</span>
                                 <span className="font-semibold">{formatCurrency(expense.amount)}</span>
                               </div>
                             ))
-                          )}
+                          }
                         </div>
                       )}
                     </div>
