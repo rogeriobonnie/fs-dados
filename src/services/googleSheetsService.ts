@@ -138,7 +138,7 @@ export class GoogleSheetsService {
     }
   }
 
-  static async fetchLanceADoisData(): Promise<any[]> {
+  static async fetchLanceADoisData(): Promise<{ revenues: any[], expenses: any[] }> {
     const apiKey = this.getApiKey();
     const sheetId = this.getSheetId();
     
@@ -160,7 +160,8 @@ export class GoogleSheetsService {
       const data = await response.json();
       const rows = data.values || [];
       
-      return this.parseLanceADoisData(rows);
+      const result = this.parseLanceADoisData(rows);
+      return result;
     } catch (error) {
       console.error('Error fetching Lance a Dois data:', error);
       throw error;
@@ -366,8 +367,9 @@ export class GoogleSheetsService {
     return cashFlowRecords;
   }
 
-  private static parseLanceADoisData(rows: string[][]): any[] {
-    const lanceADoisRecords: any[] = [];
+  private static parseLanceADoisData(rows: string[][]): { revenues: any[], expenses: any[] } {
+    const lanceADoisRevenues: any[] = [];
+    const lanceADoisExpenses: any[] = [];
     
     console.log('Lance a Dois Parsing - Total rows:', rows.length);
     console.log('First 10 rows preview:', rows.slice(0, 10));
@@ -391,23 +393,23 @@ export class GoogleSheetsService {
         continue;
       }
       
-      // Only include if it's a RECEITA (income)
-      if (type.toUpperCase().includes('01-ENTRADAS') || type.toUpperCase().includes('ENTRADA')) {
-        // Extract month and year from date
-        let month = '';
-        let year = '';
-        
-        if (date) {
-          // Try to parse Brazilian date format (DD/MM/YYYY)
-          const dateParts = date.split('/');
-          if (dateParts.length === 3) {
-            month = dateParts[1].padStart(2, '0'); // MM
-            year = dateParts[2]; // YYYY
-          }
+      // Extract month and year from date
+      let month = '';
+      let year = '';
+      
+      if (date) {
+        // Try to parse Brazilian date format (DD/MM/YYYY)
+        const dateParts = date.split('/');
+        if (dateParts.length === 3) {
+          month = dateParts[1].padStart(2, '0'); // MM
+          year = dateParts[2]; // YYYY
         }
-        
-        lanceADoisRecords.push({
-          id: `lance-${i}`,
+      }
+      
+      // Check if it's revenue (ENTRADA) or expense (SAÍDA)
+      if (type.toUpperCase().includes('01-ENTRADAS') || type.toUpperCase().includes('ENTRADA')) {
+        lanceADoisRevenues.push({
+          id: `lance-revenue-${i}`,
           description: description || 'Sem descrição',
           details: details || 'Sem detalhes',
           amount: amount,
@@ -419,8 +421,8 @@ export class GoogleSheetsService {
         });
         
         // Log for debugging
-        if (lanceADoisRecords.length <= 5) {
-          console.log(`Lance a Dois record ${lanceADoisRecords.length}:`, {
+        if (lanceADoisRevenues.length <= 5) {
+          console.log(`Lance a Dois revenue ${lanceADoisRevenues.length}:`, {
             description,
             details,
             amount,
@@ -429,11 +431,37 @@ export class GoogleSheetsService {
             year
           });
         }
+      } else if (type.toUpperCase().includes('02-SAÍDAS') || type.toUpperCase().includes('SAÍDA')) {
+        // This is an expense
+        lanceADoisExpenses.push({
+          id: `lance-expense-${i}`,
+          description: description || 'Sem descrição',
+          details: details || 'Sem detalhes',
+          amount: Math.abs(amount), // Make sure it's positive for display
+          month: month,
+          year: year,
+          date: date,
+          extraDetail1: extraDetail1,
+          extraDetail2: lanceADoisMarker
+        });
+        
+        // Log for debugging
+        if (lanceADoisExpenses.length <= 5) {
+          console.log(`Lance a Dois expense ${lanceADoisExpenses.length}:`, {
+            description,
+            details,
+            amount: Math.abs(amount),
+            date,
+            month,
+            year
+          });
+        }
       }
     }
     
-    console.log('Parsed Lance a Dois records:', lanceADoisRecords.length);
-    return lanceADoisRecords;
+    console.log('Parsed Lance a Dois revenues:', lanceADoisRevenues.length);
+    console.log('Parsed Lance a Dois expenses:', lanceADoisExpenses.length);
+    return { revenues: lanceADoisRevenues, expenses: lanceADoisExpenses };
   }
 
   private static parseLanceADoisTaxData(rows: string[][]): { taxPercentage: number; month: string; year: string } | null {

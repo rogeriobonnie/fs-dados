@@ -22,11 +22,24 @@ interface LanceADoisRecord {
   extraDetail2: string;
 }
 
+interface LanceADoisExpense {
+  id: string;
+  description: string;
+  details: string;
+  amount: number;
+  month: string;
+  year: string;
+  date: string;
+  extraDetail1: string;
+  extraDetail2: string;
+}
+
 const LanceADois = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [hasSearched, setHasSearched] = useState(false);
   const [lanceData, setLanceData] = useState<LanceADoisRecord[]>([]);
+  const [lanceExpenses, setLanceExpenses] = useState<LanceADoisExpense[]>([]);
   const [taxData, setTaxData] = useState<{ taxPercentage: number; month: string; year: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
@@ -36,24 +49,26 @@ const LanceADois = () => {
   const loadLanceADoisData = async () => {
     setIsLoading(true);
     try {
-      const [sheetData, taxInfo] = await Promise.all([
+      const [lanceDataResult, taxInfo] = await Promise.all([
         GoogleSheetsService.fetchLanceADoisData(),
         GoogleSheetsService.fetchLanceADoisTaxData()
       ]);
       
-      console.log('Lance a Dois data loaded:', sheetData);
+      console.log('Lance a Dois data loaded:', lanceDataResult);
       console.log('Tax data loaded:', taxInfo);
       
-      setLanceData(sheetData);
+      setLanceData(lanceDataResult.revenues);
+      setLanceExpenses(lanceDataResult.expenses);
       setTaxData(taxInfo);
       
       toast({
         title: "Dados Lance a Dois carregados!",
-        description: `${sheetData.length} registros encontrados`,
+        description: `${lanceDataResult.revenues.length} receitas e ${lanceDataResult.expenses.length} despesas encontradas`,
       });
     } catch (error) {
       console.error('Error loading Lance a Dois data:', error);
       setLanceData([]);
+      setLanceExpenses([]);
       setTaxData(null);
       toast({
         title: "Erro ao carregar dados",
@@ -165,11 +180,21 @@ const LanceADois = () => {
 
     const revenueAfterTax = total - taxAmount;
     
-    // Calculate Lance a Dois commission (10% of revenue after tax)
-    const lanceADoisCommission = revenueAfterTax * 0.10;
+    // Calculate Lance a Dois expenses (filtered by month/year)
+    let filteredExpenses = lanceExpenses;
+    if (selectedMonth !== 'all' || selectedYear !== 'all') {
+      filteredExpenses = lanceExpenses.filter(expense => {
+        const monthMatches = selectedMonth === 'all' || expense.month === selectedMonth;
+        const yearMatches = selectedYear === 'all' || expense.year === selectedYear;
+        return monthMatches && yearMatches;
+      });
+    }
     
-    // Final net revenue after tax and commission
-    const netTotal = revenueAfterTax - lanceADoisCommission;
+    const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // Calculate Lance a Dois commission (10% of revenue after tax and expenses)
+    const revenueAfterExpenses = revenueAfterTax - totalExpenses;
+    const lanceADoisCommission = revenueAfterTax * 0.10;
 
     return { 
       grouped: sortedGrouped, 
@@ -177,11 +202,12 @@ const LanceADois = () => {
       taxAmount, 
       taxPercentage, 
       revenueAfterTax,
+      totalExpenses,
       lanceADoisCommission,
-      netTotal, 
-      count: filteredData.length 
+      count: filteredData.length,
+      expensesCount: filteredExpenses.length
     };
-  }, [lanceData, selectedMonth, selectedYear, taxData]);
+  }, [lanceData, lanceExpenses, selectedMonth, selectedYear, taxData]);
 
   // Initialize open state for all categories (all closed by default)
   useEffect(() => {
@@ -343,6 +369,19 @@ const LanceADois = () => {
                     </div>
                   </div>
 
+                  {processedData.totalExpenses > 0 && (
+                    <div className="border-t border-green-300 pt-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-red-700">
+                          Despesas Lance a Dois ({processedData.expensesCount} registro{processedData.expensesCount !== 1 ? 's' : ''})
+                        </p>
+                        <p className="text-lg font-semibold text-red-700">
+                          - {formatCurrency(processedData.totalExpenses)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="border-t border-green-300 pt-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-orange-700">
@@ -350,15 +389,6 @@ const LanceADois = () => {
                       </p>
                       <p className="text-lg font-semibold text-orange-700">
                         - {formatCurrency(processedData.lanceADoisCommission)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="border-t-2 border-green-500 pt-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-green-800">Receita Final</p>
-                      <p className="text-2xl font-bold text-green-900">
-                        {formatCurrency(processedData.netTotal)}
                       </p>
                     </div>
                   </div>
