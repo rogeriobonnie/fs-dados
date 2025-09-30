@@ -33,44 +33,24 @@ interface IgorExpense {
   extraDetail2: string;
 }
 
-interface ConsultantRecord {
-  id: string;
-  consultantName: string;
-  amount: number;
-  month: string;
-  year: string;
-  date: string;
-  description: string;
-  customerName: string;
-  product: string;
-}
-
 const Igor = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [hasSearched, setHasSearched] = useState(false);
   const [igorData, setIgorData] = useState<IgorRecord[]>([]);
   const [igorExpenses, setIgorExpenses] = useState<IgorExpense[]>([]);
-  const [consultantData, setConsultantData] = useState<ConsultantRecord[]>([]);
   const [taxData, setTaxData] = useState<{ taxPercentage: number; month: string; year: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
   const [expensesOpen, setExpensesOpen] = useState(false);
   const [revenuesOpen, setRevenuesOpen] = useState(false);
-  const [commissionsOpen, setCommissionsOpen] = useState(false);
   const { toast } = useToast();
-
-  // Commission rate for consultants
-  const COMMISSION_RATE = 0.03; // 3%
 
   // Load Igor data from Google Sheets
   const loadIgorData = async () => {
     setIsLoading(true);
     try {
-      const [dreData, consultantsData] = await Promise.all([
-        GoogleSheetsService.fetchDREData(),
-        GoogleSheetsService.fetchConsultantData()
-      ]);
+      const dreData = await GoogleSheetsService.fetchDREData();
       
       // Filter only rows with "IGOR" in column G (extraDetail2)
       const igorRows = dreData.filter((row: any) =>
@@ -120,22 +100,19 @@ const Igor = () => {
       console.log('Igor revenues loaded:', igorRevenues);
       console.log('Igor expenses loaded:', igorExpensesFiltered);
       console.log('Tax (Igor) data:', taxInfo);
-      console.log('Consultant data loaded:', consultantsData);
       
       setIgorData(igorRevenues);
       setIgorExpenses(igorExpensesFiltered);
-      setConsultantData(consultantsData);
       setTaxData(taxInfo);
       
       toast({
         title: "Dados Igor carregados!",
-        description: `${igorRevenues.length} receitas, ${igorExpensesFiltered.length} despesas e ${consultantsData.length} comissões encontradas`,
+        description: `${igorRevenues.length} receitas e ${igorExpensesFiltered.length} despesas encontradas`,
       });
     } catch (error) {
       console.error('Error loading Igor data:', error);
       setIgorData([]);
       setIgorExpenses([]);
-      setConsultantData([]);
       setTaxData(null);
       toast({
         title: "Erro ao carregar dados",
@@ -265,37 +242,8 @@ const Igor = () => {
     
     const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     
-    // Calculate consultant commissions (filtered by month/year)
-    let filteredConsultants = consultantData;
-    if (selectedMonth !== 'all' || selectedYear !== 'all') {
-      filteredConsultants = consultantData.filter(consultant => {
-        const monthMatches = selectedMonth === 'all' || consultant.month === selectedMonth;
-        const yearMatches = selectedYear === 'all' || consultant.year === selectedYear;
-        return monthMatches && yearMatches;
-      });
-    }
-    
-    // Group consultants by name and calculate commissions
-    const consultantCommissions: { [key: string]: { total: number; commission: number; records: ConsultantRecord[] } } = {};
-    filteredConsultants.forEach(record => {
-      const name = record.consultantName || 'Sem nome';
-      if (!consultantCommissions[name]) {
-        consultantCommissions[name] = { total: 0, commission: 0, records: [] };
-      }
-      consultantCommissions[name].total += record.amount;
-      consultantCommissions[name].records.push(record);
-    });
-    
-    // Calculate total commissions (3% of total sales per consultant)
-    let totalConsultantCommissions = 0;
-    Object.keys(consultantCommissions).forEach(name => {
-      const commission = consultantCommissions[name].total * COMMISSION_RATE;
-      consultantCommissions[name].commission = commission;
-      totalConsultantCommissions += commission;
-    });
-    
-    // Revenue after tax, expenses, and consultant commissions
-    const revenueAfterTaxAndExpenses = total - taxAmount - totalExpenses - totalConsultantCommissions;
+    // Revenue after tax and expenses (NO consultant commissions)
+    const revenueAfterTaxAndExpenses = total - taxAmount - totalExpenses;
     
     // Calculate Igor commission (3% of revenue after tax and expenses)
     const igorCommission = revenueAfterTaxAndExpenses * 0.03;
@@ -307,15 +255,12 @@ const Igor = () => {
       taxPercentage, 
       totalExpenses,
       groupedExpenses,
-      totalConsultantCommissions,
-      consultantCommissions,
       revenueAfterTaxAndExpenses,
       igorCommission,
       count: filteredData.length,
-      expensesCount: filteredExpenses.length,
-      consultantsCount: filteredConsultants.length
+      expensesCount: filteredExpenses.length
     };
-  }, [igorData, igorExpenses, consultantData, selectedMonth, selectedYear, taxData]);
+  }, [igorData, igorExpenses, selectedMonth, selectedYear, taxData]);
 
   // Initialize open state for all categories (all closed by default)
   useEffect(() => {
@@ -436,7 +381,7 @@ const Igor = () => {
     }
 
     // Expenses Section
-    if (processedData.totalExpenses > 0 || processedData.totalConsultantCommissions > 0) {
+    if (processedData.totalExpenses > 0) {
       if (yPosition > pageHeight - 40) {
         doc.addPage();
         yPosition = 20;
@@ -451,64 +396,30 @@ const Igor = () => {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text(`Total: ${formatCurrency(processedData.totalExpenses + processedData.totalConsultantCommissions)}`, 25, yPosition);
+      doc.text(`Total: ${formatCurrency(processedData.totalExpenses)}`, 25, yPosition);
       yPosition += 8;
 
       // Regular expenses
-      if (processedData.totalExpenses > 0) {
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Despesas Gerais:', 25, yPosition);
-        yPosition += 5;
-
-        doc.setFont('helvetica', 'normal');
-        Object.entries(processedData.groupedExpenses)
-          .flatMap(([category, expenses]) =>
-            expenses.map((expense) => ({
-              ...expense,
-              category
-            }))
-          )
-          .sort((a, b) => b.amount - a.amount)
-          .forEach((expense) => {
-            if (yPosition > pageHeight - 20) {
-              doc.addPage();
-              yPosition = 20;
-            }
-            doc.text(`- ${expense.category} (${expense.details})`, 30, yPosition);
-            doc.text(formatCurrency(expense.amount), pageWidth - 30, yPosition, { align: 'right' });
-            yPosition += 5;
-          });
-        yPosition += 3;
-      }
-
-      // Consultant commissions
-      if (processedData.totalConsultantCommissions > 0) {
-        if (yPosition > pageHeight - 30) {
-          doc.addPage();
-          yPosition = 20;
-        }
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Comissoes Consultoras (3%):', 25, yPosition);
-        doc.text(formatCurrency(processedData.totalConsultantCommissions), pageWidth - 30, yPosition, { align: 'right' });
-        yPosition += 5;
-
-        doc.setFont('helvetica', 'normal');
-        Object.entries(processedData.consultantCommissions)
-          .sort(([, a], [, b]) => b.commission - a.commission)
-          .forEach(([name, data]) => {
-            if (yPosition > pageHeight - 20) {
-              doc.addPage();
-              yPosition = 20;
-            }
-            doc.text(`- ${name} (${data.records.length} venda(s))`, 30, yPosition);
-            doc.text(formatCurrency(data.commission), pageWidth - 30, yPosition, { align: 'right' });
-            yPosition += 5;
-          });
-        yPosition += 3;
-      }
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      Object.entries(processedData.groupedExpenses)
+        .flatMap(([category, expenses]) =>
+          expenses.map((expense) => ({
+            ...expense,
+            category
+          }))
+        )
+        .sort((a, b) => b.amount - a.amount)
+        .forEach((expense) => {
+          if (yPosition > pageHeight - 20) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.text(`- ${expense.category} (${expense.details})`, 30, yPosition);
+          doc.text(formatCurrency(expense.amount), pageWidth - 30, yPosition, { align: 'right' });
+          yPosition += 5;
+        });
+      yPosition += 3;
     }
 
     yPosition += 5;
@@ -660,10 +571,10 @@ const Igor = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                  {formatCurrency(processedData.totalExpenses + processedData.totalConsultantCommissions)}
+                  {formatCurrency(processedData.totalExpenses)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {processedData.expensesCount} despesa(s) + {processedData.consultantsCount} comissões
+                  {processedData.expensesCount} despesa(s)
                 </p>
               </CardContent>
             </Card>
@@ -769,7 +680,7 @@ const Igor = () => {
               </div>
 
               {/* Expenses Section */}
-              {(processedData.totalExpenses > 0 || processedData.totalConsultantCommissions > 0) && (
+              {processedData.totalExpenses > 0 && (
                 <div className="space-y-2">
                   <button
                     onClick={() => setExpensesOpen(!expensesOpen)}
@@ -778,7 +689,7 @@ const Igor = () => {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-red-700">Despesas</span>
                       <Badge variant="secondary">
-                        {processedData.expensesCount + Object.keys(processedData.consultantCommissions).length}
+                        {processedData.expensesCount}
                       </Badge>
                     </div>
                     {expensesOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -786,67 +697,25 @@ const Igor = () => {
                   
                   {expensesOpen && (
                     <div className="pl-4 space-y-3 border-l-2 border-red-200">
-                      {/* Regular Expenses */}
-                      {processedData.totalExpenses > 0 && (
-                        <div className="space-y-2">
-                          <div className="font-medium text-sm text-red-700">Despesas Gerais</div>
-                          {Object.entries(processedData.groupedExpenses)
-                            .flatMap(([category, expenses]) =>
-                              expenses.map((expense, index) => ({
-                                ...expense,
-                                category,
-                                key: `${category}-${index}`
-                              }))
-                            )
-                            .sort((a, b) => b.amount - a.amount)
-                            .map((expense) => (
-                              <div key={expense.key} className="flex justify-between items-center text-sm py-1 px-2 hover:bg-gray-50 rounded">
-                                <span className="text-muted-foreground">
-                                  {expense.category} - {expense.details}
-                                </span>
-                                <span className="font-medium text-red-600">{formatCurrency(expense.amount)}</span>
-                              </div>
-                            ))}
-                        </div>
-                      )}
-
-                      {/* Consultant Commissions */}
-                      {processedData.totalConsultantCommissions > 0 && (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => setCommissionsOpen(!commissionsOpen)}
-                            className="w-full flex items-center justify-between p-2 bg-orange-50 rounded hover:bg-orange-100 transition-colors"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm text-orange-700">Comissões Consultoras (3%)</span>
-                              <Badge variant="outline" className="text-xs">
-                                {Object.keys(processedData.consultantCommissions).length}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm text-orange-600">
-                                {formatCurrency(processedData.totalConsultantCommissions)}
+                      <div className="space-y-2">
+                        {Object.entries(processedData.groupedExpenses)
+                          .flatMap(([category, expenses]) =>
+                            expenses.map((expense, index) => ({
+                              ...expense,
+                              category,
+                              key: `${category}-${index}`
+                            }))
+                          )
+                          .sort((a, b) => b.amount - a.amount)
+                          .map((expense) => (
+                            <div key={expense.key} className="flex justify-between items-center text-sm py-1 px-2 hover:bg-gray-50 rounded">
+                              <span className="text-muted-foreground">
+                                {expense.category} - {expense.details}
                               </span>
-                              {commissionsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                              <span className="font-medium text-red-600">{formatCurrency(expense.amount)}</span>
                             </div>
-                          </button>
-                          
-                          {commissionsOpen && (
-                            <div className="pl-4 space-y-1">
-                              {Object.entries(processedData.consultantCommissions)
-                                .sort(([, a], [, b]) => b.commission - a.commission)
-                                .map(([name, data]) => (
-                                  <div key={name} className="flex justify-between items-center text-sm py-1 px-2 hover:bg-gray-50 rounded">
-                                    <span className="text-muted-foreground">
-                                      {name} <span className="text-xs">({data.records.length} venda(s))</span>
-                                    </span>
-                                    <span className="font-medium text-orange-600">{formatCurrency(data.commission)}</span>
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                          ))}
+                      </div>
                     </div>
                   )}
                 </div>
