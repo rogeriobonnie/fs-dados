@@ -228,7 +228,7 @@ const Index = () => {
 
               {/* Nested Tabs for FS Turma IV content */}
               <Tabs defaultValue="table" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-4 text-xs">
+                <TabsList className="grid w-full grid-cols-3 text-xs">
                   <TabsTrigger value="table" className="flex items-center gap-1 px-2">
                     <Table2 className="h-3 w-3" />
                     Tabela
@@ -240,10 +240,6 @@ const Index = () => {
                   <TabsTrigger value="monthly" className="flex items-center gap-1 px-2">
                     <TrendingUp className="h-3 w-3" />
                     Mensal
-                  </TabsTrigger>
-                  <TabsTrigger value="commissions" className="flex items-center gap-1 px-2">
-                    <DollarSign className="h-3 w-3" />
-                    Comissões
                   </TabsTrigger>
                 </TabsList>
 
@@ -257,10 +253,6 @@ const Index = () => {
 
                 <TabsContent value="monthly" className="space-y-6">
                   <MonthlyRevenue data={filteredData} />
-                </TabsContent>
-
-                <TabsContent value="commissions" className="space-y-6">
-                  <MonthlyCommissionReport data={filteredData} />
                 </TabsContent>
               </Tabs>
             </TabsContent>
