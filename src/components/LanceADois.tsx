@@ -163,9 +163,24 @@ const LanceADois = () => {
       taxAmount = total * (taxPercentage / 100);
     }
 
-    const netTotal = total - taxAmount;
+    const revenueAfterTax = total - taxAmount;
+    
+    // Calculate Lance a Dois commission (10% of revenue after tax)
+    const lanceADoisCommission = revenueAfterTax * 0.10;
+    
+    // Final net revenue after tax and commission
+    const netTotal = revenueAfterTax - lanceADoisCommission;
 
-    return { grouped: sortedGrouped, total, taxAmount, taxPercentage, netTotal, count: filteredData.length };
+    return { 
+      grouped: sortedGrouped, 
+      total, 
+      taxAmount, 
+      taxPercentage, 
+      revenueAfterTax,
+      lanceADoisCommission,
+      netTotal, 
+      count: filteredData.length 
+    };
   }, [lanceData, selectedMonth, selectedYear, taxData]);
 
   // Initialize open state for all categories (all closed by default)
@@ -311,10 +326,21 @@ const LanceADois = () => {
                   <div className="border-t border-green-300 pt-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-red-700">
-                        Impostos ({processedData.taxPercentage.toFixed(5)}%)
+                        Impostos ({processedData.taxPercentage.toFixed(2)}%)
                       </p>
                       <p className="text-lg font-semibold text-red-700">
                         - {formatCurrency(processedData.taxAmount)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-green-300 pt-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-orange-700">
+                        Comissão Lance a Dois (10%)
+                      </p>
+                      <p className="text-lg font-semibold text-orange-700">
+                        - {formatCurrency(processedData.lanceADoisCommission)}
                       </p>
                     </div>
                   </div>
