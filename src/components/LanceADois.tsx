@@ -7,7 +7,6 @@ import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
 import { TrendingUp, Search, Filter, RefreshCw, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface LanceADoisRecord {
@@ -44,6 +43,7 @@ const LanceADois = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
   const [expensesOpen, setExpensesOpen] = useState(false);
+  const [revenuesOpen, setRevenuesOpen] = useState(false);
   const { toast } = useToast();
 
   // Load Lance a Dois data from Google Sheets
@@ -344,13 +344,23 @@ const LanceADois = () => {
         <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
           <CardContent className="p-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div 
+                className="flex items-center justify-between cursor-pointer hover:bg-green-50 p-2 rounded transition-colors"
+                onClick={() => setRevenuesOpen(!revenuesOpen)}
+              >
                 <div>
-                  <p className="text-sm font-medium text-green-700">Receitas Brutas Lance a Dois</p>
-                  <p className="text-3xl font-bold text-green-800 mt-2">
+                  <div className="flex items-center gap-2">
+                    {revenuesOpen ? (
+                      <ChevronUp className="h-5 w-5 text-green-700" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-green-700" />
+                    )}
+                    <p className="text-sm font-medium text-green-700">Receitas Brutas Lance a Dois</p>
+                  </div>
+                  <p className="text-3xl font-bold text-green-800 mt-2 ml-7">
                     {formatCurrency(processedData.total)}
                   </p>
-                  <p className="text-xs text-green-600 mt-2">
+                  <p className="text-xs text-green-600 mt-2 ml-7">
                     {processedData.count} registro{processedData.count !== 1 ? 's' : ''} • {Object.keys(processedData.grouped).length} categoria{Object.keys(processedData.grouped).length !== 1 ? 's' : ''}
                   </p>
                 </div>
@@ -358,6 +368,53 @@ const LanceADois = () => {
                   <TrendingUp className="h-8 w-8 text-green-700" />
                 </div>
               </div>
+
+              {revenuesOpen && (
+                <div className="ml-7 space-y-2 bg-green-50/50 p-3 rounded max-h-96 overflow-y-auto">
+                  {Object.entries(processedData.grouped).map(([category, records]) => {
+                    const categoryTotal = records.reduce((sum, r) => sum + r.amount, 0);
+                    const isOpen = openCategories[category];
+                    
+                    return (
+                      <div key={category} className="border-l-2 border-green-300 pl-3">
+                        <div 
+                          className="flex items-center justify-between mb-1 cursor-pointer hover:bg-green-100 p-2 rounded"
+                          onClick={() => toggleCategory(category)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isOpen ? (
+                              <ChevronUp className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-green-600" />
+                            )}
+                            <p className="font-medium text-sm text-green-800">{category}</p>
+                            <Badge variant="secondary" className="text-xs">
+                              {records.length}
+                            </Badge>
+                          </div>
+                          <p className="font-semibold text-green-700">{formatCurrency(categoryTotal)}</p>
+                        </div>
+                        
+                        {isOpen && (
+                          <div className="space-y-1 ml-6 mt-2">
+                            {records.map((record) => (
+                              <div key={record.id} className="flex items-center justify-between text-xs text-green-600 py-1">
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{record.details}</span>
+                                  {record.date && (
+                                    <span className="text-[10px] text-green-500">{record.date}</span>
+                                  )}
+                                </div>
+                                <span className="font-medium">{formatCurrency(record.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {processedData.taxAmount > 0 && (
                 <>
@@ -437,102 +494,6 @@ const LanceADois = () => {
                 </>
               )}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Detailed View */}
-      {hasSearched && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-green-600">
-                <TrendingUp className="h-5 w-5" />
-                Receitas Lance a Dois
-              </div>
-              <span className="text-green-600 font-bold">
-                {formatCurrency(processedData.total)}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {Object.entries(processedData.grouped).length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhum registro encontrado para o período selecionado
-              </p>
-            ) : (
-              Object.entries(processedData.grouped).map(([category, records]) => {
-                const categoryTotal = records.reduce((sum, r) => sum + r.amount, 0);
-                const isOpen = openCategories[category] ?? true;
-
-                return (
-                  <Collapsible key={category} open={isOpen} onOpenChange={() => toggleCategory(category)}>
-                    <div className="border border-green-200 rounded-lg bg-green-50/50 overflow-hidden">
-                      <CollapsibleTrigger className="w-full">
-                        <div className="flex items-center justify-between p-4 hover:bg-green-100/50 transition-colors cursor-pointer">
-                          <div className="flex items-center gap-3">
-                            {isOpen ? (
-                              <ChevronUp className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-green-600" />
-                            )}
-                            <div className="text-left">
-                              <p className="font-semibold text-green-900">{category}</p>
-                              <p className="text-xs text-green-600">{records.length} registro{records.length !== 1 ? 's' : ''}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-green-700">
-                              {formatCurrency(categoryTotal)}
-                            </p>
-                          </div>
-                        </div>
-                      </CollapsibleTrigger>
-
-                      <CollapsibleContent>
-                        <div className="border-t border-green-200 bg-background">
-                          {records.map((record, idx) => (
-                            <div
-                              key={record.id}
-                              className={`p-4 flex items-center justify-between hover:bg-green-50/50 transition-colors ${
-                                idx !== records.length - 1 ? 'border-b border-green-100' : ''
-                              }`}
-                            >
-                              <div className="space-y-1 flex-1">
-                                <p className="font-medium text-sm">{record.details || 'Sem detalhes'}</p>
-                                <div className="flex gap-2 text-xs text-muted-foreground">
-                                  {record.date && (
-                                    <span className="flex items-center gap-1">
-                                      <Calendar className="h-3 w-3" />
-                                      {record.date}
-                                    </span>
-                                  )}
-                                  {record.extraDetail1 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {record.extraDetail1}
-                                    </Badge>
-                                  )}
-                                  {record.extraDetail2 && record.extraDetail2 !== 'LANCE A DOIS' && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {record.extraDetail2}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-right ml-4">
-                                <p className="text-base font-semibold text-green-700">
-                                  {formatCurrency(record.amount)}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                );
-              })
-            )}
           </CardContent>
         </Card>
       )}
