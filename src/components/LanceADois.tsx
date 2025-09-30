@@ -334,6 +334,15 @@ const LanceADois = () => {
                     </div>
                   </div>
 
+                  <div className="border-t-2 border-green-400 pt-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-green-700">Receitas Líquidas</p>
+                      <p className="text-xl font-bold text-green-800">
+                        {formatCurrency(processedData.revenueAfterTax)}
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="border-t border-green-300 pt-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-orange-700">
@@ -345,10 +354,10 @@ const LanceADois = () => {
                     </div>
                   </div>
 
-                  <div className="border-t-2 border-green-400 pt-3">
+                  <div className="border-t-2 border-green-500 pt-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-green-700">Receita Líquida</p>
-                      <p className="text-2xl font-bold text-green-800">
+                      <p className="text-sm font-semibold text-green-800">Receita Final</p>
+                      <p className="text-2xl font-bold text-green-900">
                         {formatCurrency(processedData.netTotal)}
                       </p>
                     </div>
