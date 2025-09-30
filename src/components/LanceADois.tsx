@@ -43,6 +43,7 @@ const LanceADois = () => {
   const [taxData, setTaxData] = useState<{ taxPercentage: number; month: string; year: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
+  const [expensesOpen, setExpensesOpen] = useState(false);
   const { toast } = useToast();
 
   // Load Lance a Dois data from Google Sheets
@@ -177,8 +178,6 @@ const LanceADois = () => {
       // No filters, apply tax to total
       taxAmount = total * (taxPercentage / 100);
     }
-
-    const revenueAfterTax = total - taxAmount;
     
     // Calculate Lance a Dois expenses (filtered by month/year)
     let filteredExpenses = lanceExpenses;
@@ -190,19 +189,32 @@ const LanceADois = () => {
       });
     }
     
+    // Group expenses by description (column B) and then by details (column C)
+    const groupedExpenses: { [key: string]: LanceADoisExpense[] } = {};
+    filteredExpenses.forEach(expense => {
+      const key = expense.description || 'Sem descrição';
+      if (!groupedExpenses[key]) {
+        groupedExpenses[key] = [];
+      }
+      groupedExpenses[key].push(expense);
+    });
+    
     const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     
+    // Revenue after tax and expenses
+    const revenueAfterTaxAndExpenses = total - taxAmount - totalExpenses;
+    
     // Calculate Lance a Dois commission (10% of revenue after tax and expenses)
-    const revenueAfterExpenses = revenueAfterTax - totalExpenses;
-    const lanceADoisCommission = revenueAfterTax * 0.10;
+    const lanceADoisCommission = revenueAfterTaxAndExpenses * 0.10;
 
     return { 
       grouped: sortedGrouped, 
       total, 
       taxAmount, 
       taxPercentage, 
-      revenueAfterTax,
       totalExpenses,
+      groupedExpenses,
+      revenueAfterTaxAndExpenses,
       lanceADoisCommission,
       count: filteredData.length,
       expensesCount: filteredExpenses.length
@@ -360,27 +372,61 @@ const LanceADois = () => {
                     </div>
                   </div>
 
-                  <div className="border-t-2 border-green-400 pt-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-green-700">Receitas Líquidas</p>
-                      <p className="text-xl font-bold text-green-800">
-                        {formatCurrency(processedData.revenueAfterTax)}
-                      </p>
-                    </div>
-                  </div>
-
                   {processedData.totalExpenses > 0 && (
                     <div className="border-t border-green-300 pt-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-red-700">
-                          Despesas Lance a Dois ({processedData.expensesCount} registro{processedData.expensesCount !== 1 ? 's' : ''})
-                        </p>
+                      <div 
+                        className="flex items-center justify-between cursor-pointer hover:bg-red-50 p-2 rounded transition-colors"
+                        onClick={() => setExpensesOpen(!expensesOpen)}
+                      >
+                        <div className="flex items-center gap-2">
+                          {expensesOpen ? (
+                            <ChevronUp className="h-4 w-4 text-red-600" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-red-600" />
+                          )}
+                          <p className="text-sm font-medium text-red-700">
+                            Despesas Lance a Dois ({processedData.expensesCount} registro{processedData.expensesCount !== 1 ? 's' : ''})
+                          </p>
+                        </div>
                         <p className="text-lg font-semibold text-red-700">
                           - {formatCurrency(processedData.totalExpenses)}
                         </p>
                       </div>
+                      
+                      {expensesOpen && (
+                        <div className="mt-2 ml-6 space-y-2 bg-red-50/50 p-3 rounded">
+                          {Object.entries(processedData.groupedExpenses).map(([category, expenses]) => {
+                            const categoryTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
+                            return (
+                              <div key={category} className="border-l-2 border-red-300 pl-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="font-medium text-sm text-red-800">{category}</p>
+                                  <p className="font-semibold text-red-700">{formatCurrency(categoryTotal)}</p>
+                                </div>
+                                <div className="space-y-1 ml-2">
+                                  {expenses.map((expense) => (
+                                    <div key={expense.id} className="flex items-center justify-between text-xs text-red-600">
+                                      <span>{expense.details}</span>
+                                      <span className="font-medium">{formatCurrency(expense.amount)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  <div className="border-t-2 border-green-400 pt-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-green-700">Receitas Líquidas</p>
+                      <p className="text-xl font-bold text-green-800">
+                        {formatCurrency(processedData.revenueAfterTaxAndExpenses)}
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="border-t border-green-300 pt-3">
                     <div className="flex items-center justify-between">
