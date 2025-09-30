@@ -341,68 +341,68 @@ const LanceADois = () => {
 
       {/* Summary Card */}
       {hasSearched && (
-        <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
+        <Card className="border-success/30 bg-gradient-to-br from-success/5 via-success/10 to-success/15 shadow-lg">
           <CardContent className="p-6">
             <div className="space-y-4">
               <div 
-                className="flex items-center justify-between cursor-pointer hover:bg-green-50 p-2 rounded transition-colors"
+                className="flex items-center justify-between cursor-pointer hover:bg-success/10 p-3 rounded-lg transition-all"
                 onClick={() => setRevenuesOpen(!revenuesOpen)}
               >
                 <div>
                   <div className="flex items-center gap-2">
                     {revenuesOpen ? (
-                      <ChevronUp className="h-5 w-5 text-green-700" />
+                      <ChevronUp className="h-5 w-5 text-success" />
                     ) : (
-                      <ChevronDown className="h-5 w-5 text-green-700" />
+                      <ChevronDown className="h-5 w-5 text-success" />
                     )}
-                    <p className="text-sm font-medium text-green-700">Receitas Brutas Lance a Dois</p>
+                    <p className="text-sm font-medium text-success">Receitas Brutas Lance a Dois</p>
                   </div>
-                  <p className="text-3xl font-bold text-green-800 mt-2 ml-7">
+                  <p className="text-3xl font-bold text-success mt-2 ml-7">
                     {formatCurrency(processedData.total)}
                   </p>
-                  <p className="text-xs text-green-600 mt-2 ml-7">
+                  <p className="text-xs text-success/70 mt-2 ml-7">
                     {processedData.count} registro{processedData.count !== 1 ? 's' : ''} • {Object.keys(processedData.grouped).length} categoria{Object.keys(processedData.grouped).length !== 1 ? 's' : ''}
                   </p>
                 </div>
-                <div className="p-4 bg-green-200 rounded-full">
-                  <TrendingUp className="h-8 w-8 text-green-700" />
+                <div className="p-4 bg-success/20 rounded-full">
+                  <TrendingUp className="h-8 w-8 text-success" />
                 </div>
               </div>
 
               {revenuesOpen && (
-                <div className="ml-7 space-y-2 bg-green-50/50 p-3 rounded max-h-96 overflow-y-auto">
+                <div className="ml-7 space-y-2 bg-success/5 p-4 rounded-lg border border-success/20 max-h-96 overflow-y-auto">
                   {Object.entries(processedData.grouped).map(([category, records]) => {
                     const categoryTotal = records.reduce((sum, r) => sum + r.amount, 0);
                     const isOpen = openCategories[category];
                     
                     return (
-                      <div key={category} className="border-l-2 border-green-300 pl-3">
+                      <div key={category} className="border-l-2 border-success/40 pl-3">
                         <div 
-                          className="flex items-center justify-between mb-1 cursor-pointer hover:bg-green-100 p-2 rounded"
+                          className="flex items-center justify-between mb-1 cursor-pointer hover:bg-success/10 p-2 rounded-lg transition-all"
                           onClick={() => toggleCategory(category)}
                         >
                           <div className="flex items-center gap-2">
                             {isOpen ? (
-                              <ChevronUp className="h-4 w-4 text-green-600" />
+                              <ChevronUp className="h-4 w-4 text-success" />
                             ) : (
-                              <ChevronDown className="h-4 w-4 text-green-600" />
+                              <ChevronDown className="h-4 w-4 text-success" />
                             )}
-                            <p className="font-medium text-sm text-green-800">{category}</p>
-                            <Badge variant="secondary" className="text-xs">
+                            <p className="font-medium text-sm text-success">{category}</p>
+                            <Badge variant="secondary" className="text-xs bg-success/10 text-success border-success/20">
                               {records.length}
                             </Badge>
                           </div>
-                          <p className="font-semibold text-green-700">{formatCurrency(categoryTotal)}</p>
+                          <p className="font-semibold text-success">{formatCurrency(categoryTotal)}</p>
                         </div>
                         
                         {isOpen && (
                           <div className="space-y-1 ml-6 mt-2">
                             {records.map((record) => (
-                              <div key={record.id} className="flex items-center justify-between text-xs text-green-600 py-1">
+                              <div key={record.id} className="flex items-center justify-between text-xs text-success/80 py-1">
                                 <div className="flex flex-col">
                                   <span className="font-medium">{record.details}</span>
                                   {record.date && (
-                                    <span className="text-[10px] text-green-500">{record.date}</span>
+                                    <span className="text-[10px] text-success/60">{record.date}</span>
                                   )}
                                 </div>
                                 <span className="font-medium">{formatCurrency(record.amount)}</span>
@@ -418,40 +418,40 @@ const LanceADois = () => {
 
               {processedData.taxAmount > 0 && (
                 <>
-                  <div className="border-t border-green-300 pt-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-red-700">
+                  <div className="border-t border-border pt-3">
+                    <div className="flex items-center justify-between p-2 bg-destructive/5 rounded-lg">
+                      <p className="text-sm font-medium text-destructive">
                         Impostos ({processedData.taxPercentage.toFixed(2)}%)
                       </p>
-                      <p className="text-lg font-semibold text-red-700">
+                      <p className="text-lg font-semibold text-destructive">
                         - {formatCurrency(processedData.taxAmount)}
                       </p>
                     </div>
                   </div>
 
                   {processedData.totalExpenses > 0 && (
-                    <div className="border-t border-green-300 pt-3">
+                    <div className="border-t border-border pt-3">
                       <div 
-                        className="flex items-center justify-between cursor-pointer hover:bg-red-50 p-2 rounded transition-colors"
+                        className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-3 rounded-lg transition-all bg-destructive/5"
                         onClick={() => setExpensesOpen(!expensesOpen)}
                       >
                         <div className="flex items-center gap-2">
                           {expensesOpen ? (
-                            <ChevronUp className="h-4 w-4 text-red-600" />
+                            <ChevronUp className="h-4 w-4 text-destructive" />
                           ) : (
-                            <ChevronDown className="h-4 w-4 text-red-600" />
+                            <ChevronDown className="h-4 w-4 text-destructive" />
                           )}
-                          <p className="text-sm font-medium text-red-700">
+                          <p className="text-sm font-medium text-destructive">
                             Despesas Lance a Dois ({processedData.expensesCount} registro{processedData.expensesCount !== 1 ? 's' : ''})
                           </p>
                         </div>
-                        <p className="text-lg font-semibold text-red-700">
+                        <p className="text-lg font-semibold text-destructive">
                           - {formatCurrency(processedData.totalExpenses)}
                         </p>
                       </div>
                       
                       {expensesOpen && (
-                        <div className="mt-2 ml-6 space-y-1 bg-red-50/50 p-3 rounded">
+                        <div className="mt-2 ml-6 space-y-1 bg-destructive/5 p-3 rounded-lg border border-destructive/20">
                           {Object.entries(processedData.groupedExpenses)
                             .flatMap(([category, expenses]) =>
                               expenses.map((expense) => ({
@@ -461,7 +461,7 @@ const LanceADois = () => {
                             )
                             .sort((a, b) => b.amount - a.amount)
                             .map((expense) => (
-                              <div key={expense.id} className="flex items-center justify-between text-sm text-red-700">
+                              <div key={expense.id} className="flex items-center justify-between text-sm text-destructive/90 py-1">
                                 <span className="font-medium">{expense.category} ({expense.details})</span>
                                 <span className="font-semibold">{formatCurrency(expense.amount)}</span>
                               </div>
@@ -472,21 +472,21 @@ const LanceADois = () => {
                     </div>
                   )}
 
-                  <div className="border-t-2 border-green-400 pt-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-green-700">Receitas Líquidas</p>
-                      <p className="text-xl font-bold text-green-800">
+                  <div className="border-t-2 border-success/30 pt-3">
+                    <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
+                      <p className="text-sm font-medium text-success">Receitas Líquidas</p>
+                      <p className="text-xl font-bold text-success">
                         {formatCurrency(processedData.revenueAfterTaxAndExpenses)}
                       </p>
                     </div>
                   </div>
 
-                  <div className="border-t border-green-300 pt-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-orange-700">
+                  <div className="border-t border-border pt-3">
+                    <div className="flex items-center justify-between p-2 bg-warning/5 rounded-lg">
+                      <p className="text-sm font-medium text-warning">
                         Comissão Lance a Dois (10%)
                       </p>
-                      <p className="text-lg font-semibold text-orange-700">
+                      <p className="text-lg font-semibold text-warning">
                         - {formatCurrency(processedData.lanceADoisCommission)}
                       </p>
                     </div>
