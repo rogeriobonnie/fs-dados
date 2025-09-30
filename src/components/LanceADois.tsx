@@ -28,6 +28,7 @@ const LanceADois = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [lanceData, setLanceData] = useState<LanceADoisRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
   const { toast } = useToast();
 
   // Load Lance a Dois data from Google Sheets
@@ -115,6 +116,22 @@ const LanceADois = () => {
 
     return { grouped, total, count: filteredData.length };
   }, [lanceData, selectedMonth, selectedYear]);
+
+  // Initialize open state for all categories
+  useEffect(() => {
+    const initialState: { [key: string]: boolean } = {};
+    Object.keys(processedData.grouped).forEach(key => {
+      initialState[key] = true; // All open by default
+    });
+    setOpenCategories(initialState);
+  }, [processedData.grouped]);
+
+  const toggleCategory = (category: string) => {
+    setOpenCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
 
   const handleSearch = () => {
     setHasSearched(true);
@@ -262,10 +279,10 @@ const LanceADois = () => {
             ) : (
               Object.entries(processedData.grouped).map(([category, records]) => {
                 const categoryTotal = records.reduce((sum, r) => sum + r.amount, 0);
-                const [isOpen, setIsOpen] = useState(true);
+                const isOpen = openCategories[category] ?? true;
 
                 return (
-                  <Collapsible key={category} open={isOpen} onOpenChange={setIsOpen}>
+                  <Collapsible key={category} open={isOpen} onOpenChange={() => toggleCategory(category)}>
                     <div className="border border-green-200 rounded-lg bg-green-50/50 overflow-hidden">
                       <CollapsibleTrigger className="w-full">
                         <div className="flex items-center justify-between p-4 hover:bg-green-100/50 transition-colors cursor-pointer">
