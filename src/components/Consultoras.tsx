@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { Search, Filter, RefreshCw, Calendar, Users } from 'lucide-react';
+import { Search, Filter, RefreshCw, Calendar, Users, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
 
 interface ConsultantRecord {
   id: string;
@@ -24,6 +25,8 @@ const Consultoras = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [consultantData, setConsultantData] = useState<ConsultantRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [stellaOpen, setStellaOpen] = useState(false);
+  const [stephanieOpen, setStephanieOpen] = useState(false);
   const { toast } = useToast();
 
   // Commission rate for consultants
@@ -145,6 +148,122 @@ const Consultoras = () => {
     setHasSearched(false);
   };
 
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório de Comissões - Consultoras', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 10;
+
+    // Period info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const periodText = selectedMonth !== 'all' || selectedYear !== 'all' 
+      ? `Período: ${selectedMonth !== 'all' ? monthNames[selectedMonth] : 'Todos os meses'} ${selectedYear !== 'all' ? selectedYear : ''}`
+      : 'Período: Todos';
+    doc.text(periodText, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Stella Section
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(59, 130, 246); // blue
+    doc.text('STELLA', 20, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Total de Vendas: ${formatCurrency(processedData.stella.total)}`, 20, yPosition);
+    yPosition += 6;
+    doc.text(`Comissão (3%): ${formatCurrency(processedData.stella.commission)}`, 20, yPosition);
+    yPosition += 6;
+    doc.text(`Registros: ${processedData.stella.records.length}`, 20, yPosition);
+    yPosition += 10;
+
+    // Stella records
+    if (processedData.stella.records.length > 0) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Detalhamento:', 25, yPosition);
+      yPosition += 5;
+      
+      doc.setFont('helvetica', 'normal');
+      processedData.stella.records.forEach((record, index) => {
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`• ${record.date || 'Sem data'} - ${record.description} - ${formatCurrency(record.amount)}`, 30, yPosition);
+        yPosition += 5;
+      });
+    }
+
+    yPosition += 10;
+
+    // Stephanie Section
+    if (yPosition > pageHeight - 60) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(139, 92, 246); // purple
+    doc.text('STHEPHANIE', 20, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Total de Vendas: ${formatCurrency(processedData.stephanie.total)}`, 20, yPosition);
+    yPosition += 6;
+    doc.text(`Comissão (3%): ${formatCurrency(processedData.stephanie.commission)}`, 20, yPosition);
+    yPosition += 6;
+    doc.text(`Registros: ${processedData.stephanie.records.length}`, 20, yPosition);
+    yPosition += 10;
+
+    // Stephanie records
+    if (processedData.stephanie.records.length > 0) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Detalhamento:', 25, yPosition);
+      yPosition += 5;
+      
+      doc.setFont('helvetica', 'normal');
+      processedData.stephanie.records.forEach((record, index) => {
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`• ${record.date || 'Sem data'} - ${record.description} - ${formatCurrency(record.amount)}`, 30, yPosition);
+        yPosition += 5;
+      });
+    }
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+    }
+
+    doc.save(`comissoes_consultoras_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    toast({
+      title: "PDF gerado!",
+      description: "O relatório foi baixado com sucesso.",
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -234,26 +353,46 @@ const Consultoras = () => {
         </CardContent>
       </Card>
 
+      {/* Action Buttons */}
+      {hasSearched && (
+        <div className="flex justify-end">
+          <Button onClick={generatePDF} className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Gerar PDF
+          </Button>
+        </div>
+      )}
+
       {/* Summary Cards */}
       {hasSearched && (
         <div className="grid md:grid-cols-2 gap-6">
           {/* Stella Card */}
-          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-primary/10 to-primary/15">
+          <Card className="border-blue-500/50 bg-gradient-to-br from-blue-500/20 via-blue-600/25 to-blue-700/30 shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
-                <Users className="h-5 w-5" />
-                STELLA
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                  <Users className="h-5 w-5" />
+                  STELLA
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStellaOpen(!stellaOpen)}
+                  className="text-blue-700 dark:text-blue-300"
+                >
+                  {stellaOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Total de Vendas</p>
-                <p className="text-2xl font-bold text-primary">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-200">Total de Vendas</p>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                   {formatCurrency(processedData.stella.total)}
                 </p>
               </div>
-              <div className="border-t border-border pt-3">
-                <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
+              <div className="border-t border-blue-400/30 pt-3">
+                <div className="flex items-center justify-between p-3 bg-success/20 rounded-lg border border-success/30">
                   <p className="text-sm font-medium text-success">
                     Comissão (3%)
                   </p>
@@ -262,29 +401,59 @@ const Consultoras = () => {
                   </p>
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-blue-900 dark:text-blue-200 font-medium">
                 {processedData.stella.records.length} registro{processedData.stella.records.length !== 1 ? 's' : ''}
               </div>
+
+              {/* Stella Records Detail */}
+              {stellaOpen && processedData.stella.records.length > 0 && (
+                <div className="mt-4 space-y-2 bg-blue-950/20 dark:bg-blue-50/10 p-4 rounded-lg border border-blue-400/30 max-h-96 overflow-y-auto">
+                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-3">Detalhamento:</p>
+                  {processedData.stella.records
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((record) => (
+                      <div key={record.id} className="flex items-center justify-between text-sm text-blue-900 dark:text-blue-200 py-2 border-b border-blue-400/20 last:border-0">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{record.description}</span>
+                          {record.date && (
+                            <span className="text-xs text-blue-700 dark:text-blue-400">{record.date}</span>
+                          )}
+                        </div>
+                        <span className="font-semibold">{formatCurrency(record.amount)}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Stephanie Card */}
-          <Card className="border-secondary/30 bg-gradient-to-br from-secondary/5 via-secondary/10 to-secondary/15">
+          <Card className="border-purple-500/50 bg-gradient-to-br from-purple-500/20 via-purple-600/25 to-purple-700/30 shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-secondary">
-                <Users className="h-5 w-5" />
-                STHEPHANIE
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                  <Users className="h-5 w-5" />
+                  STHEPHANIE
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStephanieOpen(!stephanieOpen)}
+                  className="text-purple-700 dark:text-purple-300"
+                >
+                  {stephanieOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">Total de Vendas</p>
-                <p className="text-2xl font-bold text-secondary">
+                <p className="text-sm font-medium text-purple-900 dark:text-purple-200">Total de Vendas</p>
+                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                   {formatCurrency(processedData.stephanie.total)}
                 </p>
               </div>
-              <div className="border-t border-border pt-3">
-                <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
+              <div className="border-t border-purple-400/30 pt-3">
+                <div className="flex items-center justify-between p-3 bg-success/20 rounded-lg border border-success/30">
                   <p className="text-sm font-medium text-success">
                     Comissão (3%)
                   </p>
@@ -293,9 +462,29 @@ const Consultoras = () => {
                   </p>
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-purple-900 dark:text-purple-200 font-medium">
                 {processedData.stephanie.records.length} registro{processedData.stephanie.records.length !== 1 ? 's' : ''}
               </div>
+
+              {/* Stephanie Records Detail */}
+              {stephanieOpen && processedData.stephanie.records.length > 0 && (
+                <div className="mt-4 space-y-2 bg-purple-950/20 dark:bg-purple-50/10 p-4 rounded-lg border border-purple-400/30 max-h-96 overflow-y-auto">
+                  <p className="text-sm font-semibold text-purple-900 dark:text-purple-200 mb-3">Detalhamento:</p>
+                  {processedData.stephanie.records
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((record) => (
+                      <div key={record.id} className="flex items-center justify-between text-sm text-purple-900 dark:text-purple-200 py-2 border-b border-purple-400/20 last:border-0">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{record.description}</span>
+                          {record.date && (
+                            <span className="text-xs text-purple-700 dark:text-purple-400">{record.date}</span>
+                          )}
+                        </div>
+                        <span className="font-semibold">{formatCurrency(record.amount)}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
