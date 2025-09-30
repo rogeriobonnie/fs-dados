@@ -196,6 +196,35 @@ export class GoogleSheetsService {
     }
   }
 
+  static async fetchConsultantData(): Promise<any[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+    
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      // Fetch data from Página2 for consultant data (columns E and I)
+      const range = 'Página2!A:Z';
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados das consultoras: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+      
+      return this.parseConsultantData(rows);
+    } catch (error) {
+      console.error('Error fetching consultant data:', error);
+      throw error;
+    }
+  }
+
   private static parseDREData(rows: string[][]): any[] {
     const dreRecords: any[] = [];
     
@@ -501,6 +530,82 @@ export class GoogleSheetsService {
     
     console.log('No tax data found');
     return null;
+  }
+
+  private static parseConsultantData(rows: string[][]): any[] {
+    const consultantRecords: any[] = [];
+    
+    console.log('Consultant Data Parsing - Total rows:', rows.length);
+    console.log('First 10 rows preview:', rows.slice(0, 10));
+    
+    // Skip first row (header) and process data
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      
+      if (!row || row.length === 0) continue;
+      
+      const type = (row[0] || '').toString().trim(); // Column A
+      const description = (row[1] || '').toString().trim(); // Column B
+      const details = (row[2] || '').toString().trim(); // Column C
+      const amount = this.parseAmount(row[4] || ''); // Column E - amount
+      const date = (row[5] || '').toString().trim(); // Column F - date
+      const consultantName = (row[8] || '').toString().trim().toUpperCase(); // Column I - consultant name
+      
+      // Only process rows that have a consultant name (STELLA or STHEPHANIE)
+      if (!consultantName || (consultantName !== 'STELLA' && consultantName !== 'STHEPHANIE')) {
+        continue;
+      }
+      
+      // Only process revenue entries (01-ENTRADAS)
+      if (!type.toUpperCase().includes('01-ENTRADAS') && !type.toUpperCase().includes('ENTRADA')) {
+        continue;
+      }
+      
+      // Skip if amount is 0 or negative
+      if (amount <= 0) continue;
+      
+      // Extract month and year from date
+      let month = '';
+      let year = '';
+      
+      if (date) {
+        // Try to parse Brazilian date format (DD/MM/YYYY)
+        const dateParts = date.split('/');
+        if (dateParts.length === 3) {
+          month = dateParts[1].padStart(2, '0'); // MM
+          year = dateParts[2]; // YYYY
+        }
+      }
+      
+      consultantRecords.push({
+        id: `consultant-${i}`,
+        consultantName,
+        amount,
+        month,
+        year,
+        date,
+        description: description || 'Sem descrição',
+        details: details || ''
+      });
+      
+      // Log first few records for debugging
+      if (consultantRecords.length <= 5) {
+        console.log(`Consultant record ${consultantRecords.length}:`, {
+          consultantName,
+          amount,
+          date,
+          month,
+          year,
+          description
+        });
+      }
+    }
+    
+    console.log('Parsed consultant records:', consultantRecords.length);
+    console.log('Stella records:', consultantRecords.filter(r => r.consultantName === 'STELLA').length);
+    console.log('Sthephanie records:', consultantRecords.filter(r => r.consultantName === 'STHEPHANIE').length);
+    
+    return consultantRecords;
   }
 
   private static parseSheetData(rows: string[][]): FinancialRecord[] {
