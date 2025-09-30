@@ -8,6 +8,7 @@ import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { MonthlyCommissionReport } from '@/components/MonthlyCommissionReport';
 import FinancialDRE from '@/components/FinancialDRE';
 import CashFlow from '@/components/CashFlow';
+import LanceADois from '@/components/LanceADois';
 import { PinAuth } from '@/components/PinAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -266,7 +267,7 @@ const Index = () => {
 
             <TabsContent value="demonstracoes" className="space-y-6">
               <Tabs defaultValue="dre" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="dre" className="flex items-center gap-1">
                     <BarChart3 className="h-4 w-4" />
                     DRE
@@ -275,12 +276,19 @@ const Index = () => {
                     <DollarSign className="h-4 w-4" />
                     Fluxo de Caixa
                   </TabsTrigger>
+                  <TabsTrigger value="lance-a-dois" className="flex items-center gap-1">
+                    <TrendingUp className="h-4 w-4" />
+                    Lance a Dois
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="dre" className="space-y-6">
                   <FinancialDRE data={filteredData} />
                 </TabsContent>
                 <TabsContent value="fluxo-caixa" className="space-y-6">
                   <CashFlow />
+                </TabsContent>
+                <TabsContent value="lance-a-dois" className="space-y-6">
+                  <LanceADois />
                 </TabsContent>
               </Tabs>
             </TabsContent>

@@ -138,6 +138,35 @@ export class GoogleSheetsService {
     }
   }
 
+  static async fetchLanceADoisData(): Promise<any[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+    
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      // Fetch data from Página2 for Lance a Dois data (column G)
+      const range = 'Página2!A:Z';
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados Lance a Dois: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+      
+      return this.parseLanceADoisData(rows);
+    } catch (error) {
+      console.error('Error fetching Lance a Dois data:', error);
+      throw error;
+    }
+  }
+
   private static parseDREData(rows: string[][]): any[] {
     const dreRecords: any[] = [];
     
@@ -307,6 +336,76 @@ export class GoogleSheetsService {
     console.log('Parsed Cash Flow records:', cashFlowRecords.length);
     console.log('Sample records:', cashFlowRecords.slice(0, 10));
     return cashFlowRecords;
+  }
+
+  private static parseLanceADoisData(rows: string[][]): any[] {
+    const lanceADoisRecords: any[] = [];
+    
+    console.log('Lance a Dois Parsing - Total rows:', rows.length);
+    console.log('First 10 rows preview:', rows.slice(0, 10));
+    
+    // Skip first row (header) and find data starting from row with actual content
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      
+      if (!row || row.length === 0) continue;
+      
+      const type = (row[0] || '').toString().trim(); // Column A
+      const description = (row[1] || '').toString().trim(); // Column B - product/course name
+      const details = (row[2] || '').toString().trim(); // Column C - student/customer name
+      const extraDetail1 = (row[3] || '').toString().trim(); // Column D
+      const amount = this.parseAmount(row[4] || ''); // Column E - amount
+      const date = (row[5] || '').toString().trim(); // Column F - date
+      const lanceADoisMarker = (row[6] || '').toString().trim().toUpperCase(); // Column G - LANCE A DOIS marker
+      
+      // Filter only records where column G contains "LANCE A DOIS"
+      if (!lanceADoisMarker.includes('LANCE A DOIS')) {
+        continue;
+      }
+      
+      // Only include if it's a RECEITA (income)
+      if (type.toUpperCase().includes('01-ENTRADAS') || type.toUpperCase().includes('ENTRADA')) {
+        // Extract month and year from date
+        let month = '';
+        let year = '';
+        
+        if (date) {
+          // Try to parse Brazilian date format (DD/MM/YYYY)
+          const dateParts = date.split('/');
+          if (dateParts.length === 3) {
+            month = dateParts[1].padStart(2, '0'); // MM
+            year = dateParts[2]; // YYYY
+          }
+        }
+        
+        lanceADoisRecords.push({
+          id: `lance-${i}`,
+          description: description || 'Sem descrição',
+          details: details || 'Sem detalhes',
+          amount: amount,
+          month: month,
+          year: year,
+          date: date,
+          extraDetail1: extraDetail1,
+          extraDetail2: lanceADoisMarker
+        });
+        
+        // Log for debugging
+        if (lanceADoisRecords.length <= 5) {
+          console.log(`Lance a Dois record ${lanceADoisRecords.length}:`, {
+            description,
+            details,
+            amount,
+            date,
+            month,
+            year
+          });
+        }
+      }
+    }
+    
+    console.log('Parsed Lance a Dois records:', lanceADoisRecords.length);
+    return lanceADoisRecords;
   }
 
   private static parseSheetData(rows: string[][]): FinancialRecord[] {
