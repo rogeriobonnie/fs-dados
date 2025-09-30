@@ -139,24 +139,33 @@ const LanceADois = () => {
 
     // Calculate taxes based on filtered data
     let taxAmount = 0;
+    let taxPercentage = 12.89269; // Default tax percentage
+    
     if (taxData && taxData.taxPercentage > 0) {
-      // If filters are applied, apply tax only if the tax month/year matches the filter
-      if (selectedMonth !== 'all' || selectedYear !== 'all') {
+      taxPercentage = taxData.taxPercentage;
+    }
+    
+    // If filters are applied, apply tax only if the tax month/year matches the filter
+    if (selectedMonth !== 'all' || selectedYear !== 'all') {
+      if (taxData) {
         const taxMonthMatches = selectedMonth === 'all' || taxData.month === selectedMonth;
         const taxYearMatches = selectedYear === 'all' || taxData.year === selectedYear;
         
         if (taxMonthMatches && taxYearMatches) {
-          taxAmount = total * (taxData.taxPercentage / 100);
+          taxAmount = total * (taxPercentage / 100);
         }
       } else {
-        // No filters, apply tax to total
-        taxAmount = total * (taxData.taxPercentage / 100);
+        // No tax data from sheet, apply default percentage
+        taxAmount = total * (taxPercentage / 100);
       }
+    } else {
+      // No filters, apply tax to total
+      taxAmount = total * (taxPercentage / 100);
     }
 
     const netTotal = total - taxAmount;
 
-    return { grouped: sortedGrouped, total, taxAmount, netTotal, count: filteredData.length };
+    return { grouped: sortedGrouped, total, taxAmount, taxPercentage, netTotal, count: filteredData.length };
   }, [lanceData, selectedMonth, selectedYear, taxData]);
 
   // Initialize open state for all categories (all closed by default)
@@ -302,7 +311,7 @@ const LanceADois = () => {
                   <div className="border-t border-green-300 pt-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-red-700">
-                        Impostos ({taxData?.taxPercentage}%)
+                        Impostos ({processedData.taxPercentage.toFixed(5)}%)
                       </p>
                       <p className="text-lg font-semibold text-red-700">
                         - {formatCurrency(processedData.taxAmount)}
