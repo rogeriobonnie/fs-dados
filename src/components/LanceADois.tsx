@@ -112,16 +112,29 @@ const LanceADois = () => {
       grouped[key].push(record);
     });
 
+    // Sort groups by total amount (descending)
+    const sortedGrouped = Object.entries(grouped)
+      .map(([category, records]) => ({
+        category,
+        records,
+        total: records.reduce((sum, r) => sum + r.amount, 0)
+      }))
+      .sort((a, b) => b.total - a.total)
+      .reduce((acc, item) => {
+        acc[item.category] = item.records;
+        return acc;
+      }, {} as { [key: string]: LanceADoisRecord[] });
+
     const total = filteredData.reduce((sum, record) => sum + record.amount, 0);
 
-    return { grouped, total, count: filteredData.length };
+    return { grouped: sortedGrouped, total, count: filteredData.length };
   }, [lanceData, selectedMonth, selectedYear]);
 
-  // Initialize open state for all categories
+  // Initialize open state for all categories (all closed by default)
   useEffect(() => {
     const initialState: { [key: string]: boolean } = {};
     Object.keys(processedData.grouped).forEach(key => {
-      initialState[key] = true; // All open by default
+      initialState[key] = false; // All closed by default
     });
     setOpenCategories(initialState);
   }, [processedData.grouped]);
