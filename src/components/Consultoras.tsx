@@ -17,6 +17,8 @@ interface ConsultantRecord {
   year: string;
   date: string;
   description: string;
+  customerName: string;
+  product: string;
 }
 
 const Consultoras = () => {
@@ -199,8 +201,10 @@ const Consultoras = () => {
           doc.addPage();
           yPosition = 20;
         }
-        doc.text(`• ${record.date || 'Sem data'} - ${record.description} - ${formatCurrency(record.amount)}`, 30, yPosition);
-        yPosition += 5;
+        doc.text(`• ${record.date || 'Sem data'} | ${record.customerName} | ${record.product}`, 30, yPosition);
+        yPosition += 4;
+        doc.text(`  ${formatCurrency(record.amount)}`, 35, yPosition);
+        yPosition += 6;
       });
     }
 
@@ -241,8 +245,10 @@ const Consultoras = () => {
           doc.addPage();
           yPosition = 20;
         }
-        doc.text(`• ${record.date || 'Sem data'} - ${record.description} - ${formatCurrency(record.amount)}`, 30, yPosition);
-        yPosition += 5;
+        doc.text(`• ${record.date || 'Sem data'} | ${record.customerName} | ${record.product}`, 30, yPosition);
+        yPosition += 4;
+        doc.text(`  ${formatCurrency(record.amount)}`, 35, yPosition);
+        yPosition += 6;
       });
     }
 
@@ -412,14 +418,20 @@ const Consultoras = () => {
                   {processedData.stella.records
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                     .map((record) => (
-                      <div key={record.id} className="flex items-center justify-between text-sm text-blue-900 dark:text-blue-200 py-2 border-b border-blue-400/20 last:border-0">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{record.description}</span>
-                          {record.date && (
-                            <span className="text-xs text-blue-700 dark:text-blue-400">{record.date}</span>
-                          )}
+                      <div key={record.id} className="bg-blue-900/10 dark:bg-blue-100/5 p-3 rounded-lg border border-blue-400/20">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex flex-col flex-1">
+                            <span className="font-semibold text-blue-900 dark:text-blue-200">{record.customerName}</span>
+                            <span className="text-sm text-blue-800 dark:text-blue-300 mt-1">{record.product}</span>
+                          </div>
+                          <span className="font-bold text-lg text-blue-700 dark:text-blue-300">{formatCurrency(record.amount)}</span>
                         </div>
-                        <span className="font-semibold">{formatCurrency(record.amount)}</span>
+                        {record.date && (
+                          <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400 mt-2 pt-2 border-t border-blue-400/20">
+                            <Calendar className="h-3 w-3" />
+                            <span>Data: {record.date}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>
@@ -473,14 +485,20 @@ const Consultoras = () => {
                   {processedData.stephanie.records
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                     .map((record) => (
-                      <div key={record.id} className="flex items-center justify-between text-sm text-purple-900 dark:text-purple-200 py-2 border-b border-purple-400/20 last:border-0">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{record.description}</span>
-                          {record.date && (
-                            <span className="text-xs text-purple-700 dark:text-purple-400">{record.date}</span>
-                          )}
+                      <div key={record.id} className="bg-purple-900/10 dark:bg-purple-100/5 p-3 rounded-lg border border-purple-400/20">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex flex-col flex-1">
+                            <span className="font-semibold text-purple-900 dark:text-purple-200">{record.customerName}</span>
+                            <span className="text-sm text-purple-800 dark:text-purple-300 mt-1">{record.product}</span>
+                          </div>
+                          <span className="font-bold text-lg text-purple-700 dark:text-purple-300">{formatCurrency(record.amount)}</span>
                         </div>
-                        <span className="font-semibold">{formatCurrency(record.amount)}</span>
+                        {record.date && (
+                          <div className="flex items-center gap-2 text-xs text-purple-700 dark:text-purple-400 mt-2 pt-2 border-t border-purple-400/20">
+                            <Calendar className="h-3 w-3" />
+                            <span>Data: {record.date}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>

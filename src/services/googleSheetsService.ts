@@ -545,8 +545,9 @@ export class GoogleSheetsService {
       if (!row || row.length === 0) continue;
       
       const type = (row[0] || '').toString().trim(); // Column A
-      const description = (row[1] || '').toString().trim(); // Column B
-      const details = (row[2] || '').toString().trim(); // Column C
+      const product = (row[1] || '').toString().trim(); // Column B - product/service
+      const customerName = (row[2] || '').toString().trim(); // Column C - customer/student name
+      const description = (row[3] || '').toString().trim(); // Column D - additional details
       const amount = this.parseAmount(row[4] || ''); // Column E - amount
       const date = (row[5] || '').toString().trim(); // Column F - date
       const consultantName = (row[8] || '').toString().trim().toUpperCase(); // Column I - consultant name
@@ -584,8 +585,9 @@ export class GoogleSheetsService {
         month,
         year,
         date,
-        description: description || 'Sem descrição',
-        details: details || ''
+        product: product || 'Sem produto',
+        customerName: customerName || 'Sem nome',
+        description: description || ''
       });
       
       // Log first few records for debugging
@@ -596,6 +598,8 @@ export class GoogleSheetsService {
           date,
           month,
           year,
+          product,
+          customerName,
           description
         });
       }
