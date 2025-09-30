@@ -394,26 +394,15 @@ const LanceADois = () => {
                       </div>
                       
                       {expensesOpen && (
-                        <div className="mt-2 ml-6 space-y-2 bg-red-50/50 p-3 rounded">
-                          {Object.entries(processedData.groupedExpenses).map(([category, expenses]) => {
-                            const categoryTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
-                            return (
-                              <div key={category} className="border-l-2 border-red-300 pl-3">
-                                <div className="flex items-center justify-between mb-1">
-                                  <p className="font-medium text-sm text-red-800">{category}</p>
-                                  <p className="font-semibold text-red-700">{formatCurrency(categoryTotal)}</p>
-                                </div>
-                                <div className="space-y-1 ml-2">
-                                  {expenses.map((expense) => (
-                                    <div key={expense.id} className="flex items-center justify-between text-xs text-red-600">
-                                      <span>{expense.details}</span>
-                                      <span className="font-medium">{formatCurrency(expense.amount)}</span>
-                                    </div>
-                                  ))}
-                                </div>
+                        <div className="mt-2 ml-6 space-y-1 bg-red-50/50 p-3 rounded">
+                          {Object.entries(processedData.groupedExpenses).flatMap(([category, expenses]) =>
+                            expenses.map((expense) => (
+                              <div key={expense.id} className="flex items-center justify-between text-sm text-red-700">
+                                <span className="font-medium">{category} ({expense.details})</span>
+                                <span className="font-semibold">{formatCurrency(expense.amount)}</span>
                               </div>
-                            );
-                          })}
+                            ))
+                          )}
                         </div>
                       )}
                     </div>
