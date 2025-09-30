@@ -33,43 +33,64 @@ interface LanceADoisExpense {
   extraDetail2: string;
 }
 
+interface ConsultantRecord {
+  id: string;
+  consultantName: string;
+  amount: number;
+  month: string;
+  year: string;
+  date: string;
+  description: string;
+  customerName: string;
+  product: string;
+}
+
 const LanceADois = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [hasSearched, setHasSearched] = useState(false);
   const [lanceData, setLanceData] = useState<LanceADoisRecord[]>([]);
   const [lanceExpenses, setLanceExpenses] = useState<LanceADoisExpense[]>([]);
+  const [consultantData, setConsultantData] = useState<ConsultantRecord[]>([]);
   const [taxData, setTaxData] = useState<{ taxPercentage: number; month: string; year: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
   const [expensesOpen, setExpensesOpen] = useState(false);
   const [revenuesOpen, setRevenuesOpen] = useState(false);
+  const [commissionsOpen, setCommissionsOpen] = useState(false);
   const { toast } = useToast();
+
+  // Commission rate for consultants
+  const COMMISSION_RATE = 0.03; // 3%
 
   // Load Lance a Dois data from Google Sheets
   const loadLanceADoisData = async () => {
     setIsLoading(true);
     try {
-      const [lanceDataResult, taxInfo] = await Promise.all([
+      const [lanceDataResult, taxInfo, consultantsData] = await Promise.all([
         GoogleSheetsService.fetchLanceADoisData(),
-        GoogleSheetsService.fetchLanceADoisTaxData()
+        GoogleSheetsService.fetchLanceADoisTaxData(),
+        GoogleSheetsService.fetchConsultantData()
       ]);
       
       console.log('Lance a Dois data loaded:', lanceDataResult);
       console.log('Tax data loaded:', taxInfo);
+      console.log('Consultant data loaded:', consultantsData);
       
       setLanceData(lanceDataResult.revenues);
       setLanceExpenses(lanceDataResult.expenses);
+      setConsultantData(consultantsData);
       setTaxData(taxInfo);
       
       toast({
         title: "Dados Lance a Dois carregados!",
-        description: `${lanceDataResult.revenues.length} receitas e ${lanceDataResult.expenses.length} despesas encontradas`,
+        description: `${lanceDataResult.revenues.length} receitas, ${lanceDataResult.expenses.length} despesas e ${consultantsData.length} comissões encontradas`,
       });
     } catch (error) {
       console.error('Error loading Lance a Dois data:', error);
       setLanceData([]);
       setLanceExpenses([]);
+      setConsultantData([]);
       setTaxData(null);
       toast({
         title: "Erro ao carregar dados",
@@ -201,8 +222,37 @@ const LanceADois = () => {
     
     const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     
-    // Revenue after tax and expenses
-    const revenueAfterTaxAndExpenses = total - taxAmount - totalExpenses;
+    // Calculate consultant commissions (filtered by month/year)
+    let filteredConsultants = consultantData;
+    if (selectedMonth !== 'all' || selectedYear !== 'all') {
+      filteredConsultants = consultantData.filter(consultant => {
+        const monthMatches = selectedMonth === 'all' || consultant.month === selectedMonth;
+        const yearMatches = selectedYear === 'all' || consultant.year === selectedYear;
+        return monthMatches && yearMatches;
+      });
+    }
+    
+    // Group consultants by name and calculate commissions
+    const consultantCommissions: { [key: string]: { total: number; commission: number; records: ConsultantRecord[] } } = {};
+    filteredConsultants.forEach(record => {
+      const name = record.consultantName || 'Sem nome';
+      if (!consultantCommissions[name]) {
+        consultantCommissions[name] = { total: 0, commission: 0, records: [] };
+      }
+      consultantCommissions[name].total += record.amount;
+      consultantCommissions[name].records.push(record);
+    });
+    
+    // Calculate total commissions (3% of total sales per consultant)
+    let totalConsultantCommissions = 0;
+    Object.keys(consultantCommissions).forEach(name => {
+      const commission = consultantCommissions[name].total * COMMISSION_RATE;
+      consultantCommissions[name].commission = commission;
+      totalConsultantCommissions += commission;
+    });
+    
+    // Revenue after tax, expenses, and consultant commissions
+    const revenueAfterTaxAndExpenses = total - taxAmount - totalExpenses - totalConsultantCommissions;
     
     // Calculate Lance a Dois commission (10% of revenue after tax and expenses)
     const lanceADoisCommission = revenueAfterTaxAndExpenses * 0.10;
@@ -214,12 +264,15 @@ const LanceADois = () => {
       taxPercentage, 
       totalExpenses,
       groupedExpenses,
+      totalConsultantCommissions,
+      consultantCommissions,
       revenueAfterTaxAndExpenses,
       lanceADoisCommission,
       count: filteredData.length,
-      expensesCount: filteredExpenses.length
+      expensesCount: filteredExpenses.length,
+      consultantsCount: filteredConsultants.length
     };
-  }, [lanceData, lanceExpenses, selectedMonth, selectedYear, taxData]);
+  }, [lanceData, lanceExpenses, consultantData, selectedMonth, selectedYear, taxData]);
 
   // Initialize open state for all categories (all closed by default)
   useEffect(() => {
@@ -429,7 +482,7 @@ const LanceADois = () => {
                     </div>
                   </div>
 
-                  {processedData.totalExpenses > 0 && (
+                  {(processedData.totalExpenses > 0 || processedData.totalConsultantCommissions > 0) && (
                     <div className="border-t border-border pt-3">
                       <div 
                         className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-3 rounded-lg transition-all bg-destructive/5"
@@ -442,31 +495,75 @@ const LanceADois = () => {
                             <ChevronDown className="h-4 w-4 text-destructive" />
                           )}
                           <p className="text-sm font-medium text-destructive">
-                            Despesas Lance a Dois ({processedData.expensesCount} registro{processedData.expensesCount !== 1 ? 's' : ''})
+                            Despesas Lance a Dois ({processedData.expensesCount + (processedData.consultantsCount > 0 ? 1 : 0)} categoria{processedData.expensesCount + (processedData.consultantsCount > 0 ? 1 : 0) !== 1 ? 's' : ''})
                           </p>
                         </div>
                         <p className="text-lg font-semibold text-destructive">
-                          - {formatCurrency(processedData.totalExpenses)}
+                          - {formatCurrency(processedData.totalExpenses + processedData.totalConsultantCommissions)}
                         </p>
                       </div>
                       
                       {expensesOpen && (
-                        <div className="mt-2 ml-6 space-y-1 bg-destructive/5 p-3 rounded-lg border border-destructive/20">
-                          {Object.entries(processedData.groupedExpenses)
-                            .flatMap(([category, expenses]) =>
-                              expenses.map((expense) => ({
-                                ...expense,
-                                category
-                              }))
-                            )
-                            .sort((a, b) => b.amount - a.amount)
-                            .map((expense) => (
-                              <div key={expense.id} className="flex items-center justify-between text-sm text-destructive/90 py-1">
-                                <span className="font-medium">{expense.category} ({expense.details})</span>
-                                <span className="font-semibold">{formatCurrency(expense.amount)}</span>
+                        <div className="mt-2 ml-6 space-y-3 bg-destructive/5 p-3 rounded-lg border border-destructive/20">
+                          {/* Regular Expenses */}
+                          {processedData.totalExpenses > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold text-destructive/70 mb-2">Despesas Gerais:</p>
+                              {Object.entries(processedData.groupedExpenses)
+                                .flatMap(([category, expenses]) =>
+                                  expenses.map((expense) => ({
+                                    ...expense,
+                                    category
+                                  }))
+                                )
+                                .sort((a, b) => b.amount - a.amount)
+                                .map((expense) => (
+                                  <div key={expense.id} className="flex items-center justify-between text-sm text-destructive/90 py-1">
+                                    <span className="font-medium">{expense.category} ({expense.details})</span>
+                                    <span className="font-semibold">{formatCurrency(expense.amount)}</span>
+                                  </div>
+                                ))
+                              }
+                            </div>
+                          )}
+                          
+                          {/* Consultant Commissions */}
+                          {processedData.totalConsultantCommissions > 0 && (
+                            <div className="space-y-1 pt-3 border-t border-destructive/20">
+                              <div 
+                                className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-2 rounded-lg transition-all"
+                                onClick={() => setCommissionsOpen(!commissionsOpen)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {commissionsOpen ? (
+                                    <ChevronUp className="h-3 w-3 text-destructive" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3 text-destructive" />
+                                  )}
+                                  <span className="text-xs font-semibold text-destructive/70">
+                                    Comissões Consultoras (3%):
+                                  </span>
+                                </div>
+                                <span className="text-sm font-bold text-destructive">
+                                  {formatCurrency(processedData.totalConsultantCommissions)}
+                                </span>
                               </div>
-                            ))
-                          }
+                              
+                              {commissionsOpen && (
+                                <div className="ml-4 space-y-1">
+                                  {Object.entries(processedData.consultantCommissions)
+                                    .sort(([, a], [, b]) => b.commission - a.commission)
+                                    .map(([name, data]) => (
+                                      <div key={name} className="flex items-center justify-between text-sm text-destructive/90 py-1">
+                                        <span className="font-medium">{name} ({data.records.length} venda{data.records.length !== 1 ? 's' : ''})</span>
+                                        <span className="font-semibold">{formatCurrency(data.commission)}</span>
+                                      </div>
+                                    ))
+                                  }
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
