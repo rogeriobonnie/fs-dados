@@ -167,6 +167,34 @@ export class GoogleSheetsService {
     }
   }
 
+  static async fetchLanceADoisTaxData(): Promise<{ taxPercentage: number; month: string; year: string } | null> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+    
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      const range = 'Página2!A:Z';
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados de impostos: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+      
+      return this.parseLanceADoisTaxData(rows);
+    } catch (error) {
+      console.error('Error fetching tax data:', error);
+      throw error;
+    }
+  }
+
   private static parseDREData(rows: string[][]): any[] {
     const dreRecords: any[] = [];
     
@@ -406,6 +434,45 @@ export class GoogleSheetsService {
     
     console.log('Parsed Lance a Dois records:', lanceADoisRecords.length);
     return lanceADoisRecords;
+  }
+
+  private static parseLanceADoisTaxData(rows: string[][]): { taxPercentage: number; month: string; year: string } | null {
+    console.log('Tax Data Parsing - Total rows:', rows.length);
+    
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      
+      if (!row || row.length === 0) continue;
+      
+      const type = (row[0] || '').toString().trim().toUpperCase(); // Column A
+      const taxPercentageStr = (row[4] || '').toString().trim(); // Column E - tax percentage
+      const date = (row[5] || '').toString().trim(); // Column F - date
+      const lanceADoisMarker = (row[6] || '').toString().trim().toUpperCase(); // Column G
+      
+      // Look for row where Column A = "05-IMPOSTOS" and Column G = "LANCE A DOIS"
+      if (type.includes('05-IMPOSTOS') && lanceADoisMarker.includes('LANCE A DOIS')) {
+        const taxPercentage = this.parseAmount(taxPercentageStr);
+        
+        // Extract month and year from date
+        let month = '';
+        let year = '';
+        
+        if (date) {
+          const dateParts = date.split('/');
+          if (dateParts.length === 3) {
+            month = dateParts[1].padStart(2, '0');
+            year = dateParts[2];
+          }
+        }
+        
+        console.log('Found tax data:', { taxPercentage, month, year, date });
+        
+        return { taxPercentage, month, year };
+      }
+    }
+    
+    console.log('No tax data found');
+    return null;
   }
 
   private static parseSheetData(rows: string[][]): FinancialRecord[] {

@@ -27,6 +27,7 @@ const LanceADois = () => {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [hasSearched, setHasSearched] = useState(false);
   const [lanceData, setLanceData] = useState<LanceADoisRecord[]>([]);
+  const [taxData, setTaxData] = useState<{ taxPercentage: number; month: string; year: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
   const { toast } = useToast();
@@ -35,9 +36,17 @@ const LanceADois = () => {
   const loadLanceADoisData = async () => {
     setIsLoading(true);
     try {
-      const sheetData = await GoogleSheetsService.fetchLanceADoisData();
+      const [sheetData, taxInfo] = await Promise.all([
+        GoogleSheetsService.fetchLanceADoisData(),
+        GoogleSheetsService.fetchLanceADoisTaxData()
+      ]);
+      
       console.log('Lance a Dois data loaded:', sheetData);
+      console.log('Tax data loaded:', taxInfo);
+      
       setLanceData(sheetData);
+      setTaxData(taxInfo);
+      
       toast({
         title: "Dados Lance a Dois carregados!",
         description: `${sheetData.length} registros encontrados`,
@@ -45,6 +54,7 @@ const LanceADois = () => {
     } catch (error) {
       console.error('Error loading Lance a Dois data:', error);
       setLanceData([]);
+      setTaxData(null);
       toast({
         title: "Erro ao carregar dados",
         description: "Falha ao conectar com a Página2 da planilha.",
@@ -127,8 +137,27 @@ const LanceADois = () => {
 
     const total = filteredData.reduce((sum, record) => sum + record.amount, 0);
 
-    return { grouped: sortedGrouped, total, count: filteredData.length };
-  }, [lanceData, selectedMonth, selectedYear]);
+    // Calculate taxes based on filtered data
+    let taxAmount = 0;
+    if (taxData && taxData.taxPercentage > 0) {
+      // If filters are applied, apply tax only if the tax month/year matches the filter
+      if (selectedMonth !== 'all' || selectedYear !== 'all') {
+        const taxMonthMatches = selectedMonth === 'all' || taxData.month === selectedMonth;
+        const taxYearMatches = selectedYear === 'all' || taxData.year === selectedYear;
+        
+        if (taxMonthMatches && taxYearMatches) {
+          taxAmount = total * (taxData.taxPercentage / 100);
+        }
+      } else {
+        // No filters, apply tax to total
+        taxAmount = total * (taxData.taxPercentage / 100);
+      }
+    }
+
+    const netTotal = total - taxAmount;
+
+    return { grouped: sortedGrouped, total, taxAmount, netTotal, count: filteredData.length };
+  }, [lanceData, selectedMonth, selectedYear, taxData]);
 
   // Initialize open state for all categories (all closed by default)
   useEffect(() => {
@@ -252,19 +281,45 @@ const LanceADois = () => {
       {hasSearched && (
         <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-700">Total Receitas Lance a Dois</p>
-                <p className="text-3xl font-bold text-green-800 mt-2">
-                  {formatCurrency(processedData.total)}
-                </p>
-                <p className="text-xs text-green-600 mt-2">
-                  {processedData.count} registro{processedData.count !== 1 ? 's' : ''} • {Object.keys(processedData.grouped).length} categoria{Object.keys(processedData.grouped).length !== 1 ? 's' : ''}
-                </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-700">Receitas Brutas Lance a Dois</p>
+                  <p className="text-3xl font-bold text-green-800 mt-2">
+                    {formatCurrency(processedData.total)}
+                  </p>
+                  <p className="text-xs text-green-600 mt-2">
+                    {processedData.count} registro{processedData.count !== 1 ? 's' : ''} • {Object.keys(processedData.grouped).length} categoria{Object.keys(processedData.grouped).length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="p-4 bg-green-200 rounded-full">
+                  <TrendingUp className="h-8 w-8 text-green-700" />
+                </div>
               </div>
-              <div className="p-4 bg-green-200 rounded-full">
-                <TrendingUp className="h-8 w-8 text-green-700" />
-              </div>
+
+              {processedData.taxAmount > 0 && (
+                <>
+                  <div className="border-t border-green-300 pt-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-red-700">
+                        Impostos ({taxData?.taxPercentage}%)
+                      </p>
+                      <p className="text-lg font-semibold text-red-700">
+                        - {formatCurrency(processedData.taxAmount)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t-2 border-green-400 pt-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-green-700">Receita Líquida</p>
+                      <p className="text-2xl font-bold text-green-800">
+                        {formatCurrency(processedData.netTotal)}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
