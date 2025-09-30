@@ -373,10 +373,10 @@ const Consultoras = () => {
       {hasSearched && (
         <div className="grid md:grid-cols-2 gap-6">
           {/* Stella Card */}
-          <Card className="border-blue-500/50 bg-gradient-to-br from-blue-500/20 via-blue-600/25 to-blue-700/30 shadow-lg">
+          <Card className="border-blue-300 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                <div className="flex items-center gap-2 text-blue-900">
                   <Users className="h-5 w-5" />
                   STELLA
                 </div>
@@ -384,7 +384,7 @@ const Consultoras = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setStellaOpen(!stellaOpen)}
-                  className="text-blue-700 dark:text-blue-300"
+                  className="text-blue-900 hover:bg-blue-200"
                 >
                   {stellaOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>
@@ -392,29 +392,29 @@ const Consultoras = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-200">Total de Vendas</p>
-                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                <p className="text-sm font-medium text-blue-800">Total de Vendas</p>
+                <p className="text-2xl font-bold text-blue-900">
                   {formatCurrency(processedData.stella.total)}
                 </p>
               </div>
-              <div className="border-t border-blue-400/30 pt-3">
-                <div className="flex items-center justify-between p-3 bg-success/20 rounded-lg border border-success/30">
-                  <p className="text-sm font-medium text-success">
+              <div className="border-t border-blue-300 pt-3">
+                <div className="flex items-center justify-between p-3 bg-green-100 rounded-lg border border-green-300">
+                  <p className="text-sm font-medium text-green-800">
                     Comissão (3%)
                   </p>
-                  <p className="text-xl font-bold text-success">
+                  <p className="text-xl font-bold text-green-900">
                     {formatCurrency(processedData.stella.commission)}
                   </p>
                 </div>
               </div>
-              <div className="text-xs text-blue-900 dark:text-blue-200 font-medium">
+              <div className="text-xs text-blue-900 font-medium">
                 {processedData.stella.records.length} registro{processedData.stella.records.length !== 1 ? 's' : ''}
               </div>
 
               {/* Stella Records Detail */}
               {stellaOpen && processedData.stella.records.length > 0 && (
-                <div className="mt-4 space-y-3 bg-blue-950/20 dark:bg-blue-50/10 p-4 rounded-lg border border-blue-400/30 max-h-96 overflow-y-auto">
-                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-3">Detalhamento:</p>
+                <div className="mt-4 space-y-3 bg-blue-50 p-4 rounded-lg border border-blue-300 max-h-96 overflow-y-auto">
+                  <p className="text-sm font-semibold text-blue-900 mb-3">Detalhamento:</p>
                   {(() => {
                     let accumulatedCommission = 0;
                     return processedData.stella.records
@@ -423,25 +423,25 @@ const Consultoras = () => {
                         const commission = record.amount * COMMISSION_RATE;
                         accumulatedCommission += commission;
                         return (
-                          <div key={record.id} className="bg-blue-900/10 dark:bg-blue-100/5 p-3 rounded-lg border border-blue-400/20">
+                          <div key={record.id} className="bg-white p-3 rounded-lg border border-blue-300 shadow-sm">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex flex-col flex-1">
-                                <span className="font-semibold text-blue-900 dark:text-blue-200">{record.customerName}</span>
-                                <span className="text-sm text-blue-800 dark:text-blue-300 mt-1">{record.product}</span>
+                                <span className="font-semibold text-blue-900">{record.customerName}</span>
+                                <span className="text-sm text-blue-800 mt-1">{record.product}</span>
                               </div>
                               <div className="flex flex-col items-end">
-                                <span className="font-bold text-lg text-blue-700 dark:text-blue-300">{formatCurrency(record.amount)}</span>
-                                <span className="text-xs text-success font-semibold mt-1">Comissão 3%: {formatCurrency(commission)}</span>
+                                <span className="font-bold text-lg text-blue-900">{formatCurrency(record.amount)}</span>
+                                <span className="text-xs text-green-800 font-semibold mt-1">Comissão 3%: {formatCurrency(commission)}</span>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-blue-400/20">
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-blue-200">
                               {record.date && (
-                                <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                                <div className="flex items-center gap-2 text-xs text-blue-800">
                                   <Calendar className="h-3 w-3" />
                                   <span>Data: {record.date}</span>
                                 </div>
                               )}
-                              <div className="text-xs font-semibold text-success bg-success/10 px-2 py-1 rounded">
+                              <div className="text-xs font-semibold text-green-900 bg-green-100 px-2 py-1 rounded border border-green-300">
                                 Acumulado: {formatCurrency(accumulatedCommission)}
                               </div>
                             </div>
@@ -455,10 +455,10 @@ const Consultoras = () => {
           </Card>
 
           {/* Stephanie Card */}
-          <Card className="border-purple-500/50 bg-gradient-to-br from-purple-500/20 via-purple-600/25 to-purple-700/30 shadow-lg">
+          <Card className="border-purple-300 bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                <div className="flex items-center gap-2 text-purple-900">
                   <Users className="h-5 w-5" />
                   STHEPHANIE
                 </div>
@@ -466,7 +466,7 @@ const Consultoras = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setStephanieOpen(!stephanieOpen)}
-                  className="text-purple-700 dark:text-purple-300"
+                  className="text-purple-900 hover:bg-purple-200"
                 >
                   {stephanieOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>
@@ -474,29 +474,29 @@ const Consultoras = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-sm font-medium text-purple-900 dark:text-purple-200">Total de Vendas</p>
-                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                <p className="text-sm font-medium text-purple-800">Total de Vendas</p>
+                <p className="text-2xl font-bold text-purple-900">
                   {formatCurrency(processedData.stephanie.total)}
                 </p>
               </div>
-              <div className="border-t border-purple-400/30 pt-3">
-                <div className="flex items-center justify-between p-3 bg-success/20 rounded-lg border border-success/30">
-                  <p className="text-sm font-medium text-success">
+              <div className="border-t border-purple-300 pt-3">
+                <div className="flex items-center justify-between p-3 bg-green-100 rounded-lg border border-green-300">
+                  <p className="text-sm font-medium text-green-800">
                     Comissão (3%)
                   </p>
-                  <p className="text-xl font-bold text-success">
+                  <p className="text-xl font-bold text-green-900">
                     {formatCurrency(processedData.stephanie.commission)}
                   </p>
                 </div>
               </div>
-              <div className="text-xs text-purple-900 dark:text-purple-200 font-medium">
+              <div className="text-xs text-purple-900 font-medium">
                 {processedData.stephanie.records.length} registro{processedData.stephanie.records.length !== 1 ? 's' : ''}
               </div>
 
               {/* Stephanie Records Detail */}
               {stephanieOpen && processedData.stephanie.records.length > 0 && (
-                <div className="mt-4 space-y-3 bg-purple-950/20 dark:bg-purple-50/10 p-4 rounded-lg border border-purple-400/30 max-h-96 overflow-y-auto">
-                  <p className="text-sm font-semibold text-purple-900 dark:text-purple-200 mb-3">Detalhamento:</p>
+                <div className="mt-4 space-y-3 bg-purple-50 p-4 rounded-lg border border-purple-300 max-h-96 overflow-y-auto">
+                  <p className="text-sm font-semibold text-purple-900 mb-3">Detalhamento:</p>
                   {(() => {
                     let accumulatedCommission = 0;
                     return processedData.stephanie.records
@@ -505,25 +505,25 @@ const Consultoras = () => {
                         const commission = record.amount * COMMISSION_RATE;
                         accumulatedCommission += commission;
                         return (
-                          <div key={record.id} className="bg-purple-900/10 dark:bg-purple-100/5 p-3 rounded-lg border border-purple-400/20">
+                          <div key={record.id} className="bg-white p-3 rounded-lg border border-purple-300 shadow-sm">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex flex-col flex-1">
-                                <span className="font-semibold text-purple-900 dark:text-purple-200">{record.customerName}</span>
-                                <span className="text-sm text-purple-800 dark:text-purple-300 mt-1">{record.product}</span>
+                                <span className="font-semibold text-purple-900">{record.customerName}</span>
+                                <span className="text-sm text-purple-800 mt-1">{record.product}</span>
                               </div>
                               <div className="flex flex-col items-end">
-                                <span className="font-bold text-lg text-purple-700 dark:text-purple-300">{formatCurrency(record.amount)}</span>
-                                <span className="text-xs text-success font-semibold mt-1">Comissão 3%: {formatCurrency(commission)}</span>
+                                <span className="font-bold text-lg text-purple-900">{formatCurrency(record.amount)}</span>
+                                <span className="text-xs text-green-800 font-semibold mt-1">Comissão 3%: {formatCurrency(commission)}</span>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-purple-400/20">
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-purple-200">
                               {record.date && (
-                                <div className="flex items-center gap-2 text-xs text-purple-700 dark:text-purple-400">
+                                <div className="flex items-center gap-2 text-xs text-purple-800">
                                   <Calendar className="h-3 w-3" />
                                   <span>Data: {record.date}</span>
                                 </div>
                               )}
-                              <div className="text-xs font-semibold text-success bg-success/10 px-2 py-1 rounded">
+                              <div className="text-xs font-semibold text-green-900 bg-green-100 px-2 py-1 rounded border border-green-300">
                                 Acumulado: {formatCurrency(accumulatedCommission)}
                               </div>
                             </div>
