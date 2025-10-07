@@ -270,6 +270,85 @@ const Consultoras = () => {
     });
   };
 
+  const generateIndividualPDF = (consultantName: 'STELLA' | 'STHEPHANIE') => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    const consultantData = consultantName === 'STELLA' ? processedData.stella : processedData.stephanie;
+    const color = consultantName === 'STELLA' ? [59, 130, 246] : [139, 92, 246]; // blue or purple
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Relatório de Comissões - ${consultantName}`, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 10;
+
+    // Period info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const periodText = selectedMonth !== 'all' || selectedYear !== 'all' 
+      ? `Período: ${selectedMonth !== 'all' ? monthNames[selectedMonth] : 'Todos os meses'} ${selectedYear !== 'all' ? selectedYear : ''}`
+      : 'Período: Todos';
+    doc.text(periodText, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Consultant Section
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(color[0], color[1], color[2]);
+    doc.text(consultantName, 20, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Total de Vendas: ${formatCurrency(consultantData.total)}`, 20, yPosition);
+    yPosition += 6;
+    doc.text(`Comissão (3%): ${formatCurrency(consultantData.commission)}`, 20, yPosition);
+    yPosition += 6;
+    doc.text(`Registros: ${consultantData.records.length}`, 20, yPosition);
+    yPosition += 10;
+
+    // Records
+    if (consultantData.records.length > 0) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Detalhamento:', 25, yPosition);
+      yPosition += 5;
+      
+      doc.setFont('helvetica', 'normal');
+      consultantData.records.forEach((record, index) => {
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(`• ${record.date || 'Sem data'} | ${record.customerName} | ${record.product}`, 30, yPosition);
+        yPosition += 4;
+        doc.text(`  ${formatCurrency(record.amount)}`, 35, yPosition);
+        yPosition += 6;
+      });
+    }
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+    }
+
+    doc.save(`comissao_${consultantName.toLowerCase()}_${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    toast({
+      title: "PDF gerado!",
+      description: `Relatório de ${consultantName} baixado com sucesso.`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -361,10 +440,18 @@ const Consultoras = () => {
 
       {/* Action Buttons */}
       {hasSearched && (
-        <div className="flex justify-end">
-          <Button onClick={generatePDF} className="flex items-center gap-2">
+        <div className="flex justify-end gap-2">
+          <Button onClick={generatePDF} variant="outline" className="flex items-center gap-2">
             <Download className="h-4 w-4" />
-            Gerar PDF
+            Gerar PDF Completo
+          </Button>
+          <Button onClick={() => generateIndividualPDF('STELLA')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
+            <Download className="h-4 w-4" />
+            PDF Stella
+          </Button>
+          <Button onClick={() => generateIndividualPDF('STHEPHANIE')} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700">
+            <Download className="h-4 w-4" />
+            PDF Stephanie
           </Button>
         </div>
       )}
