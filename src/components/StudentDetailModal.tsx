@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/utils/financialCalculations';
+import { formatDateBR } from '@/utils/dateUtils';
 import { X, User, Calendar, DollarSign, FileText, Clock, CheckCircle, AlertTriangle, TrendingUp, CreditCard } from 'lucide-react';
 
 interface StudentInfo {
@@ -184,7 +185,7 @@ export const StudentDetailModal = ({ student, isOpen, onClose }: StudentDetailMo
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Data do Contrato:</span>
                     <span className="font-medium">
-                      {new Date(student.contractDate).toLocaleDateString('pt-BR')}
+                      {formatDateBR(student.contractDate)}
                     </span>
                   </div>
                 </div>
@@ -193,7 +194,7 @@ export const StudentDetailModal = ({ student, isOpen, onClose }: StudentDetailMo
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Último Pagamento:</span>
                       <span className="font-medium text-success">
-                        {new Date(student.lastPaymentDate).toLocaleDateString('pt-BR')}
+                        {formatDateBR(student.lastPaymentDate)}
                       </span>
                     </div>
                   )}
@@ -201,7 +202,7 @@ export const StudentDetailModal = ({ student, isOpen, onClose }: StudentDetailMo
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Próximo Vencimento:</span>
                       <span className="font-medium text-warning">
-                        {new Date(student.nextDueDate).toLocaleDateString('pt-BR')}
+                        {formatDateBR(student.nextDueDate)}
                       </span>
                     </div>
                   )}
@@ -241,10 +242,10 @@ export const StudentDetailModal = ({ student, isOpen, onClose }: StudentDetailMo
                             <div>
                               <div className="font-medium">{record.installment}</div>
                               <div className="text-sm text-muted-foreground">
-                                Venc: {new Date(record.dueDate).toLocaleDateString('pt-BR')}
+                                Venc: {formatDateBR(record.dueDate)}
                                 {record.paymentDate && (
                                   <span className="ml-2">
-                                    • Pago: {new Date(record.paymentDate).toLocaleDateString('pt-BR')}
+                                    • Pago: {formatDateBR(record.paymentDate)}
                                   </span>
                                 )}
                               </div>
@@ -282,7 +283,7 @@ export const StudentDetailModal = ({ student, isOpen, onClose }: StudentDetailMo
                             <div>
                               <div className="font-medium">{record.installment}</div>
                               <div className="text-sm text-muted-foreground">
-                                Venc: {new Date(record.dueDate).toLocaleDateString('pt-BR')}
+                                Venc: {formatDateBR(record.dueDate)}
                               </div>
                             </div>
                           </div>

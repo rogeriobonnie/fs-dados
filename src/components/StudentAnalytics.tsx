@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatCurrency } from '@/utils/financialCalculations';
+import { formatDateShort } from '@/utils/dateUtils';
 import { User, CheckCircle, Clock, AlertTriangle, Eye, Search, Filter, Users } from 'lucide-react';
 
 interface StudentAnalyticsProps {
@@ -366,10 +367,7 @@ export const StudentAnalytics = ({ data }: StudentAnalyticsProps) => {
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Próximo:</span>
                               <span className="font-medium text-xs">
-                                {new Date(student.nextDueDate).toLocaleDateString('pt-BR', { 
-                                  day: '2-digit', 
-                                  month: '2-digit' 
-                                })}
+                                {formatDateShort(student.nextDueDate)}
                               </span>
                             </div>
                           )}

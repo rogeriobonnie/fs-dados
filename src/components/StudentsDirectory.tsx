@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { StudentDetailModal } from '@/components/StudentDetailModal';
 import { formatCurrency } from '@/utils/financialCalculations';
+import { formatDateBR } from '@/utils/dateUtils';
 import { User, Search, Eye, CheckCircle, Clock, AlertTriangle, TrendingUp, Calendar, Percent, DollarSign } from 'lucide-react';
 
 interface StudentsDirectoryProps {
@@ -390,7 +391,7 @@ export const StudentsDirectory = ({ data }: StudentsDirectoryProps) => {
                   <div className="flex items-center justify-between">
                     <span>Próximo venc.:</span>
                     <span className="font-medium">
-                      {new Date(student.nextDueDate).toLocaleDateString('pt-BR')}
+                      {formatDateBR(student.nextDueDate)}
                     </span>
                   </div>
                 )}

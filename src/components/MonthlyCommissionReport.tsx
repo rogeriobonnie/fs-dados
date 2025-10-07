@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FinancialRecord, ConsultantCommission } from '@/types/financial';
 import { formatCurrency } from '@/utils/financialCalculations';
+import { formatDateBR } from '@/utils/dateUtils';
 import { CalendarDays, Users, DollarSign, TrendingUp, Search } from 'lucide-react';
 
 interface MonthlyCommissionReportProps {
@@ -248,7 +249,7 @@ export const MonthlyCommissionReport = ({ data }: MonthlyCommissionReportProps) 
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>{record.installment}</span>
                           <span>•</span>
-                          <span>Pago em {new Date(record.paymentDate!).toLocaleDateString('pt-BR')}</span>
+                          <span>Pago em {formatDateBR(record.paymentDate!)}</span>
                           {(record.fees || record.interest) && (
                             <>
                               <span>•</span>

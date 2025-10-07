@@ -1,4 +1,5 @@
 import { FinancialRecord, FinancialSummary, ConsultantSummary } from '../types/financial';
+import { formatDateBR } from './dateUtils';
 
 export const calculateFinancialSummary = (data: FinancialRecord[]): FinancialSummary => {
   const totalRevenue = data.reduce((sum, record) => {
@@ -95,6 +96,4 @@ export const formatCurrency = (value: number): string => {
   }).format(value);
 };
 
-export const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('pt-BR');
-};
+export const formatDate = formatDateBR;

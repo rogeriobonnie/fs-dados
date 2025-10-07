@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
+import { formatCurrentDate } from '@/utils/dateUtils';
 import { TrendingUp, Search, Filter, RefreshCw, Calendar, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
@@ -505,7 +506,7 @@ const LanceADois = () => {
       doc.setFontSize(8);
       doc.setTextColor(128, 128, 128);
       doc.text(`Pagina ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-      doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+      doc.text(`Gerado em ${formatCurrentDate()}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
     }
 
     doc.save(`lance_a_dois_${new Date().toISOString().split('T')[0]}.pdf`);
