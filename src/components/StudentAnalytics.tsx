@@ -130,6 +130,10 @@ export const StudentAnalytics = ({ data }: StudentAnalyticsProps) => {
       // Sort by status (overdue first, then current, then completed)
       if (a.status === 'overdue' && b.status !== 'overdue') return -1;
       if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+      // If both are overdue, sort by days overdue (descending - maior para menor)
+      if (a.status === 'overdue' && b.status === 'overdue') {
+        return b.daysOverdue - a.daysOverdue;
+      }
       if (a.status === 'completed' && b.status !== 'completed') return 1;
       if (b.status === 'completed' && a.status !== 'completed') return -1;
       return b.totalAmount - a.totalAmount; // Then by total amount desc

@@ -135,7 +135,12 @@ export const StudentsDirectory = ({ data }: StudentsDirectoryProps) => {
           return b.totalAmount - a.totalAmount;
         case 'status':
           const statusOrder = { 'overdue': 0, 'current': 1, 'completed': 2 };
-          return statusOrder[a.status] - statusOrder[b.status];
+          const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+          // If both are overdue, sort by days overdue (descending)
+          if (statusDiff === 0 && a.status === 'overdue') {
+            return b.daysOverdue - a.daysOverdue;
+          }
+          return statusDiff;
         case 'dueDate':
           if (!a.nextDueDate && !b.nextDueDate) return 0;
           if (!a.nextDueDate) return 1;
