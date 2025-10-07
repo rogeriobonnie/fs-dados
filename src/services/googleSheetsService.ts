@@ -243,7 +243,7 @@ export class GoogleSheetsService {
       const extraDetail1 = (row[3] || '').toString().trim(); // Column D
       const amount = this.parseAmount(row[4] || ''); // Column E - amounts (valor)
       const date = (row[5] || '').toString().trim(); // Column F - date
-      const extraDetail2 = (row[6] || '').toString().trim(); // Column G
+      const extraDetail2 = (row[7] || '').toString().trim(); // Column H - Banco
       
       // Log rows that contain specific names for debugging
       const fullRowText = row.join(' ').toUpperCase();
