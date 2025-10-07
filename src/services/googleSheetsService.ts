@@ -651,10 +651,10 @@ export class GoogleSheetsService {
       const amount = this.parseAmount(row[7] || ''); // Valor da venda
       const fees = this.parseAmount(row[8] || ''); // Taxas descontadas
       const interest = this.parseAmount(row[9] || ''); // Juros recebidos
-      const paymentDate = this.parseDate(row[10] || ''); // Data pagamento
-      const status = this.parseStatus(row[11] || ''); // Status
-      const invoice = row[12] || ''; // Número da nota fiscal
-      const contractObservation = row[13] || ''; // Observação do contrato
+      const paymentDate = this.parseDate(row[11] || ''); // Data pagamento - Coluna L
+      const status = this.parseStatus(row[12] || ''); // Status - Coluna M
+      const invoice = row[13] || ''; // Número da nota fiscal - Coluna N
+      const contractObservation = row[14] || ''; // Observação do contrato - Coluna O
       
       // Determinar se tem bolsa baseado na condição especial
       const scholarshipStudent = this.parseScholarship(specialCondition);
