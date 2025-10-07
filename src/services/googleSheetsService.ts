@@ -615,6 +615,11 @@ export class GoogleSheetsService {
   private static parseSheetData(rows: string[][]): FinancialRecord[] {
     const records: FinancialRecord[] = [];
 
+    // Get current date in São Paulo timezone
+    const currentDate = new Date();
+    const saoPauloTime = new Date(currentDate.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    saoPauloTime.setHours(0, 0, 0, 0); // Set to start of day for comparison
+
     const totalRows = rows.length;
     // Detect header row dynamically (expects a row containing "ALUNOS")
     const headerIndex = rows.findIndex((row) => {
@@ -652,12 +657,22 @@ export class GoogleSheetsService {
       const fees = this.parseAmount(row[8] || ''); // Taxas descontadas
       const interest = this.parseAmount(row[9] || ''); // Juros recebidos
       const paymentDate = this.parseDate(row[11] || ''); // Data pagamento - Coluna L
-      const status = this.parseStatus(row[12] || ''); // Status - Coluna M
+      let status = this.parseStatus(row[12] || ''); // Status - Coluna M
       const invoice = row[13] || ''; // Número da nota fiscal - Coluna N
       const contractObservation = row[14] || ''; // Observação do contrato - Coluna O
       
       // Determinar se tem bolsa baseado na condição especial
       const scholarshipStudent = this.parseScholarship(specialCondition);
+
+      // Check if payment is overdue (only for "A PAGAR" status)
+      if (status === 'A PAGAR' && dueDate) {
+        const dueDateObj = new Date(dueDate);
+        dueDateObj.setHours(0, 0, 0, 0); // Set to start of day for comparison
+        
+        if (dueDateObj < saoPauloTime) {
+          status = 'VENCIDO';
+        }
+      }
 
       if (i < startIndex + 5) {
         console.log(`Row ${i + 1}: Student='${studentName}', Amount=${amount}, Status='${status}'`);
