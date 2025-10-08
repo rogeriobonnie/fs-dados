@@ -31,11 +31,17 @@ interface CashFlowData {
   saldoFinal: number;
   despesasVendas: { [key: string]: number };
   totalDespesasVendas: number;
-  aplicacoes?: { [key: string]: number };
+  // Linhas 34-37: Lucro Inicial
+  valorAplicadoBancoInter?: number;
+  rendimentos?: { [key: string]: number };
   lucroInicial?: number;
-  provisoes?: { [key: string]: number };
+  // Linhas 39-43: Lucro Bruto
+  provisoesLucroBruto?: { [key: string]: number };
   lucroBruto?: number;
+  // Linhas 45-60: Provisões
+  provisoes?: { [key: string]: number };
   provisoesDespesas?: { [key: string]: number };
+  aplicacoes?: { [key: string]: number };
   lucroLiquido?: number;
 }
 
@@ -79,11 +85,14 @@ const CashFlow: React.FC = () => {
       saldoFinal: 0,
       despesasVendas: {},
       totalDespesasVendas: 0,
-      aplicacoes: {},
+      valorAplicadoBancoInter: 0,
+      rendimentos: {},
       lucroInicial: 0,
-      provisoes: {},
+      provisoesLucroBruto: {},
       lucroBruto: 0,
+      provisoes: {},
       provisoesDespesas: {},
+      aplicacoes: {},
       lucroLiquido: 0,
     });
 
@@ -143,17 +152,21 @@ const CashFlow: React.FC = () => {
             currentSection = '';
           } else if (tituloUp.includes('SALDO FIM')) {
             monthData.saldoFinal = valor;
-            currentSection = '';
+            currentSection = 'LUCRO_INICIAL'; // Após saldo final, começam as linhas de lucro inicial
+          } else if (tituloUp.includes('VALOR APLICADO BANCO INTER')) {
+            monthData.valorAplicadoBancoInter = valor;
+          } else if (tituloUp.includes('RENDIMENTO')) {
+            if (!monthData.rendimentos) monthData.rendimentos = {};
+            monthData.rendimentos[titulo] = valor;
           } else if (tituloUp.includes('LUCRO INICIAL')) {
             monthData.lucroInicial = valor;
+            currentSection = 'LUCRO_BRUTO'; // Após lucro inicial, começam as linhas de lucro bruto
           } else if (tituloUp.includes('LUCRO BRUTO')) {
             monthData.lucroBruto = valor;
-            currentSection = '';
+            currentSection = 'PROVISOES'; // Após lucro bruto, começam as provisões
           } else if (tituloUp.includes('LUCRO LIQUIDO') || tituloUp.includes('LUCRO LÍQUIDO')) {
             monthData.lucroLiquido = valor;
             currentSection = '';
-          } else if (tituloUp.includes('PROV DESPESAS')) {
-            currentSection = 'PROV_DESPESAS';
           } else if (titulo && valor !== 0) {
             if (currentSection === 'ENTRADAS') {
               monthData.entradas[titulo] = valor;
@@ -162,15 +175,27 @@ const CashFlow: React.FC = () => {
               monthData.totalDespesasVendas += Math.abs(valor);
             } else if (currentSection === 'SAIDAS') {
               monthData.saidas[titulo] = Math.abs(valor);
-            } else if (currentSection === 'PROV_DESPESAS') {
-              if (!monthData.provisoesDespesas) monthData.provisoesDespesas = {};
-              monthData.provisoesDespesas[titulo] = Math.abs(valor);
-            } else if (tituloUp.includes('VALOR APLICADO') || tituloUp.includes('APLICACAO')) {
-              if (!monthData.aplicacoes) monthData.aplicacoes = {};
-              monthData.aplicacoes[titulo] = valor;
-            } else if (tituloUp.includes('PROV ')) {
-              if (!monthData.provisoes) monthData.provisoes = {};
-              monthData.provisoes[titulo] = Math.abs(valor);
+            } else if (currentSection === 'LUCRO_INICIAL') {
+              // Linhas entre saldo final e lucro inicial (34-37)
+              if (tituloUp.includes('RENDIMENTO')) {
+                if (!monthData.rendimentos) monthData.rendimentos = {};
+                monthData.rendimentos[titulo] = valor;
+              }
+            } else if (currentSection === 'LUCRO_BRUTO') {
+              // Linhas entre lucro inicial e lucro bruto (39-41)
+              if (tituloUp.includes('PROV')) {
+                if (!monthData.provisoesLucroBruto) monthData.provisoesLucroBruto = {};
+                monthData.provisoesLucroBruto[titulo] = Math.abs(valor);
+              }
+            } else if (currentSection === 'PROVISOES') {
+              // Linhas 45-60: Provisões
+              if (tituloUp.includes('PROV')) {
+                if (!monthData.provisoes) monthData.provisoes = {};
+                monthData.provisoes[titulo] = Math.abs(valor);
+              } else if (tituloUp.includes('APLICACAO') || tituloUp.includes('XP')) {
+                if (!monthData.aplicacoes) monthData.aplicacoes = {};
+                monthData.aplicacoes[titulo] = valor;
+              }
             }
           }
         });
@@ -538,31 +563,99 @@ const CashFlow: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Lucro Inicial */}
+          {/* Lucro Inicial - Linhas 34-37 */}
           {cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0 ? (
-            <Card className="border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-cyan-200 rounded-full">
-                      <Wallet className="h-6 w-6 text-cyan-700" />
+            <Collapsible defaultOpen={false}>
+              <Card className="border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full group">
+                      <CardTitle className="flex items-center gap-2 text-cyan-800">
+                        <Wallet className="h-5 w-5" />
+                        Lucro Inicial
+                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold text-cyan-800">
+                          {formatCurrency(cashFlowData.lucroInicial)}
+                        </span>
+                        <ChevronDown className="h-5 w-5 text-cyan-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-cyan-800">Lucro Inicial</h2>
-                      <p className="text-sm text-cyan-600">Saldo disponível antes das provisões</p>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3 pt-0">
+                    <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-cyan-200">
+                      <span className="font-medium text-cyan-700">Saldo Final</span>
+                      <span className="text-lg font-bold text-cyan-800">
+                        {formatCurrency(cashFlowData.saldoFinal)}
+                      </span>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-cyan-800">
-                      {formatCurrency(cashFlowData.lucroInicial)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                    {cashFlowData.valorAplicadoBancoInter !== undefined && cashFlowData.valorAplicadoBancoInter !== 0 && (
+                      <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-cyan-200">
+                        <span className="font-medium text-cyan-700">Valor Aplicado Banco Inter</span>
+                        <span className="text-lg font-bold text-cyan-800">
+                          {formatCurrency(cashFlowData.valorAplicadoBancoInter)}
+                        </span>
+                      </div>
+                    )}
+                    {cashFlowData.rendimentos && Object.entries(cashFlowData.rendimentos).map(([key, value], index) => (
+                      <div 
+                        key={key} 
+                        className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-cyan-200"
+                      >
+                        <span className="font-medium text-cyan-700">{key}</span>
+                        <span className="text-lg font-bold text-cyan-800">
+                          {formatCurrency(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           ) : null}
 
-          {/* Provisões */}
+          {/* Lucro Bruto - Linhas 39-43 */}
+          {cashFlowData.lucroBruto !== undefined && cashFlowData.lucroBruto !== 0 ? (
+            <Collapsible defaultOpen={false}>
+              <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full group">
+                      <CardTitle className="flex items-center gap-2 text-indigo-800">
+                        <BarChart3 className="h-5 w-5" />
+                        Lucro Bruto
+                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold text-indigo-800">
+                          {formatCurrency(cashFlowData.lucroBruto)}
+                        </span>
+                        <ChevronDown className="h-5 w-5 text-indigo-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3 pt-0">
+                    {cashFlowData.provisoesLucroBruto && Object.entries(cashFlowData.provisoesLucroBruto).map(([key, value], index) => (
+                      <div 
+                        key={key} 
+                        className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-indigo-200"
+                      >
+                        <span className="font-medium text-indigo-700">{key}</span>
+                        <span className="text-lg font-bold text-indigo-800">
+                          -{formatCurrency(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          ) : null}
+
+          {/* Provisões - Linhas 45-60 */}
           {cashFlowData.provisoes && Object.keys(cashFlowData.provisoes).length > 0 ? (
             <Collapsible defaultOpen={false}>
               <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
@@ -592,88 +685,6 @@ const CashFlow: React.FC = () => {
                       >
                         <span className="font-medium text-purple-700">{key}</span>
                         <span className="text-lg font-bold text-purple-800">
-                          -{formatCurrency(value)}
-                        </span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          ) : null}
-
-          {/* Lucro Bruto */}
-          {cashFlowData.lucroBruto !== undefined && cashFlowData.lucroBruto !== 0 ? (
-            <Card className={`border-2 ${
-              cashFlowData.lucroBruto >= 0 
-                ? 'border-indigo-300 bg-gradient-to-br from-indigo-50 to-indigo-100' 
-                : 'border-rose-300 bg-gradient-to-br from-rose-50 to-rose-100'
-            }`}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-full ${
-                      cashFlowData.lucroBruto >= 0 ? 'bg-indigo-200' : 'bg-rose-200'
-                    }`}>
-                      <BarChart3 className={`h-6 w-6 ${
-                        cashFlowData.lucroBruto >= 0 ? 'text-indigo-700' : 'text-rose-700'
-                      }`} />
-                    </div>
-                    <div>
-                      <h2 className={`text-xl font-bold ${
-                        cashFlowData.lucroBruto >= 0 ? 'text-indigo-800' : 'text-rose-800'
-                      }`}>
-                        Lucro Bruto
-                      </h2>
-                      <p className={`text-sm ${
-                        cashFlowData.lucroBruto >= 0 ? 'text-indigo-600' : 'text-rose-600'
-                      }`}>
-                        Antes das provisões de despesas
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-3xl font-bold ${
-                      cashFlowData.lucroBruto >= 0 ? 'text-indigo-800' : 'text-rose-800'
-                    }`}>
-                      {formatCurrency(cashFlowData.lucroBruto)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {/* Provisões de Despesas */}
-          {cashFlowData.provisoesDespesas && Object.keys(cashFlowData.provisoesDespesas).length > 0 ? (
-            <Collapsible defaultOpen={false}>
-              <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100">
-                <CollapsibleTrigger className="w-full">
-                  <CardHeader>
-                    <div className="flex items-center justify-between w-full group">
-                      <CardTitle className="flex items-center gap-2 text-amber-800">
-                        <Minus className="h-5 w-5" />
-                        Provisões de Despesas
-                      </CardTitle>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl font-bold text-amber-800">
-                          -{formatCurrency(Object.values(cashFlowData.provisoesDespesas).reduce((acc, val) => acc + val, 0))}
-                        </span>
-                        <ChevronDown className="h-5 w-5 text-amber-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="space-y-3 pt-0">
-                    {Object.entries(cashFlowData.provisoesDespesas).map(([key, value], index) => (
-                      <div 
-                        key={key} 
-                        className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-amber-200 hover-scale"
-                        style={{ animationDelay: `${index * 0.1}s` }}
-                      >
-                        <span className="font-medium text-amber-700">{key}</span>
-                        <span className="text-lg font-bold text-amber-800">
                           -{formatCurrency(value)}
                         </span>
                       </div>
