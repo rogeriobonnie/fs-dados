@@ -616,6 +616,65 @@ const CashFlow: React.FC = () => {
             </Collapsible>
           ) : null}
 
+          {/* Aplicações XP Investimento */}
+          {cashFlowData.aplicacoes && Object.keys(cashFlowData.aplicacoes).length > 0 ? (
+            <Collapsible defaultOpen={false}>
+              <Card className="border-sky-200 bg-gradient-to-br from-sky-50 to-sky-100">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full group">
+                      <CardTitle className="flex items-center gap-2 text-sky-800">
+                        <PiggyBank className="h-5 w-5" />
+                        XP Investimento
+                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold text-sky-800">
+                          {formatCurrency(Object.values(cashFlowData.aplicacoes).reduce((acc, val) => acc + val, 0))}
+                        </span>
+                        <ChevronDown className="h-5 w-5 text-sky-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3 pt-0">
+                    {Object.entries(cashFlowData.aplicacoes).map(([key, value], index) => {
+                      const isXP = key.toUpperCase().includes('XP');
+                      let memoriaCalculo = null;
+                      
+                      if (isXP && cashFlowData.lucroInicial && cashFlowData.provisoesLucroBruto) {
+                        // Calcular: (Linha 37 - Linhas 39 e 40) * 10%
+                        const totalProvisoes = Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0);
+                        const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
+                        memoriaCalculo = `10% de (${formatCurrency(cashFlowData.lucroInicial)} - ${formatCurrency(totalProvisoes)}) = ${formatCurrency(baseCalculo * 0.1)}`;
+                      }
+                      
+                      return (
+                        <div 
+                          key={key} 
+                          className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-sky-200 hover-scale"
+                          style={{ animationDelay: `${index * 0.1}s` }}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium text-sky-700">{key}</span>
+                            {memoriaCalculo && (
+                              <span className="text-xs text-sky-600 mt-1">
+                                {memoriaCalculo}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-lg font-bold text-sky-800">
+                            {formatCurrency(value)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          ) : null}
+
           {/* Lucro Bruto - Linhas 39-43 */}
           {cashFlowData.lucroBruto !== undefined && cashFlowData.lucroBruto !== 0 ? (
             <Collapsible defaultOpen={false}>
@@ -695,64 +754,6 @@ const CashFlow: React.FC = () => {
             </Collapsible>
           ) : null}
 
-          {/* Aplicações XP */}
-          {cashFlowData.aplicacoes && Object.keys(cashFlowData.aplicacoes).length > 0 ? (
-            <Collapsible defaultOpen={false}>
-              <Card className="border-sky-200 bg-gradient-to-br from-sky-50 to-sky-100">
-                <CollapsibleTrigger className="w-full">
-                  <CardHeader>
-                    <div className="flex items-center justify-between w-full group">
-                      <CardTitle className="flex items-center gap-2 text-sky-800">
-                        <PiggyBank className="h-5 w-5" />
-                        Aplicações
-                      </CardTitle>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl font-bold text-sky-800">
-                          {formatCurrency(Object.values(cashFlowData.aplicacoes).reduce((acc, val) => acc + val, 0))}
-                        </span>
-                        <ChevronDown className="h-5 w-5 text-sky-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="space-y-3 pt-0">
-                    {Object.entries(cashFlowData.aplicacoes).map(([key, value], index) => {
-                      const isXP = key.toUpperCase().includes('XP');
-                      let memoriaCalculo = null;
-                      
-                      if (isXP && cashFlowData.lucroInicial && cashFlowData.provisoesLucroBruto) {
-                        // Calcular: (Linha 37 - Linhas 39 e 40) * 10%
-                        const totalProvisoes = Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0);
-                        const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
-                        memoriaCalculo = `10% de (${formatCurrency(cashFlowData.lucroInicial)} - ${formatCurrency(totalProvisoes)}) = ${formatCurrency(baseCalculo * 0.1)}`;
-                      }
-                      
-                      return (
-                        <div 
-                          key={key} 
-                          className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-sky-200 hover-scale"
-                          style={{ animationDelay: `${index * 0.1}s` }}
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium text-sky-700">{key}</span>
-                            {memoriaCalculo && (
-                              <span className="text-xs text-sky-600 mt-1">
-                                {memoriaCalculo}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-lg font-bold text-sky-800">
-                            {formatCurrency(value)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          ) : null}
 
           {/* Lucro Líquido */}
           {cashFlowData.lucroLiquido !== undefined && cashFlowData.lucroLiquido !== 0 ? (
