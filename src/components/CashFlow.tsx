@@ -719,9 +719,14 @@ const CashFlow: React.FC = () => {
                   <CardContent className="space-y-3 pt-0">
                     {Object.entries(cashFlowData.aplicacoes).map(([key, value], index) => {
                       const isXP = key.toUpperCase().includes('XP');
-                      const memoriaCalculo = isXP && cashFlowData.lucroBruto 
-                        ? `10% de ${formatCurrency(cashFlowData.lucroBruto)}` 
-                        : null;
+                      let memoriaCalculo = null;
+                      
+                      if (isXP && cashFlowData.lucroInicial && cashFlowData.provisoesLucroBruto) {
+                        // Calcular: (Linha 37 - Linhas 39 e 40) * 10%
+                        const totalProvisoes = Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0);
+                        const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
+                        memoriaCalculo = `10% de (${formatCurrency(cashFlowData.lucroInicial)} - ${formatCurrency(totalProvisoes)}) = ${formatCurrency(baseCalculo * 0.1)}`;
+                      }
                       
                       return (
                         <div 
@@ -751,44 +756,64 @@ const CashFlow: React.FC = () => {
 
           {/* Lucro Líquido */}
           {cashFlowData.lucroLiquido !== undefined && cashFlowData.lucroLiquido !== 0 ? (
-            <Card className={`border-2 ${
-              cashFlowData.lucroLiquido >= 0 
-                ? 'border-teal-300 bg-gradient-to-br from-teal-50 to-teal-100' 
-                : 'border-red-300 bg-gradient-to-br from-red-50 to-red-100'
-            }`}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-full ${
-                      cashFlowData.lucroLiquido >= 0 ? 'bg-teal-200' : 'bg-red-200'
-                    }`}>
-                      <DollarSign className={`h-6 w-6 ${
-                        cashFlowData.lucroLiquido >= 0 ? 'text-teal-700' : 'text-red-700'
-                      }`} />
+            <Collapsible defaultOpen={false}>
+              <Card className={`border-2 ${
+                cashFlowData.lucroLiquido >= 0 
+                  ? 'border-teal-300 bg-gradient-to-br from-teal-50 to-teal-100' 
+                  : 'border-red-300 bg-gradient-to-br from-red-50 to-red-100'
+              }`}>
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full group">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-3 rounded-full ${
+                          cashFlowData.lucroLiquido >= 0 ? 'bg-teal-200' : 'bg-red-200'
+                        }`}>
+                          <DollarSign className={`h-6 w-6 ${
+                            cashFlowData.lucroLiquido >= 0 ? 'text-teal-700' : 'text-red-700'
+                          }`} />
+                        </div>
+                        <div>
+                          <h2 className={`text-xl font-bold ${
+                            cashFlowData.lucroLiquido >= 0 ? 'text-teal-800' : 'text-red-800'
+                          }`}>
+                            Lucro Líquido
+                          </h2>
+                          <p className={`text-sm ${
+                            cashFlowData.lucroLiquido >= 0 ? 'text-teal-600' : 'text-red-600'
+                          }`}>
+                            Resultado final após todas provisões
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <p className={`text-3xl font-bold ${
+                          cashFlowData.lucroLiquido >= 0 ? 'text-teal-800' : 'text-red-800'
+                        }`}>
+                          {formatCurrency(cashFlowData.lucroLiquido)}
+                        </p>
+                        <ChevronDown className={`h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180 ${
+                          cashFlowData.lucroLiquido >= 0 ? 'text-teal-600' : 'text-red-600'
+                        }`} />
+                      </div>
                     </div>
-                    <div>
-                      <h2 className={`text-xl font-bold ${
-                        cashFlowData.lucroLiquido >= 0 ? 'text-teal-800' : 'text-red-800'
-                      }`}>
-                        Lucro Líquido
-                      </h2>
-                      <p className={`text-sm ${
-                        cashFlowData.lucroLiquido >= 0 ? 'text-teal-600' : 'text-red-600'
-                      }`}>
-                        Resultado final após todas provisões
-                      </p>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3 pt-0">
+                    <div className="p-4 bg-white/50 rounded-lg border-2 border-teal-200">
+                      <p className="text-sm text-teal-700 mb-3 font-medium">Divisão por Sócia (3 sócias)</p>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-teal-700">Valor por Sócia</span>
+                        <span className="text-2xl font-bold text-teal-800">
+                          {formatCurrency(cashFlowData.lucroLiquido / 3)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-3xl font-bold ${
-                      cashFlowData.lucroLiquido >= 0 ? 'text-teal-800' : 'text-red-800'
-                    }`}>
-                      {formatCurrency(cashFlowData.lucroLiquido)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           ) : null}
 
           {/* Resumo Visual */}
