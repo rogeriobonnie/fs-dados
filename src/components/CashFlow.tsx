@@ -574,6 +574,59 @@ const CashFlow: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* Resumo do Período */}
+          <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Resumo do Período
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="text-center p-4 bg-green-100 rounded-lg hover-scale">
+                  <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                  <p className="text-sm text-green-600">Total Entradas</p>
+                  <p className="text-xl font-bold text-green-800">
+                    {formatCurrency(cashFlowData.totalEntradas)}
+                  </p>
+                </div>
+                <div className="text-center p-4 bg-red-100 rounded-lg hover-scale">
+                  <TrendingDown className="h-8 w-8 text-red-600 mx-auto mb-2" />
+                  <p className="text-sm text-red-600">Total Saídas</p>
+                  <p className="text-xl font-bold text-red-800">
+                    {formatCurrency(cashFlowData.totalSaidas)}
+                  </p>
+                </div>
+                <div className={`text-center p-4 rounded-lg hover-scale ${
+                  (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
+                    ? 'bg-blue-100' 
+                    : 'bg-orange-100'
+                }`}>
+                  <DollarSign className={`h-8 w-8 mx-auto mb-2 ${
+                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
+                      ? 'text-blue-600' 
+                      : 'text-orange-600'
+                  }`} />
+                  <p className={`text-sm ${
+                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
+                      ? 'text-blue-600' 
+                      : 'text-orange-600'
+                  }`}>
+                    Resultado
+                  </p>
+                  <p className={`text-xl font-bold ${
+                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
+                      ? 'text-blue-800' 
+                      : 'text-orange-800'
+                  }`}>
+                    {formatCurrency(cashFlowData.totalEntradas - cashFlowData.totalSaidas)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Lucro Inicial - Linhas 34-37 */}
           {cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0 ? (
             <Collapsible defaultOpen={false}>
@@ -828,58 +881,6 @@ const CashFlow: React.FC = () => {
             </Collapsible>
           ) : null}
 
-          {/* Resumo Visual */}
-          <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Resumo do Período
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="text-center p-4 bg-green-100 rounded-lg hover-scale">
-                  <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                  <p className="text-sm text-green-600">Total Entradas</p>
-                  <p className="text-xl font-bold text-green-800">
-                    {formatCurrency(cashFlowData.totalEntradas)}
-                  </p>
-                </div>
-                <div className="text-center p-4 bg-red-100 rounded-lg hover-scale">
-                  <TrendingDown className="h-8 w-8 text-red-600 mx-auto mb-2" />
-                  <p className="text-sm text-red-600">Total Saídas</p>
-                  <p className="text-xl font-bold text-red-800">
-                    {formatCurrency(cashFlowData.totalSaidas)}
-                  </p>
-                </div>
-                <div className={`text-center p-4 rounded-lg hover-scale ${
-                  (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
-                    ? 'bg-blue-100' 
-                    : 'bg-orange-100'
-                }`}>
-                  <DollarSign className={`h-8 w-8 mx-auto mb-2 ${
-                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
-                      ? 'text-blue-600' 
-                      : 'text-orange-600'
-                  }`} />
-                  <p className={`text-sm ${
-                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
-                      ? 'text-blue-600' 
-                      : 'text-orange-600'
-                  }`}>
-                    Resultado
-                  </p>
-                  <p className={`text-xl font-bold ${
-                    (cashFlowData.totalEntradas - cashFlowData.totalSaidas) >= 0 
-                      ? 'text-blue-800' 
-                      : 'text-orange-800'
-                  }`}>
-                    {formatCurrency(cashFlowData.totalEntradas - cashFlowData.totalSaidas)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
 
