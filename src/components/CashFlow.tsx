@@ -538,62 +538,52 @@ const CashFlow: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Aplicações e Lucros */}
-          {(cashFlowData.aplicacoes && Object.keys(cashFlowData.aplicacoes).length > 0) || cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0 ? (
-            <Collapsible defaultOpen>
-              <Card className="border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100">
-                <CardHeader>
-                  <CollapsibleTrigger className="flex items-center justify-between w-full group">
-                    <CardTitle className="flex items-center gap-2 text-cyan-800">
-                      <Wallet className="h-5 w-5" />
-                      Aplicações e Lucro Inicial
-                    </CardTitle>
-                    <ChevronDown className="h-5 w-5 text-cyan-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                  </CollapsibleTrigger>
-                </CardHeader>
-                <CollapsibleContent>
-                  <CardContent className="space-y-3">
-                    {cashFlowData.aplicacoes && Object.entries(cashFlowData.aplicacoes).map(([key, value], index) => (
-                      <div 
-                        key={key} 
-                        className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-cyan-200 hover-scale"
-                        style={{ animationDelay: `${index * 0.1}s` }}
-                      >
-                        <span className="font-medium text-cyan-700">{key}</span>
-                        <span className="text-lg font-bold text-cyan-800">
-                          {formatCurrency(value)}
-                        </span>
-                      </div>
-                    ))}
-                    {cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0 && (
-                      <div className="flex items-center justify-between p-4 bg-cyan-100 rounded-lg border-2 border-cyan-300">
-                        <span className="text-lg font-bold text-cyan-800">Lucro Inicial</span>
-                        <span className="text-2xl font-bold text-cyan-800">
-                          {formatCurrency(cashFlowData.lucroInicial)}
-                        </span>
-                      </div>
-                    )}
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
+          {/* Lucro Inicial */}
+          {cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0 ? (
+            <Card className="border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-cyan-200 rounded-full">
+                      <Wallet className="h-6 w-6 text-cyan-700" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-cyan-800">Lucro Inicial</h2>
+                      <p className="text-sm text-cyan-600">Saldo disponível antes das provisões</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-cyan-800">
+                      {formatCurrency(cashFlowData.lucroInicial)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           ) : null}
 
           {/* Provisões */}
           {cashFlowData.provisoes && Object.keys(cashFlowData.provisoes).length > 0 ? (
-            <Collapsible defaultOpen>
+            <Collapsible defaultOpen={false}>
               <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
-                <CardHeader>
-                  <CollapsibleTrigger className="flex items-center justify-between w-full group">
-                    <CardTitle className="flex items-center gap-2 text-purple-800">
-                      <PiggyBank className="h-5 w-5" />
-                      Provisões
-                    </CardTitle>
-                    <ChevronDown className="h-5 w-5 text-purple-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                  </CollapsibleTrigger>
-                </CardHeader>
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full group">
+                      <CardTitle className="flex items-center gap-2 text-purple-800">
+                        <PiggyBank className="h-5 w-5" />
+                        Provisões
+                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold text-purple-800">
+                          -{formatCurrency(Object.values(cashFlowData.provisoes).reduce((acc, val) => acc + val, 0))}
+                        </span>
+                        <ChevronDown className="h-5 w-5 text-purple-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-3 pt-0">
                     {Object.entries(cashFlowData.provisoes).map(([key, value], index) => (
                       <div 
                         key={key} 
@@ -656,19 +646,26 @@ const CashFlow: React.FC = () => {
 
           {/* Provisões de Despesas */}
           {cashFlowData.provisoesDespesas && Object.keys(cashFlowData.provisoesDespesas).length > 0 ? (
-            <Collapsible defaultOpen>
+            <Collapsible defaultOpen={false}>
               <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100">
-                <CardHeader>
-                  <CollapsibleTrigger className="flex items-center justify-between w-full group">
-                    <CardTitle className="flex items-center gap-2 text-amber-800">
-                      <Minus className="h-5 w-5" />
-                      Provisões de Despesas
-                    </CardTitle>
-                    <ChevronDown className="h-5 w-5 text-amber-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                  </CollapsibleTrigger>
-                </CardHeader>
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full group">
+                      <CardTitle className="flex items-center gap-2 text-amber-800">
+                        <Minus className="h-5 w-5" />
+                        Provisões de Despesas
+                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold text-amber-800">
+                          -{formatCurrency(Object.values(cashFlowData.provisoesDespesas).reduce((acc, val) => acc + val, 0))}
+                        </span>
+                        <ChevronDown className="h-5 w-5 text-amber-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-3 pt-0">
                     {Object.entries(cashFlowData.provisoesDespesas).map(([key, value], index) => (
                       <div 
                         key={key} 
@@ -681,6 +678,60 @@ const CashFlow: React.FC = () => {
                         </span>
                       </div>
                     ))}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          ) : null}
+
+          {/* Aplicações XP */}
+          {cashFlowData.aplicacoes && Object.keys(cashFlowData.aplicacoes).length > 0 ? (
+            <Collapsible defaultOpen={false}>
+              <Card className="border-sky-200 bg-gradient-to-br from-sky-50 to-sky-100">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full group">
+                      <CardTitle className="flex items-center gap-2 text-sky-800">
+                        <PiggyBank className="h-5 w-5" />
+                        Aplicações
+                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold text-sky-800">
+                          {formatCurrency(Object.values(cashFlowData.aplicacoes).reduce((acc, val) => acc + val, 0))}
+                        </span>
+                        <ChevronDown className="h-5 w-5 text-sky-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3 pt-0">
+                    {Object.entries(cashFlowData.aplicacoes).map(([key, value], index) => {
+                      const isXP = key.toUpperCase().includes('XP');
+                      const memoriaCalculo = isXP && cashFlowData.lucroBruto 
+                        ? `10% de ${formatCurrency(cashFlowData.lucroBruto)}` 
+                        : null;
+                      
+                      return (
+                        <div 
+                          key={key} 
+                          className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-sky-200 hover-scale"
+                          style={{ animationDelay: `${index * 0.1}s` }}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium text-sky-700">{key}</span>
+                            {memoriaCalculo && (
+                              <span className="text-xs text-sky-600 mt-1">
+                                {memoriaCalculo}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-lg font-bold text-sky-800">
+                            {formatCurrency(value)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </CardContent>
                 </CollapsibleContent>
               </Card>
