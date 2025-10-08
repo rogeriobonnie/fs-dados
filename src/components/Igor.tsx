@@ -52,9 +52,12 @@ const Igor = () => {
     try {
       const dreData = await GoogleSheetsService.fetchDREData();
       
-      // Filter only rows with "IGOR" in column G (extraDetail1)
+      // Filter only rows with "IGOR" in marker column (G) or any extraDetail fields
       const igorRows = dreData.filter((row: any) =>
-        (row.extraDetail1 || '').toString().toUpperCase().includes('IGOR')
+        ((row.extraDetail3 || row.extraDetail1 || row.extraDetail2 || '') as string)
+          .toString()
+          .toUpperCase()
+          .includes('IGOR')
       );
 
       // Separate revenues (ENTRADAS) and expenses (SAÍDAS)
