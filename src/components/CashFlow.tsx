@@ -57,33 +57,27 @@ const CashFlow: React.FC = () => {
 
     // A primeira linha contém os nomes dos meses
     const firstRow = rawData[0];
-    const months: string[] = [];
+    const uniqueMonths = new Set<string>();
     const monthColumns: { [key: string]: number } = {};
     
-    // Identificar colunas de meses (colunas C, E, G, I... ou seja, índices 2, 4, 6, 8...)
-    Object.keys(firstRow).forEach((key) => {
-      const value = firstRow[key];
-      if (value && typeof value === 'string' && value.match(/\d{4}/)) { // Procura por ano (ex: 2025)
-        const columnIndex = key;
-        months.push(value);
-        monthColumns[value] = parseInt(columnIndex.replace('col', '')) || 0;
-        console.log('Mês encontrado:', value, 'na coluna', columnIndex);
-      }
-    });
-
-    // Se não encontrou meses no formato esperado, tenta colunas pares
-    if (months.length === 0) {
-      // Assumir que os meses estão nas colunas 2, 4, 6, 8... (col2, col4, col6, col8...)
-      for (let i = 2; i < 20; i += 2) {
-        const colKey = `col${i}`;
-        if (firstRow[colKey]) {
-          months.push(firstRow[colKey]);
-          monthColumns[firstRow[colKey]] = i;
+    // Identificar colunas de meses, procurando em colunas pares (2, 4, 6, 8...)
+    // As colunas ímpares (1, 3, 5, 7...) contêm os valores
+    for (let i = 0; i < 20; i += 2) {
+      const colKey = `col${i}`;
+      const value = firstRow[colKey];
+      
+      if (value && typeof value === 'string' && value.trim()) {
+        // Adiciona ao set para garantir unicidade
+        uniqueMonths.add(value.trim());
+        if (!monthColumns[value.trim()]) {
+          monthColumns[value.trim()] = i;
+          console.log('Mês encontrado:', value.trim(), 'na coluna', i);
         }
       }
     }
 
-    console.log('Meses identificados:', months);
+    const months = Array.from(uniqueMonths);
+    console.log('Meses únicos identificados:', months);
 
     const monthsData: { [key: string]: CashFlowData } = {};
 
@@ -155,10 +149,11 @@ const CashFlow: React.FC = () => {
       setAvailableMonths(months);
       setAllMonthsData(data);
       
-      // Selecionar o primeiro mês automaticamente
+      // Selecionar o último mês com dados automaticamente
       if (months.length > 0) {
-        setSelectedMonth(months[0]);
-        setCashFlowData(data[months[0]]);
+        const lastMonth = months[months.length - 1];
+        setSelectedMonth(lastMonth);
+        setCashFlowData(data[lastMonth]);
       }
       
       setHasSearched(true);
