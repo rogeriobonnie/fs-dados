@@ -182,10 +182,15 @@ const CashFlow: React.FC = () => {
                 monthData.rendimentos[titulo] = valor;
               }
             } else if (currentSection === 'LUCRO_BRUTO') {
-              // Linhas entre lucro inicial e lucro bruto (39-41)
+              // Linhas entre lucro inicial e lucro bruto (39-42)
               if (tituloUp.includes('PROV')) {
                 if (!monthData.provisoesLucroBruto) monthData.provisoesLucroBruto = {};
                 monthData.provisoesLucroBruto[titulo] = Math.abs(valor);
+                console.log('Provisão Lucro Bruto encontrada:', titulo, valor);
+              } else if (tituloUp.includes('APLICACAO') || tituloUp.includes('XP')) {
+                if (!monthData.aplicacoes) monthData.aplicacoes = {};
+                monthData.aplicacoes[titulo] = Math.abs(valor);
+                console.log('Aplicação XP encontrada:', titulo, valor);
               }
             } else if (currentSection === 'PROVISOES') {
               // Linhas 45-60: Provisões
@@ -200,8 +205,14 @@ const CashFlow: React.FC = () => {
           }
         });
 
+        console.log(`Dados processados para ${month}:`, {
+          lucroInicial: monthData.lucroInicial,
+          aplicacoes: monthData.aplicacoes,
+          provisoesLucroBruto: monthData.provisoesLucroBruto,
+          lucroBruto: monthData.lucroBruto
+        });
+        
         monthsData[month] = monthData;
-        console.log(`Dados processados (colunas) para ${month}:`, monthData);
       });
 
       return { months, data: monthsData };
