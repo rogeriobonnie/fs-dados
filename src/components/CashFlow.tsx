@@ -440,99 +440,121 @@ const CashFlow: React.FC = () => {
           </Card>
 
           {/* Entradas - VERDE */}
-          <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-800">
-                <Plus className="h-5 w-5" />
-                Entradas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Object.entries(cashFlowData.entradas).map(([key, value], index) => (
-                <div 
-                  key={key} 
-                  className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-green-200 hover-scale"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <span className="font-medium text-green-700">{key}</span>
-                  <span className="text-lg font-bold text-green-800">
-                    +{formatCurrency(value)}
-                  </span>
-                </div>
-              ))}
-              
-              {/* Despesas sobre Vendas - AMARELO */}
-              {Object.keys(cashFlowData.despesasVendas).length > 0 && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-yellow-700 flex items-center gap-2">
-                      <Minus className="h-4 w-4" />
-                      Despesas sobre Vendas
-                    </h4>
-                    {Object.entries(cashFlowData.despesasVendas).map(([key, value], index) => (
-                      <div 
-                        key={key} 
-                        className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200 hover-scale"
-                        style={{ animationDelay: `${(index + Object.keys(cashFlowData.entradas).length) * 0.1}s` }}
-                      >
-                        <span className="font-medium text-yellow-700">{key}</span>
-                        <span className="text-lg font-bold text-yellow-800">
-                          {formatCurrency(value)}
-                        </span>
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-between p-3 bg-yellow-100 rounded-lg border-2 border-yellow-300">
-                      <span className="text-sm font-bold text-yellow-800">Subtotal Despesas Vendas</span>
-                      <span className="text-lg font-bold text-yellow-800">
-                        -{formatCurrency(cashFlowData.totalDespesasVendas)}
+          <Collapsible defaultOpen={false}>
+            <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
+              <CollapsibleTrigger className="w-full">
+                <CardHeader>
+                  <div className="flex items-center justify-between w-full group">
+                    <CardTitle className="flex items-center gap-2 text-green-800">
+                      <Plus className="h-5 w-5" />
+                      Entradas
+                    </CardTitle>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-bold text-green-800">
+                        {formatCurrency(cashFlowData.totalEntradas)}
                       </span>
+                      <ChevronDown className="h-5 w-5 text-green-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                     </div>
                   </div>
-                </>
-              )}
-              
-              <Separator className="my-4" />
-              <div className="flex items-center justify-between p-4 bg-green-100 rounded-lg border-2 border-green-300">
-                <span className="text-lg font-bold text-green-800">Total de Entradas</span>
-                <span className="text-2xl font-bold text-green-800">
-                  {formatCurrency(cashFlowData.totalEntradas)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4 pt-0">
+                  {Object.entries(cashFlowData.entradas).map(([key, value], index) => (
+                    <div 
+                      key={key} 
+                      className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-green-200 hover-scale"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <span className="font-medium text-green-700">{key}</span>
+                      <span className="text-lg font-bold text-green-800">
+                        +{formatCurrency(value)}
+                      </span>
+                    </div>
+                  ))}
+                  
+                  {/* Despesas sobre Vendas - AMARELO */}
+                  {Object.keys(cashFlowData.despesasVendas).length > 0 && (
+                    <>
+                      <Separator className="my-4" />
+                      <Collapsible defaultOpen={false}>
+                        <div className="space-y-3">
+                          <CollapsibleTrigger className="w-full">
+                            <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200 group">
+                              <h4 className="font-semibold text-yellow-700 flex items-center gap-2">
+                                <Minus className="h-4 w-4" />
+                                Despesas sobre Vendas
+                              </h4>
+                              <div className="flex items-center gap-3">
+                                <span className="text-lg font-bold text-yellow-800">
+                                  -{formatCurrency(cashFlowData.totalDespesasVendas)}
+                                </span>
+                                <ChevronDown className="h-4 w-4 text-yellow-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="space-y-3">
+                              {Object.entries(cashFlowData.despesasVendas).map(([key, value], index) => (
+                                <div 
+                                  key={key} 
+                                  className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200 hover-scale"
+                                  style={{ animationDelay: `${(index + Object.keys(cashFlowData.entradas).length) * 0.1}s` }}
+                                >
+                                  <span className="font-medium text-yellow-700">{key}</span>
+                                  <span className="text-lg font-bold text-yellow-800">
+                                    {formatCurrency(value)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    </>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Saídas - VERMELHO */}
-          <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-800">
-                <Minus className="h-5 w-5" />
-                Saídas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Object.entries(cashFlowData.saidas).map(([key, value], index) => (
-                <div 
-                  key={key} 
-                  className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-red-200 hover-scale"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <span className="font-medium text-red-700">{key}</span>
-                  <span className="text-lg font-bold text-red-800">
-                    -{formatCurrency(value)}
-                  </span>
-                </div>
-              ))}
-              
-              <Separator className="my-4" />
-              <div className="flex items-center justify-between p-4 bg-red-100 rounded-lg border-2 border-red-300">
-                <span className="text-lg font-bold text-red-800">Total de Saídas</span>
-                <span className="text-2xl font-bold text-red-800">
-                  -{formatCurrency(cashFlowData.totalSaidas)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+          <Collapsible defaultOpen={false}>
+            <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100">
+              <CollapsibleTrigger className="w-full">
+                <CardHeader>
+                  <div className="flex items-center justify-between w-full group">
+                    <CardTitle className="flex items-center gap-2 text-red-800">
+                      <Minus className="h-5 w-5" />
+                      Saídas
+                    </CardTitle>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-bold text-red-800">
+                        -{formatCurrency(cashFlowData.totalSaidas)}
+                      </span>
+                      <ChevronDown className="h-5 w-5 text-red-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                    </div>
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="space-y-4 pt-0">
+                  {Object.entries(cashFlowData.saidas).map(([key, value], index) => (
+                    <div 
+                      key={key} 
+                      className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-red-200 hover-scale"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <span className="font-medium text-red-700">{key}</span>
+                      <span className="text-lg font-bold text-red-800">
+                        -{formatCurrency(value)}
+                      </span>
+                    </div>
+                  ))}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Saldo Final */}
           <Card className={`border-2 ${
