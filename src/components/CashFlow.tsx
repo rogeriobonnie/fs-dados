@@ -60,11 +60,10 @@ const CashFlow: React.FC = () => {
     const uniqueMonths = new Set<string>();
     const monthColumns: { [key: string]: number } = {};
     
-    // Identificar colunas de meses, procurando em colunas pares (2, 4, 6, 8...)
+    // Identificar colunas de meses (colunas pares: 0, 2, 4, 6...)
     // As colunas ímpares (1, 3, 5, 7...) contêm os valores
     for (let i = 0; i < 20; i += 2) {
-      const colKey = `col${i}`;
-      const value = firstRow[colKey];
+      const value = firstRow[i];
       
       if (value && typeof value === 'string' && value.trim()) {
         // Adiciona ao set para garantir unicidade
@@ -100,8 +99,8 @@ const CashFlow: React.FC = () => {
       rawData.forEach((record, rowIndex) => {
         if (rowIndex === 0) return; // Skip header row
 
-        const titulo = record.col0 || record.category || ''; // Primeira coluna tem os títulos
-        const valorStr = record[`col${valueColumnIndex}`] || record.subcategory || '';
+        const titulo = record[monthColumns[month]] || ''; // Coluna do título do mês
+        const valorStr = record[valueColumnIndex] || ''; // Coluna de valores
         
         const valor = parseValor(valorStr);
         
