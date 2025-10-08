@@ -47,7 +47,9 @@ const CashFlow: React.FC = () => {
     return isNaN(num) ? 0 : num;
   };
 
-  // Process raw cash flow data from Google Sheets (novo formato com meses em colunas)
+  // Process raw cash flow data de dois formatos possíveis:
+  // 1) Array de arrays (A:Z da planilha) com meses em colunas pares (A,C,E...)
+  // 2) Array de objetos já parseados pelo service (fallback)
   const processCashFlowDataByMonths = (rawData: any[]): { months: string[], data: { [key: string]: CashFlowData } } => {
     console.log('Raw data from Página3:', rawData);
     
@@ -55,86 +57,159 @@ const CashFlow: React.FC = () => {
       return { months: [], data: {} };
     }
 
-    // A primeira linha contém os nomes dos meses
-    const firstRow = rawData[0];
-    const uniqueMonths = new Set<string>();
-    const monthColumns: { [key: string]: number } = {};
-    
-    // Identificar colunas de meses (colunas pares: 0, 2, 4, 6...)
-    // As colunas ímpares (1, 3, 5, 7...) contêm os valores
-    for (let i = 0; i < 20; i += 2) {
-      const value = firstRow[i];
+    const isArrayRows = Array.isArray(rawData[0]);
+
+    // Utilitário para iniciar estrutura do mês
+    const initMonthData = (): CashFlowData => ({
+      saldoInicial: 0,
+      entradas: {},
+      totalEntradas: 0,
+      saidas: {},
+      totalSaidas: 0,
+      saldoFinal: 0,
+      despesasVendas: {},
+      totalDespesasVendas: 0,
+    });
+
+    // Caso 1: linhas cruas (A:Z) — meses em colunas
+    if (isArrayRows) {
+      // A primeira linha contém os nomes dos meses
+      const firstRow = rawData[0] as any[];
+      const uniqueMonths = new Set<string>();
+      const monthColumns: { [key: string]: number } = {};
       
-      if (value && typeof value === 'string' && value.trim()) {
-        // Adiciona ao set para garantir unicidade
-        uniqueMonths.add(value.trim());
-        if (!monthColumns[value.trim()]) {
-          monthColumns[value.trim()] = i;
-          console.log('Mês encontrado:', value.trim(), 'na coluna', i);
-        }
-      }
-    }
-
-    const months = Array.from(uniqueMonths);
-    console.log('Meses únicos identificados:', months);
-
-    const monthsData: { [key: string]: CashFlowData } = {};
-
-    // Processar dados para cada mês
-    months.forEach((month) => {
-      const monthData: CashFlowData = {
-        saldoInicial: 0,
-        entradas: {},
-        totalEntradas: 0,
-        saidas: {},
-        totalSaidas: 0,
-        saldoFinal: 0,
-        despesasVendas: {},
-        totalDespesasVendas: 0
-      };
-
-      let currentSection = '';
-      const valueColumnIndex = monthColumns[month] + 1; // Coluna de valores é a próxima
-
-      rawData.forEach((record, rowIndex) => {
-        if (rowIndex === 0) return; // Skip header row
-
-        const titulo = record[monthColumns[month]] || ''; // Coluna do título do mês
-        const valorStr = record[valueColumnIndex] || ''; // Coluna de valores
-        
-        const valor = parseValor(valorStr);
-        
-        if (titulo.toUpperCase().includes('SALDO INICIAL')) {
-          monthData.saldoInicial = valor;
-        } else if (titulo.toUpperCase().includes('ENTRADAS:')) {
-          currentSection = 'ENTRADAS';
-        } else if (titulo.toUpperCase().includes('DESPESAS SOBRE VENDAS')) {
-          currentSection = 'DESPESAS_VENDAS';
-        } else if (titulo.toUpperCase().includes('TOTAL ENTRADAS')) {
-          monthData.totalEntradas = valor;
-          currentSection = '';
-        } else if (titulo.toUpperCase().includes('SAÍDAS:')) {
-          currentSection = 'SAIDAS';
-        } else if (titulo.toUpperCase().includes('TOTAL SAÍDAS')) {
-          monthData.totalSaidas = Math.abs(valor);
-          currentSection = '';
-        } else if (titulo.toUpperCase().includes('SALDO FIM')) {
-          monthData.saldoFinal = valor;
-        } else if (titulo && valor !== 0) {
-          if (currentSection === 'ENTRADAS') {
-            monthData.entradas[titulo] = valor;
-          } else if (currentSection === 'DESPESAS_VENDAS') {
-            monthData.despesasVendas[titulo] = valor;
-            monthData.totalDespesasVendas += Math.abs(valor);
-          } else if (currentSection === 'SAIDAS') {
-            monthData.saidas[titulo] = Math.abs(valor);
+      // Identificar colunas de meses (colunas pares: 0, 2, 4, 6...)
+      // As colunas ímpares (1, 3, 5, 7...) contêm os valores
+      for (let i = 0; i < 40; i += 2) {
+        const value = firstRow[i];
+        if (value && typeof value === 'string' && value.trim()) {
+          const label = value.trim();
+          uniqueMonths.add(label);
+          if (!monthColumns[label]) {
+            monthColumns[label] = i;
+            console.log('Mês encontrado (colunas):', label, 'na coluna', i);
           }
         }
+      }
+
+      const months = Array.from(uniqueMonths);
+      console.log('Meses únicos identificados (colunas):', months);
+
+      const monthsData: { [key: string]: CashFlowData } = {};
+
+      months.forEach((month) => {
+        const monthData = initMonthData();
+        let currentSection = '';
+        const valueColumnIndex = monthColumns[month] + 1; // Coluna de valores é a próxima
+
+        rawData.forEach((record: any[], rowIndex: number) => {
+          if (rowIndex === 0) return; // Skip header row
+
+          const titulo = record[monthColumns[month]] || '';
+          const valorStr = record[valueColumnIndex] || '';
+          const valor = parseValor(valorStr);
+
+          const tituloUp = (titulo || '').toString().toUpperCase();
+
+          if (tituloUp.includes('SALDO INICIAL')) {
+            monthData.saldoInicial = valor;
+          } else if (tituloUp.includes('ENTRADAS:')) {
+            currentSection = 'ENTRADAS';
+          } else if (tituloUp.includes('DESPESAS SOBRE VENDAS')) {
+            currentSection = 'DESPESAS_VENDAS';
+          } else if (tituloUp.includes('TOTAL ENTRADAS')) {
+            monthData.totalEntradas = valor;
+            currentSection = '';
+          } else if (tituloUp.includes('SAÍDAS:') || tituloUp.includes('SAIDAS:')) {
+            currentSection = 'SAIDAS';
+          } else if (tituloUp.includes('TOTAL SAÍDAS') || tituloUp.includes('TOTAL SAIDAS')) {
+            monthData.totalSaidas = Math.abs(valor);
+            currentSection = '';
+          } else if (tituloUp.includes('SALDO FIM')) {
+            monthData.saldoFinal = valor;
+          } else if (titulo && valor !== 0) {
+            if (currentSection === 'ENTRADAS') {
+              monthData.entradas[titulo] = valor;
+            } else if (currentSection === 'DESPESAS_VENDAS') {
+              monthData.despesasVendas[titulo] = valor;
+              monthData.totalDespesasVendas += Math.abs(valor);
+            } else if (currentSection === 'SAIDAS') {
+              monthData.saidas[titulo] = Math.abs(valor);
+            }
+          }
+        });
+
+        monthsData[month] = monthData;
+        console.log(`Dados processados (colunas) para ${month}:`, monthData);
       });
 
-      monthsData[month] = monthData;
-      console.log(`Dados processados para ${month}:`, monthData);
+      return { months, data: monthsData };
+    }
+
+    // Caso 2: lista de objetos já parseados — detectar meses por linhas "agosto/2025"
+    const monthsData: { [key: string]: CashFlowData } = {};
+    const monthsOrder: string[] = [];
+
+    const ensureMonth = (label: string) => {
+      if (!monthsData[label]) {
+        monthsData[label] = initMonthData();
+        monthsOrder.push(label);
+      }
+    };
+
+    const monthLabelRegex = /^[A-Za-zÀ-ÿ]+\/(19|20)\d{2}$/i;
+    let currentMonth = '';
+    let currentSection = '';
+
+    (rawData as any[]).forEach((rec) => {
+      const cat = (rec.category || rec.description || '').toString().trim();
+      const amt = typeof rec.amount === 'number' ? rec.amount : parseFloat(`${rec.amount}`) || 0;
+      const up = cat.toUpperCase();
+
+      // Nova seção de mês quando linha é "agosto/2025"
+      if (cat && monthLabelRegex.test(cat)) {
+        currentMonth = cat;
+        ensureMonth(currentMonth);
+        currentSection = '';
+        return;
+      }
+
+      // Se ainda não definimos mês, usa um padrão
+      if (!currentMonth) {
+        currentMonth = 'Período';
+        ensureMonth(currentMonth);
+      }
+
+      if (up.includes('SALDO INICIAL')) {
+        monthsData[currentMonth].saldoInicial = amt;
+      } else if (up.includes('ENTRADAS:')) {
+        currentSection = 'ENTRADAS';
+      } else if (up.includes('DESPESAS SOBRE VENDAS')) {
+        currentSection = 'DESPESAS_VENDAS';
+      } else if (up.includes('TOTAL ENTRADAS')) {
+        monthsData[currentMonth].totalEntradas = Math.abs(amt);
+        currentSection = '';
+      } else if (up.includes('SAÍDAS:') || up.includes('SAIDAS:')) {
+        currentSection = 'SAIDAS';
+      } else if (up.includes('TOTAL SAÍDAS') || up.includes('TOTAL SAIDAS')) {
+        monthsData[currentMonth].totalSaidas = Math.abs(amt);
+        currentSection = '';
+      } else if (up.includes('SALDO FIM')) {
+        monthsData[currentMonth].saldoFinal = amt;
+      } else if (cat && amt !== 0) {
+        if (currentSection === 'ENTRADAS') {
+          monthsData[currentMonth].entradas[cat] = amt;
+        } else if (currentSection === 'DESPESAS_VENDAS') {
+          monthsData[currentMonth].despesasVendas[cat] = amt;
+          monthsData[currentMonth].totalDespesasVendas += Math.abs(amt);
+        } else if (currentSection === 'SAIDAS') {
+          monthsData[currentMonth].saidas[cat] = Math.abs(amt);
+        }
+      }
     });
+
+    const months = monthsOrder.filter((m, i) => monthsOrder.indexOf(m) === i); // unicidade preservando ordem
+    console.log('Meses identificados (objetos):', months);
 
     return { months, data: monthsData };
   };
