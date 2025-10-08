@@ -131,7 +131,8 @@ export class GoogleSheetsService {
       const data = await response.json();
       const rows = data.values || [];
       
-      return this.parseCashFlowData(rows);
+      // Retorna as linhas cruas (A:Z) para que o componente trate múltiplos meses em colunas
+      return rows;
     } catch (error) {
       console.error('Error fetching Cash Flow data:', error);
       throw error;

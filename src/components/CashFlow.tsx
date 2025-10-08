@@ -80,7 +80,7 @@ const CashFlow: React.FC = () => {
       
       // Identificar colunas de meses (colunas pares: 0, 2, 4, 6...)
       // As colunas ímpares (1, 3, 5, 7...) contêm os valores
-      for (let i = 0; i < 40; i += 2) {
+      for (let i = 0; i < firstRow.length; i += 2) {
         const value = firstRow[i];
         if (value && typeof value === 'string' && value.trim()) {
           const label = value.trim();
