@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
 import { 
@@ -12,7 +13,8 @@ import {
   DollarSign,
   Minus,
   Plus,
-  BarChart3
+  BarChart3,
+  Calendar
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -31,95 +33,138 @@ const CashFlow: React.FC = () => {
   const [cashFlowData, setCashFlowData] = useState<CashFlowData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [allMonthsData, setAllMonthsData] = useState<{ [key: string]: CashFlowData }>({});
   
   const { toast } = useToast();
 
-  // Process raw cash flow data from Google Sheets into structured format
-  const processCashFlowData = (rawData: any[]): CashFlowData => {
-    const result: CashFlowData = {
-      saldoInicial: 0,
-      entradas: {},
-      totalEntradas: 0,
-      saidas: {},
-      totalSaidas: 0,
-      saldoFinal: 0,
-      despesasVendas: {},
-      totalDespesasVendas: 0
-    };
+  // Converte string brasileira para número
+  const parseValor = (str: string): number => {
+    if (!str) return 0;
+    const cleanStr = str.toString().replace(/[^\d,-]/g, '').replace(',', '.');
+    const num = parseFloat(cleanStr);
+    return isNaN(num) ? 0 : num;
+  };
 
+  // Process raw cash flow data from Google Sheets (novo formato com meses em colunas)
+  const processCashFlowDataByMonths = (rawData: any[]): { months: string[], data: { [key: string]: CashFlowData } } => {
     console.log('Raw data from Página3:', rawData);
-
-    let currentSection = '';
     
-    rawData.forEach((record, index) => {
-      // Os dados vêm como: category = coluna A (título), subcategory = coluna B (valor)
-      const titulo = record.category || record.description || ''; // Coluna A
-      const valorStr = record.subcategory || ''; // Coluna B
-      
-      console.log(`Row ${index}:`, { titulo, valorStr, record });
-      
-      // Converte string brasileira para número
-      const parseValor = (str: string): number => {
-        if (!str) return 0;
-        const cleanStr = str.toString().replace(/[^\d,-]/g, '').replace(',', '.');
-        const num = parseFloat(cleanStr);
-        return isNaN(num) ? 0 : num;
-      };
-      
-      const valor = parseValor(valorStr);
-      
-      if (titulo.toUpperCase().includes('SALDO INICIAL')) {
-        result.saldoInicial = valor;
-        console.log('Saldo inicial:', valor);
-      } else if (titulo.toUpperCase().includes('ENTRADAS:')) {
-        currentSection = 'ENTRADAS';
-        console.log('Seção: ENTRADAS');
-      } else if (titulo.toUpperCase().includes('DESPESAS SOBRE VENDAS')) {
-        currentSection = 'DESPESAS_VENDAS';
-        console.log('Seção: DESPESAS_VENDAS');
-      } else if (titulo.toUpperCase().includes('TOTAL ENTRADAS')) {
-        result.totalEntradas = valor;
-        console.log('Total entradas:', valor);
-        currentSection = '';
-      } else if (titulo.toUpperCase().includes('SAÍDAS:')) {
-        currentSection = 'SAIDAS';
-        console.log('Seção: SAIDAS');
-      } else if (titulo.toUpperCase().includes('TOTAL SAÍDAS')) {
-        result.totalSaidas = Math.abs(valor);
-        console.log('Total saídas:', Math.abs(valor));
-        currentSection = '';
-      } else if (titulo.toUpperCase().includes('SALDO FIM')) {
-        result.saldoFinal = valor;
-        console.log('Saldo final:', valor);
-      } else if (titulo && valor !== 0) {
-        if (currentSection === 'ENTRADAS') {
-          result.entradas[titulo] = valor;
-          console.log('Entrada adicionada:', titulo, valor);
-        } else if (currentSection === 'DESPESAS_VENDAS') {
-          result.despesasVendas[titulo] = valor;
-          result.totalDespesasVendas += Math.abs(valor);
-          console.log('Despesa sobre vendas adicionada:', titulo, valor);
-        } else if (currentSection === 'SAIDAS') {
-          result.saidas[titulo] = Math.abs(valor);
-          console.log('Saída adicionada:', titulo, Math.abs(valor));
-        }
+    if (!rawData || rawData.length === 0) {
+      return { months: [], data: {} };
+    }
+
+    // A primeira linha contém os nomes dos meses
+    const firstRow = rawData[0];
+    const months: string[] = [];
+    const monthColumns: { [key: string]: number } = {};
+    
+    // Identificar colunas de meses (colunas C, E, G, I... ou seja, índices 2, 4, 6, 8...)
+    Object.keys(firstRow).forEach((key) => {
+      const value = firstRow[key];
+      if (value && typeof value === 'string' && value.match(/\d{4}/)) { // Procura por ano (ex: 2025)
+        const columnIndex = key;
+        months.push(value);
+        monthColumns[value] = parseInt(columnIndex.replace('col', '')) || 0;
+        console.log('Mês encontrado:', value, 'na coluna', columnIndex);
       }
     });
 
-    console.log('Processed cash flow data:', result);
-    return result;
+    // Se não encontrou meses no formato esperado, tenta colunas pares
+    if (months.length === 0) {
+      // Assumir que os meses estão nas colunas 2, 4, 6, 8... (col2, col4, col6, col8...)
+      for (let i = 2; i < 20; i += 2) {
+        const colKey = `col${i}`;
+        if (firstRow[colKey]) {
+          months.push(firstRow[colKey]);
+          monthColumns[firstRow[colKey]] = i;
+        }
+      }
+    }
+
+    console.log('Meses identificados:', months);
+
+    const monthsData: { [key: string]: CashFlowData } = {};
+
+    // Processar dados para cada mês
+    months.forEach((month) => {
+      const monthData: CashFlowData = {
+        saldoInicial: 0,
+        entradas: {},
+        totalEntradas: 0,
+        saidas: {},
+        totalSaidas: 0,
+        saldoFinal: 0,
+        despesasVendas: {},
+        totalDespesasVendas: 0
+      };
+
+      let currentSection = '';
+      const valueColumnIndex = monthColumns[month] + 1; // Coluna de valores é a próxima
+
+      rawData.forEach((record, rowIndex) => {
+        if (rowIndex === 0) return; // Skip header row
+
+        const titulo = record.col0 || record.category || ''; // Primeira coluna tem os títulos
+        const valorStr = record[`col${valueColumnIndex}`] || record.subcategory || '';
+        
+        const valor = parseValor(valorStr);
+        
+        if (titulo.toUpperCase().includes('SALDO INICIAL')) {
+          monthData.saldoInicial = valor;
+        } else if (titulo.toUpperCase().includes('ENTRADAS:')) {
+          currentSection = 'ENTRADAS';
+        } else if (titulo.toUpperCase().includes('DESPESAS SOBRE VENDAS')) {
+          currentSection = 'DESPESAS_VENDAS';
+        } else if (titulo.toUpperCase().includes('TOTAL ENTRADAS')) {
+          monthData.totalEntradas = valor;
+          currentSection = '';
+        } else if (titulo.toUpperCase().includes('SAÍDAS:')) {
+          currentSection = 'SAIDAS';
+        } else if (titulo.toUpperCase().includes('TOTAL SAÍDAS')) {
+          monthData.totalSaidas = Math.abs(valor);
+          currentSection = '';
+        } else if (titulo.toUpperCase().includes('SALDO FIM')) {
+          monthData.saldoFinal = valor;
+        } else if (titulo && valor !== 0) {
+          if (currentSection === 'ENTRADAS') {
+            monthData.entradas[titulo] = valor;
+          } else if (currentSection === 'DESPESAS_VENDAS') {
+            monthData.despesasVendas[titulo] = valor;
+            monthData.totalDespesasVendas += Math.abs(valor);
+          } else if (currentSection === 'SAIDAS') {
+            monthData.saidas[titulo] = Math.abs(valor);
+          }
+        }
+      });
+
+      monthsData[month] = monthData;
+      console.log(`Dados processados para ${month}:`, monthData);
+    });
+
+    return { months, data: monthsData };
   };
 
   const loadCashFlowData = async () => {
     setIsLoading(true);
     try {
       const rawData = await GoogleSheetsService.fetchCashFlowData();
-      const processedData = processCashFlowData(rawData);
-      setCashFlowData(processedData);
+      const { months, data } = processCashFlowDataByMonths(rawData);
+      
+      setAvailableMonths(months);
+      setAllMonthsData(data);
+      
+      // Selecionar o primeiro mês automaticamente
+      if (months.length > 0) {
+        setSelectedMonth(months[0]);
+        setCashFlowData(data[months[0]]);
+      }
+      
       setHasSearched(true);
       toast({
         title: "Sucesso",
-        description: "Dados do fluxo de caixa carregados com sucesso.",
+        description: `Dados carregados para ${months.length} ${months.length === 1 ? 'mês' : 'meses'}.`,
       });
     } catch (error) {
       console.error('Error loading cash flow data:', error);
@@ -131,6 +176,11 @@ const CashFlow: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleMonthChange = (month: string) => {
+    setSelectedMonth(month);
+    setCashFlowData(allMonthsData[month]);
   };
 
   useEffect(() => {
@@ -166,25 +216,42 @@ const CashFlow: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Fluxo de Caixa</h1>
           <p className="text-muted-foreground">
             Demonstração detalhada das movimentações financeiras
           </p>
         </div>
-        <Button 
-          onClick={loadCashFlowData} 
-          disabled={isLoading}
-          className="flex items-center gap-2"
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
+        <div className="flex gap-3">
+          {availableMonths.length > 0 && (
+            <Select value={selectedMonth} onValueChange={handleMonthChange}>
+              <SelectTrigger className="w-[200px]">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Selecione o mês" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMonths.map((month) => (
+                  <SelectItem key={month} value={month}>
+                    {month}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          {isLoading ? 'Carregando...' : 'Atualizar'}
-        </Button>
+          <Button 
+            onClick={loadCashFlowData} 
+            disabled={isLoading}
+            className="flex items-center gap-2"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {isLoading ? 'Carregando...' : 'Atualizar'}
+          </Button>
+        </div>
       </div>
 
       {cashFlowData && (
