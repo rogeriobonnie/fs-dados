@@ -188,21 +188,24 @@ const LanceADois = () => {
       taxPercentage = taxData.taxPercentage;
     }
     
-    // If filters are applied, apply tax only if the tax month/year matches the filter
+    // If filters are applied, apply tax for matching month/year; otherwise use default percentage for the period
     if (selectedMonth !== 'all' || selectedYear !== 'all') {
       if (taxData) {
         const taxMonthMatches = selectedMonth === 'all' || taxData.month === selectedMonth;
         const taxYearMatches = selectedYear === 'all' || taxData.year === selectedYear;
-        
         if (taxMonthMatches && taxYearMatches) {
           taxAmount = total * (taxPercentage / 100);
+        } else {
+          // Fallback: no specific tax row for the selected period -> use default
+          taxAmount = total * (12.89269 / 100);
+          console.log('Using default tax percentage for selected period', { selectedMonth, selectedYear });
         }
       } else {
-        // No tax data from sheet, apply default percentage
-        taxAmount = total * (taxPercentage / 100);
+        // No tax data from sheet at all, apply default percentage
+        taxAmount = total * (12.89269 / 100);
       }
     } else {
-      // No filters, apply tax to total
+      // No filters, apply (latest or default) tax to total
       taxAmount = total * (taxPercentage / 100);
     }
     
@@ -706,127 +709,129 @@ const LanceADois = () => {
                 </div>
               )}
 
+              {/* Taxes */}
               {processedData.taxAmount > 0 && (
-                <>
-                  <div className="border-t border-border pt-3">
-                    <div className="flex items-center justify-between p-2 bg-destructive/5 rounded-lg">
+                <div className="border-t border-border pt-3">
+                  <div className="flex items-center justify-between p-2 bg-destructive/5 rounded-lg">
+                    <p className="text-sm font-medium text-destructive">
+                      Impostos ({processedData.taxPercentage.toFixed(2)}%)
+                    </p>
+                    <p className="text-lg font-semibold text-destructive">
+                      - {formatCurrency(processedData.taxAmount)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Expenses */}
+              {(processedData.totalExpenses > 0 || processedData.totalConsultantCommissions > 0) && (
+                <div className="border-t border-border pt-3">
+                  <div 
+                    className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-3 rounded-lg transition-all bg-destructive/5"
+                    onClick={() => setExpensesOpen(!expensesOpen)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {expensesOpen ? (
+                        <ChevronUp className="h-4 w-4 text-destructive" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-destructive" />
+                      )}
                       <p className="text-sm font-medium text-destructive">
-                        Impostos ({processedData.taxPercentage.toFixed(2)}%)
-                      </p>
-                      <p className="text-lg font-semibold text-destructive">
-                        - {formatCurrency(processedData.taxAmount)}
+                        Despesas Lance a Dois ({processedData.expensesCount + (processedData.consultantsCount > 0 ? 1 : 0)} categoria{processedData.expensesCount + (processedData.consultantsCount > 0 ? 1 : 0) !== 1 ? 's' : ''})
                       </p>
                     </div>
+                    <p className="text-lg font-semibold text-destructive">
+                      - {formatCurrency(processedData.totalExpenses + processedData.totalConsultantCommissions)}
+                    </p>
                   </div>
-
-                  {(processedData.totalExpenses > 0 || processedData.totalConsultantCommissions > 0) && (
-                    <div className="border-t border-border pt-3">
-                      <div 
-                        className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-3 rounded-lg transition-all bg-destructive/5"
-                        onClick={() => setExpensesOpen(!expensesOpen)}
-                      >
-                        <div className="flex items-center gap-2">
-                          {expensesOpen ? (
-                            <ChevronUp className="h-4 w-4 text-destructive" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-destructive" />
-                          )}
-                          <p className="text-sm font-medium text-destructive">
-                            Despesas Lance a Dois ({processedData.expensesCount + (processedData.consultantsCount > 0 ? 1 : 0)} categoria{processedData.expensesCount + (processedData.consultantsCount > 0 ? 1 : 0) !== 1 ? 's' : ''})
-                          </p>
+                  
+                  {expensesOpen && (
+                    <div className="mt-2 ml-6 space-y-3 bg-destructive/5 p-3 rounded-lg border border-destructive/20">
+                      {/* Regular Expenses */}
+                      {processedData.totalExpenses > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-destructive/70 mb-2">Despesas Gerais:</p>
+                          {Object.entries(processedData.groupedExpenses)
+                            .flatMap(([category, expenses]) =>
+                              expenses.map((expense) => ({
+                                ...expense,
+                                category
+                              }))
+                            )
+                            .sort((a, b) => b.amount - a.amount)
+                            .map((expense) => (
+                              <div key={expense.id} className="flex items-center justify-between text-sm text-destructive/90 py-1">
+                                <span className="font-medium">{expense.category} ({expense.details})</span>
+                                <span className="font-semibold">{formatCurrency(expense.amount)}</span>
+                              </div>
+                            ))
+                          }
                         </div>
-                        <p className="text-lg font-semibold text-destructive">
-                          - {formatCurrency(processedData.totalExpenses + processedData.totalConsultantCommissions)}
-                        </p>
-                      </div>
+                      )}
                       
-                      {expensesOpen && (
-                        <div className="mt-2 ml-6 space-y-3 bg-destructive/5 p-3 rounded-lg border border-destructive/20">
-                          {/* Regular Expenses */}
-                          {processedData.totalExpenses > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-xs font-semibold text-destructive/70 mb-2">Despesas Gerais:</p>
-                              {Object.entries(processedData.groupedExpenses)
-                                .flatMap(([category, expenses]) =>
-                                  expenses.map((expense) => ({
-                                    ...expense,
-                                    category
-                                  }))
-                                )
-                                .sort((a, b) => b.amount - a.amount)
-                                .map((expense) => (
-                                  <div key={expense.id} className="flex items-center justify-between text-sm text-destructive/90 py-1">
-                                    <span className="font-medium">{expense.category} ({expense.details})</span>
-                                    <span className="font-semibold">{formatCurrency(expense.amount)}</span>
+                      {/* Consultant Commissions */}
+                      {processedData.totalConsultantCommissions > 0 && (
+                        <div className="space-y-1 pt-3 border-t border-destructive/20">
+                          <div 
+                            className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-2 rounded-lg transition-all"
+                            onClick={() => setCommissionsOpen(!commissionsOpen)}
+                          >
+                            <div className="flex items-center gap-2">
+                              {commissionsOpen ? (
+                                <ChevronUp className="h-3 w-3 text-destructive" />
+                              ) : (
+                                <ChevronDown className="h-3 w-3 text-destructive" />
+                              )}
+                              <span className="text-xs font-semibold text-destructive/70">
+                                Comissões Consultoras (3%):
+                              </span>
+                            </div>
+                            <span className="text-sm font-bold text-destructive">
+                              {formatCurrency(processedData.totalConsultantCommissions)}
+                            </span>
+                          </div>
+                          
+                          {commissionsOpen && (
+                            <div className="ml-4 space-y-1">
+                              {Object.entries(processedData.consultantCommissions)
+                                .sort(([, a], [, b]) => b.commission - a.commission)
+                                .map(([name, data]) => (
+                                  <div key={name} className="flex items-center justify-between text-sm text-destructive/90 py-1">
+                                    <span className="font-medium">{name} ({data.records.length} venda{data.records.length !== 1 ? 's' : ''})</span>
+                                    <span className="font-semibold">{formatCurrency(data.commission)}</span>
                                   </div>
                                 ))
                               }
-                            </div>
-                          )}
-                          
-                          {/* Consultant Commissions */}
-                          {processedData.totalConsultantCommissions > 0 && (
-                            <div className="space-y-1 pt-3 border-t border-destructive/20">
-                              <div 
-                                className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-2 rounded-lg transition-all"
-                                onClick={() => setCommissionsOpen(!commissionsOpen)}
-                              >
-                                <div className="flex items-center gap-2">
-                                  {commissionsOpen ? (
-                                    <ChevronUp className="h-3 w-3 text-destructive" />
-                                  ) : (
-                                    <ChevronDown className="h-3 w-3 text-destructive" />
-                                  )}
-                                  <span className="text-xs font-semibold text-destructive/70">
-                                    Comissões Consultoras (3%):
-                                  </span>
-                                </div>
-                                <span className="text-sm font-bold text-destructive">
-                                  {formatCurrency(processedData.totalConsultantCommissions)}
-                                </span>
-                              </div>
-                              
-                              {commissionsOpen && (
-                                <div className="ml-4 space-y-1">
-                                  {Object.entries(processedData.consultantCommissions)
-                                    .sort(([, a], [, b]) => b.commission - a.commission)
-                                    .map(([name, data]) => (
-                                      <div key={name} className="flex items-center justify-between text-sm text-destructive/90 py-1">
-                                        <span className="font-medium">{name} ({data.records.length} venda{data.records.length !== 1 ? 's' : ''})</span>
-                                        <span className="font-semibold">{formatCurrency(data.commission)}</span>
-                                      </div>
-                                    ))
-                                  }
-                                </div>
-                              )}
                             </div>
                           )}
                         </div>
                       )}
                     </div>
                   )}
-
-                  <div className="border-t-2 border-success/30 pt-3">
-                    <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
-                      <p className="text-sm font-medium text-success">Receitas Líquidas</p>
-                      <p className="text-xl font-bold text-success">
-                        {formatCurrency(processedData.revenueAfterTaxAndExpenses)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-border pt-3">
-                    <div className="flex items-center justify-between p-2 bg-warning/5 rounded-lg">
-                      <p className="text-sm font-medium text-warning">
-                        Comissão Lance a Dois (10%)
-                      </p>
-                      <p className="text-lg font-semibold text-warning">
-                        - {formatCurrency(processedData.lanceADoisCommission)}
-                      </p>
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
+
+              {/* Net Revenue */}
+              <div className="border-t-2 border-success/30 pt-3">
+                <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
+                  <p className="text-sm font-medium text-success">Receitas Líquidas</p>
+                  <p className="text-xl font-bold text-success">
+                    {formatCurrency(processedData.revenueAfterTaxAndExpenses)}
+                  </p>
+                </div>
+              </div>
+
+              {/* LAD Commission */}
+              <div className="border-t border-border pt-3">
+                <div className="flex items-center justify-between p-2 bg-warning/5 rounded-lg">
+                  <p className="text-sm font-medium text-warning">
+                    Comissão Lance a Dois (10%)
+                  </p>
+                  <p className="text-lg font-semibold text-warning">
+                    - {formatCurrency(processedData.lanceADoisCommission)}
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
