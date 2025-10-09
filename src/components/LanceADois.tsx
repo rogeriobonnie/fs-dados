@@ -78,6 +78,11 @@ const LanceADois = () => {
       console.log('Tax data loaded:', taxInfo);
       console.log('Consultant data loaded:', consultantsData);
       
+      // Debug: Check September data
+      const septemberExpenses = lanceDataResult.expenses.filter(e => e.month === '09');
+      console.log('September expenses found:', septemberExpenses);
+      console.log('September tax data:', taxInfo && taxInfo.month === '09' ? taxInfo : 'No tax data for September');
+      
       setLanceData(lanceDataResult.revenues);
       setLanceExpenses(lanceDataResult.expenses);
       setConsultantData(consultantsData);
@@ -208,6 +213,14 @@ const LanceADois = () => {
         const monthMatches = selectedMonth === 'all' || expense.month === selectedMonth;
         const yearMatches = selectedYear === 'all' || expense.year === selectedYear;
         return monthMatches && yearMatches;
+      });
+      
+      console.log('Filtering expenses:', {
+        selectedMonth,
+        selectedYear,
+        totalExpenses: lanceExpenses.length,
+        filteredExpenses: filteredExpenses.length,
+        sampleFiltered: filteredExpenses.slice(0, 3)
       });
     }
     
