@@ -499,40 +499,55 @@ export class GoogleSheetsService {
 
   private static parseLanceADoisTaxData(rows: string[][]): { taxPercentage: number; month: string; year: string } | null {
     console.log('Tax Data Parsing - Total rows:', rows.length);
-    
+
+    let best: { taxPercentage: number; month: string; year: string; dateStr: string } | null = null;
+
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      
       if (!row || row.length === 0) continue;
-      
-      const type = (row[0] || '').toString().trim().toUpperCase(); // Column A
-      const taxPercentageStr = (row[4] || '').toString().trim(); // Column E - tax percentage
-      const date = (row[5] || '').toString().trim(); // Column F - date
-      const lanceADoisMarker = (row[6] || '').toString().trim().toUpperCase(); // Column G
-      
-      // Look for row where Column A = "05-IMPOSTOS" and Column G = "LANCE A DOIS"
-      if (type.includes('05-IMPOSTOS') && lanceADoisMarker.includes('LANCE A DOIS')) {
-        const taxPercentage = this.parseAmount(taxPercentageStr);
-        
-        // Extract month and year from date
-        let month = '';
-        let year = '';
-        
-        if (date) {
-          const dateParts = date.split('/');
-          if (dateParts.length === 3) {
-            month = dateParts[1].padStart(2, '0');
-            year = dateParts[2];
-          }
+
+      const type = (row[0] || '').toString().trim().toUpperCase(); // Coluna A
+      const taxPercentageStr = (row[4] || '').toString().trim(); // Coluna E - taxa
+      const date = (row[5] || '').toString().trim(); // Coluna F - data
+      const markerG = (row[6] || '').toString().trim().toUpperCase(); // Coluna G (COMISSAO)
+      const markerH = (row[7] || '').toString().trim().toUpperCase(); // Coluna H (BANCO)
+      const markerI = (row[8] || '').toString().trim().toUpperCase(); // Coluna I (VENDEDOR)
+
+      if (!type.includes('05-IMPOSTOS')) continue;
+
+      // Prefer rows marked explicitly for LANCE A DOIS; ignore rows marked IGOR
+      const marker = `${markerG} ${markerH} ${markerI}`.trim();
+      if (marker.includes('IGOR')) continue;
+      if (!(marker.includes('LANCE A DOIS') || marker.length === 0)) continue;
+
+      const taxPercentage = this.parseAmount(taxPercentageStr);
+
+      // Extrair mês/ano da data (DD/MM/YYYY)
+      let month = '';
+      let year = '';
+      let ts = 0;
+      if (date) {
+        const dateParts = date.split('/');
+        if (dateParts.length === 3) {
+          month = dateParts[1].padStart(2, '0');
+          year = dateParts[2];
+          const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(dateParts[0], 10));
+          ts = d.getTime();
         }
-        
-        console.log('Found tax data:', { taxPercentage, month, year, date });
-        
-        return { taxPercentage, month, year };
+      }
+
+      // Seleciona o mais recente pela data
+      if (!best || ts > new Date(parseInt(best.year, 10), parseInt(best.month, 10) - 1, 1).getTime()) {
+        best = { taxPercentage, month, year, dateStr: date };
       }
     }
-    
-    console.log('No tax data found');
+
+    if (best) {
+      console.log('Selected tax data (latest LANCE A DOIS):', best);
+      return { taxPercentage: best.taxPercentage, month: best.month, year: best.year };
+    }
+
+    console.log('No tax data found for LANCE A DOIS');
     return null;
   }
 
