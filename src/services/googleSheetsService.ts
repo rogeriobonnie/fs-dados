@@ -247,6 +247,11 @@ export class GoogleSheetsService {
       const extraDetail3 = (row[6] || '').toString().trim(); // Column G - Marker (e.g., IGOR, LANCE A DOIS)
       const extraDetail2 = (row[7] || '').toString().trim(); // Column H - Banco
       
+      // SKIP rows where column H contains "PAGO" (case insensitive)
+      if (extraDetail2.toUpperCase().includes('PAGO')) {
+        continue;
+      }
+      
       // Log rows that contain specific names for debugging
       const fullRowText = row.join(' ').toUpperCase();
       if (fullRowText.includes('MARIA') || fullRowText.includes('EDLAMAR') || fullRowText.includes('PRISCILA')) {
