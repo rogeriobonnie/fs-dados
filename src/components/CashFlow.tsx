@@ -18,9 +18,11 @@ import {
   Calendar,
   ChevronDown,
   Wallet,
-  PiggyBank
+  PiggyBank,
+  FileDown
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import jsPDF from 'jspdf';
 
 interface CashFlowData {
   saldoInicial: number;
@@ -344,6 +346,182 @@ const CashFlow: React.FC = () => {
     setCashFlowData(allMonthsData[month]);
   };
 
+  const generatePDF = () => {
+    if (!cashFlowData) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    let yPosition = 20;
+
+    // Título
+    doc.setFontSize(22);
+    doc.setTextColor(31, 41, 55);
+    doc.text('Relatório de Fluxo de Caixa', pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 10;
+    doc.setFontSize(12);
+    doc.setTextColor(107, 114, 128);
+    doc.text(selectedMonth || 'Período', pageWidth / 2, yPosition, { align: 'center' });
+    
+    yPosition += 15;
+
+    // Função auxiliar para adicionar seção
+    const addSection = (title: string, color: [number, number, number]) => {
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      doc.setFillColor(...color);
+      doc.rect(10, yPosition, pageWidth - 20, 8, 'F');
+      doc.setFontSize(12);
+      doc.setTextColor(255, 255, 255);
+      doc.text(title, 12, yPosition + 5.5);
+      yPosition += 12;
+    };
+
+    // Função auxiliar para adicionar linha
+    const addLine = (label: string, value: string | number, indent = 0) => {
+      if (yPosition > 275) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      doc.setFontSize(10);
+      doc.setTextColor(55, 65, 81);
+      doc.text(label, 12 + indent, yPosition);
+      doc.setTextColor(31, 41, 55);
+      doc.text(typeof value === 'number' ? formatCurrency(value) : value, pageWidth - 12, yPosition, { align: 'right' });
+      yPosition += 6;
+    };
+
+    // Saldo Inicial
+    addSection('Saldo Inicial', [59, 130, 246]);
+    addLine('Valor disponível no início do período', cashFlowData.saldoInicial);
+    yPosition += 3;
+
+    // Entradas
+    addSection('Entradas', [34, 197, 94]);
+    Object.entries(cashFlowData.entradas).forEach(([key, value]) => {
+      addLine(key, value, 3);
+    });
+    if (cashFlowData.totalDespesasVendas > 0) {
+      yPosition += 2;
+      doc.setFontSize(9);
+      doc.setTextColor(107, 114, 128);
+      doc.text('Despesas sobre Vendas:', 15, yPosition);
+      yPosition += 5;
+      Object.entries(cashFlowData.despesasVendas).forEach(([key, value]) => {
+        addLine(key, value, 6);
+      });
+      addLine('Total Despesas sobre Vendas', cashFlowData.totalDespesasVendas, 3);
+    }
+    doc.setFontSize(11);
+    doc.setTextColor(22, 163, 74);
+    addLine('Total de Entradas', cashFlowData.totalEntradas);
+    yPosition += 3;
+
+    // Saídas
+    addSection('Saídas', [239, 68, 68]);
+    Object.entries(cashFlowData.saidas).forEach(([key, value]) => {
+      addLine(key, value, 3);
+    });
+    doc.setFontSize(11);
+    doc.setTextColor(220, 38, 38);
+    addLine('Total de Saídas', cashFlowData.totalSaidas);
+    yPosition += 3;
+
+    // Saldo Final
+    addSection('Saldo Final', [59, 130, 246]);
+    const saldoPositivo = cashFlowData.saldoFinal >= 0;
+    doc.setTextColor(saldoPositivo ? 22 : 220, saldoPositivo ? 163 : 38, saldoPositivo ? 74 : 38);
+    addLine('Saldo ao final do período', cashFlowData.saldoFinal);
+    yPosition += 3;
+
+    // Resumo
+    addSection('Resumo do Período', [99, 102, 241]);
+    addLine('Saldo Inicial', cashFlowData.saldoInicial, 3);
+    addLine('Total Entradas', cashFlowData.totalEntradas, 3);
+    addLine('Total Saídas', cashFlowData.totalSaidas, 3);
+    addLine('Saldo Final', cashFlowData.saldoFinal, 3);
+    yPosition += 3;
+
+    // Lucro Inicial (se houver)
+    if (cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0) {
+      addSection('Lucro Inicial', [168, 85, 247]);
+      if (cashFlowData.valorAplicadoBancoInter) {
+        addLine('Valor Aplicado Banco Inter', cashFlowData.valorAplicadoBancoInter, 3);
+      }
+      if (cashFlowData.rendimentos && Object.keys(cashFlowData.rendimentos).length > 0) {
+        Object.entries(cashFlowData.rendimentos).forEach(([key, value]) => {
+          addLine(key, value, 3);
+        });
+      }
+      doc.setFontSize(11);
+      doc.setTextColor(126, 34, 206);
+      addLine('Lucro Inicial', cashFlowData.lucroInicial);
+      yPosition += 3;
+    }
+
+    // Aplicações XP (se houver)
+    if (cashFlowData.aplicacoes && Object.keys(cashFlowData.aplicacoes).length > 0) {
+      addSection('Aplicações XP Investimento', [236, 72, 153]);
+      Object.entries(cashFlowData.aplicacoes).forEach(([key, value]) => {
+        addLine(key, value, 3);
+      });
+      yPosition += 3;
+    }
+
+    // Lucro Bruto (se houver)
+    if (cashFlowData.lucroBruto !== undefined && cashFlowData.lucroBruto !== 0) {
+      addSection('Lucro Bruto', [249, 115, 22]);
+      if (cashFlowData.provisoesLucroBruto && Object.keys(cashFlowData.provisoesLucroBruto).length > 0) {
+        Object.entries(cashFlowData.provisoesLucroBruto).forEach(([key, value]) => {
+          addLine(key, value, 3);
+        });
+      }
+      doc.setFontSize(11);
+      doc.setTextColor(202, 138, 4);
+      addLine('Lucro Bruto', cashFlowData.lucroBruto);
+      yPosition += 3;
+    }
+
+    // Provisões (se houver)
+    if (cashFlowData.provisoes && Object.keys(cashFlowData.provisoes).length > 0) {
+      addSection('Provisões', [245, 158, 11]);
+      Object.entries(cashFlowData.provisoes).forEach(([key, value]) => {
+        addLine(key, value, 3);
+      });
+      yPosition += 3;
+    }
+
+    // Lucro Líquido (se houver)
+    if (cashFlowData.lucroLiquido !== undefined && cashFlowData.lucroLiquido !== 0) {
+      addSection('Lucro Líquido', [16, 185, 129]);
+      const lucroPositivo = cashFlowData.lucroLiquido >= 0;
+      doc.setTextColor(lucroPositivo ? 5 : 220, lucroPositivo ? 150 : 38, lucroPositivo ? 105 : 38);
+      addLine('Resultado líquido do período', cashFlowData.lucroLiquido);
+    }
+
+    // Rodapé
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(156, 163, 175);
+      doc.text(
+        `Página ${i} de ${pageCount} - Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+        pageWidth / 2,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+    }
+
+    doc.save(`Fluxo-Caixa-${selectedMonth || 'Periodo'}.pdf`);
+    toast({
+      title: "PDF Gerado",
+      description: "Relatório de fluxo de caixa baixado com sucesso.",
+    });
+  };
+
   useEffect(() => {
     loadCashFlowData();
   }, []);
@@ -400,6 +578,15 @@ const CashFlow: React.FC = () => {
               </SelectContent>
             </Select>
           )}
+          <Button 
+            onClick={generatePDF}
+            disabled={!cashFlowData}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <FileDown className="h-4 w-4" />
+            Gerar PDF
+          </Button>
           <Button 
             onClick={loadCashFlowData} 
             disabled={isLoading}
