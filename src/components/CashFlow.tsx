@@ -499,6 +499,10 @@ const CashFlow: React.FC = () => {
       const lucroPositivo = cashFlowData.lucroLiquido >= 0;
       doc.setTextColor(lucroPositivo ? 5 : 220, lucroPositivo ? 150 : 38, lucroPositivo ? 105 : 38);
       addLine('Resultado líquido do período', cashFlowData.lucroLiquido);
+      yPosition += 2;
+      doc.setFontSize(10);
+      doc.setTextColor(5, 150, 105);
+      addLine('Lucro por sócio (÷3)', cashFlowData.lucroLiquido / 3, 3);
     }
 
     // Rodapé
