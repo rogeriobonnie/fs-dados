@@ -28,6 +28,7 @@ interface CashFlowData {
   saldoInicial: number;
   entradas: { [key: string]: number };
   totalEntradas: number;
+  totalEntradasBrutas: number;
   saidas: { [key: string]: number };
   totalSaidas: number;
   saldoFinal: number;
@@ -82,6 +83,7 @@ const CashFlow: React.FC = () => {
       saldoInicial: 0,
       entradas: {},
       totalEntradas: 0,
+      totalEntradasBrutas: 0,
       saidas: {},
       totalSaidas: 0,
       saldoFinal: 0,
@@ -172,6 +174,7 @@ const CashFlow: React.FC = () => {
           } else if (titulo && valor !== 0) {
             if (currentSection === 'ENTRADAS') {
               monthData.entradas[titulo] = valor;
+              monthData.totalEntradasBrutas += valor;
           } else if (currentSection === 'DESPESAS_VENDAS') {
             monthData.despesasVendas[titulo] = valor;
             monthData.totalDespesasVendas += valor;
@@ -284,6 +287,7 @@ const CashFlow: React.FC = () => {
       } else if (cat && amt !== 0) {
         if (currentSection === 'ENTRADAS') {
           monthsData[currentMonth].entradas[cat] = amt;
+          monthsData[currentMonth].totalEntradasBrutas += amt;
         } else if (currentSection === 'DESPESAS_VENDAS') {
           monthsData[currentMonth].despesasVendas[cat] = amt;
           monthsData[currentMonth].totalDespesasVendas += amt;
@@ -414,9 +418,14 @@ const CashFlow: React.FC = () => {
       });
       addLine('Total Despesas sobre Vendas', cashFlowData.totalDespesasVendas, 3);
     }
+    yPosition += 2;
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128);
+    addLine('Subtotal Entradas Brutas', cashFlowData.totalEntradasBrutas, 3);
+    addLine('Subtotal Despesas s/ Vendas', cashFlowData.totalDespesasVendas, 3);
     doc.setFontSize(11);
     doc.setTextColor(22, 163, 74);
-    addLine('Total de Entradas', cashFlowData.totalEntradas);
+    addLine('Total de Entradas Líquidas', cashFlowData.totalEntradas);
     yPosition += 3;
 
     // Saídas
@@ -702,8 +711,33 @@ const CashFlow: React.FC = () => {
                           </CollapsibleContent>
                         </div>
                       </Collapsible>
-                    </>
+                     </>
                   )}
+                  
+                  <Separator className="my-4" />
+                  
+                  {/* Subtotais */}
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
+                      <span className="text-sm font-medium text-green-700">Subtotal Entradas Brutas</span>
+                      <span className="text-base font-semibold text-green-800">
+                        +{formatCurrency(cashFlowData.totalEntradasBrutas)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-yellow-50 rounded-lg">
+                      <span className="text-sm font-medium text-yellow-700">Subtotal Despesas sobre Vendas</span>
+                      <span className="text-base font-semibold text-yellow-800">
+                        {formatCurrency(cashFlowData.totalDespesasVendas)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-green-100 rounded-lg border-2 border-green-300">
+                    <span className="text-lg font-bold text-green-800">Total de Entradas Líquidas</span>
+                    <span className="text-2xl font-bold text-green-800">
+                      +{formatCurrency(cashFlowData.totalEntradas)}
+                    </span>
+                  </div>
                 </CardContent>
               </CollapsibleContent>
             </Card>
