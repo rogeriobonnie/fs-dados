@@ -687,7 +687,7 @@ const CashFlow: React.FC = () => {
                               </h4>
                               <div className="flex items-center gap-3">
                                 <span className="text-lg font-bold text-yellow-800">
-                                  -{formatCurrency(cashFlowData.totalDespesasVendas)}
+                                  {formatCurrency(cashFlowData.totalDespesasVendas)}
                                 </span>
                                 <ChevronDown className="h-4 w-4 text-yellow-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                               </div>
