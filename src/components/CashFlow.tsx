@@ -172,9 +172,9 @@ const CashFlow: React.FC = () => {
           } else if (titulo && valor !== 0) {
             if (currentSection === 'ENTRADAS') {
               monthData.entradas[titulo] = valor;
-            } else if (currentSection === 'DESPESAS_VENDAS') {
-              monthData.despesasVendas[titulo] = valor;
-              monthData.totalDespesasVendas += Math.abs(valor);
+          } else if (currentSection === 'DESPESAS_VENDAS') {
+            monthData.despesasVendas[titulo] = valor;
+            monthData.totalDespesasVendas += valor;
             } else if (currentSection === 'SAIDAS') {
               monthData.saidas[titulo] = Math.abs(valor);
             } else if (currentSection === 'LUCRO_INICIAL') {
@@ -286,7 +286,7 @@ const CashFlow: React.FC = () => {
           monthsData[currentMonth].entradas[cat] = amt;
         } else if (currentSection === 'DESPESAS_VENDAS') {
           monthsData[currentMonth].despesasVendas[cat] = amt;
-          monthsData[currentMonth].totalDespesasVendas += Math.abs(amt);
+          monthsData[currentMonth].totalDespesasVendas += amt;
         } else if (currentSection === 'SAIDAS') {
           monthsData[currentMonth].saidas[cat] = Math.abs(amt);
         } else if (currentSection === 'PROV_DESPESAS') {
