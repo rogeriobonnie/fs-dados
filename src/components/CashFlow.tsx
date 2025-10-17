@@ -1052,43 +1052,35 @@ const CashFlow: React.FC = () => {
             </Collapsible>
           ) : null}
 
-          {/* Lucro Bruto - Linhas 39-43 */}
+          {/* Lucro Bruto - Base de Cálculo - XP Investimento */}
           {cashFlowData.lucroBruto !== undefined && cashFlowData.lucroBruto !== 0 ? (
-            <Collapsible defaultOpen={false}>
-              <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
-                <CollapsibleTrigger className="w-full">
-                  <CardHeader>
-                    <div className="flex items-center justify-between w-full group">
-                      <CardTitle className="flex items-center gap-2 text-indigo-800">
-                        <BarChart3 className="h-5 w-5" />
-                        Lucro Bruto
-                      </CardTitle>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl font-bold text-indigo-800">
-                          {formatCurrency(cashFlowData.lucroBruto)}
-                        </span>
-                        <ChevronDown className="h-5 w-5 text-indigo-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                      </div>
+            <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-indigo-200 rounded-full">
+                      <BarChart3 className="h-6 w-6 text-indigo-700" />
                     </div>
-                  </CardHeader>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="space-y-3 pt-0">
-                    {cashFlowData.provisoesLucroBruto && Object.entries(cashFlowData.provisoesLucroBruto).map(([key, value], index) => (
-                      <div 
-                        key={key} 
-                        className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-indigo-200"
-                      >
-                        <span className="font-medium text-indigo-700">{key}</span>
-                        <span className="text-lg font-bold text-indigo-800">
-                          -{formatCurrency(value)}
-                        </span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
+                    <div>
+                      <h2 className="text-xl font-bold text-indigo-800">Lucro Bruto</h2>
+                      <p className="text-sm text-indigo-600">Base de Cálculo - XP Investimento</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-indigo-800">
+                      {(() => {
+                        const totalProvisoes = cashFlowData.provisoesLucroBruto 
+                          ? Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0)
+                          : 0;
+                        const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
+                        const xpInvestimento = baseCalculo * 0.1;
+                        return formatCurrency(baseCalculo - xpInvestimento);
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           ) : null}
 
           {/* Provisões - Linhas 45-60 */}
