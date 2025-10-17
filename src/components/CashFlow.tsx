@@ -185,6 +185,10 @@ const CashFlow: React.FC = () => {
               if (tituloUp.includes('RENDIMENTO')) {
                 if (!monthData.rendimentos) monthData.rendimentos = {};
                 monthData.rendimentos[titulo] = valor;
+              } else if (tituloUp.includes('PROV')) {
+                // Provisões no Lucro Inicial (PROV LUCROS, PROV LANCE A DOIS, etc)
+                if (!monthData.rendimentos) monthData.rendimentos = {};
+                monthData.rendimentos[titulo] = valor;
               }
             } else if (currentSection === 'LUCRO_BRUTO') {
               // Linhas entre lucro inicial e lucro bruto (39-42)
@@ -273,12 +277,13 @@ const CashFlow: React.FC = () => {
         currentSection = '';
       } else if (up.includes('SALDO FIM')) {
         monthsData[currentMonth].saldoFinal = amt;
-        currentSection = '';
+        currentSection = 'LUCRO_INICIAL'; // Após saldo final, começam as linhas de lucro inicial
       } else if (up.includes('LUCRO INICIAL')) {
         monthsData[currentMonth].lucroInicial = amt;
+        currentSection = 'LUCRO_BRUTO'; // Após lucro inicial, começam as linhas de lucro bruto
       } else if (up.includes('LUCRO BRUTO')) {
         monthsData[currentMonth].lucroBruto = amt;
-        currentSection = '';
+        currentSection = 'PROVISOES'; // Após lucro bruto, começam as provisões
       } else if (up.includes('LUCRO LIQUIDO') || up.includes('LUCRO LÍQUIDO')) {
         monthsData[currentMonth].lucroLiquido = amt;
         currentSection = '';
@@ -293,9 +298,35 @@ const CashFlow: React.FC = () => {
           monthsData[currentMonth].totalDespesasVendas += amt;
         } else if (currentSection === 'SAIDAS') {
           monthsData[currentMonth].saidas[cat] = Math.abs(amt);
+        } else if (currentSection === 'LUCRO_INICIAL') {
+          // Linhas entre saldo final e lucro inicial (34-37)
+          if (up.includes('RENDIMENTO') || up.includes('PROV')) {
+            if (!monthsData[currentMonth].rendimentos) monthsData[currentMonth].rendimentos = {};
+            monthsData[currentMonth].rendimentos[cat] = amt;
+          } else if (up.includes('VALOR APLICADO BANCO INTER')) {
+            monthsData[currentMonth].valorAplicadoBancoInter = amt;
+          }
+        } else if (currentSection === 'LUCRO_BRUTO') {
+          // Linhas entre lucro inicial e lucro bruto (39-42)
+          if (up.includes('PROV')) {
+            if (!monthsData[currentMonth].provisoesLucroBruto) monthsData[currentMonth].provisoesLucroBruto = {};
+            monthsData[currentMonth].provisoesLucroBruto[cat] = Math.abs(amt);
+          } else if (up.includes('APLICACAO') || up.includes('XP')) {
+            if (!monthsData[currentMonth].aplicacoes) monthsData[currentMonth].aplicacoes = {};
+            monthsData[currentMonth].aplicacoes[cat] = Math.abs(amt);
+          }
         } else if (currentSection === 'PROV_DESPESAS') {
           if (!monthsData[currentMonth].provisoesDespesas) monthsData[currentMonth].provisoesDespesas = {};
           monthsData[currentMonth].provisoesDespesas[cat] = Math.abs(amt);
+        } else if (currentSection === 'PROVISOES') {
+          // Linhas 45-60: Provisões
+          if (up.includes('PROV')) {
+            if (!monthsData[currentMonth].provisoes) monthsData[currentMonth].provisoes = {};
+            monthsData[currentMonth].provisoes[cat] = Math.abs(amt);
+          } else if (up.includes('APLICACAO') || up.includes('XP')) {
+            if (!monthsData[currentMonth].aplicacoes) monthsData[currentMonth].aplicacoes = {};
+            monthsData[currentMonth].aplicacoes[cat] = amt;
+          }
         } else if (up.includes('VALOR APLICADO') || up.includes('APLICACAO')) {
           if (!monthsData[currentMonth].aplicacoes) monthsData[currentMonth].aplicacoes = {};
           monthsData[currentMonth].aplicacoes[cat] = amt;
