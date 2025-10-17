@@ -980,37 +980,72 @@ const CashFlow: React.FC = () => {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <CardContent className="space-y-3 pt-0">
-                    {Object.entries(cashFlowData.aplicacoes).map(([key, value], index) => {
-                      const isXP = key.toUpperCase().includes('XP');
-                      let memoriaCalculo = null;
-                      
-                      if (isXP && cashFlowData.lucroInicial && cashFlowData.provisoesLucroBruto) {
-                        // Calcular: (Linha 37 - Linhas 39 e 40) * 10%
-                        const totalProvisoes = Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0);
-                        const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
-                        memoriaCalculo = `10% de (${formatCurrency(cashFlowData.lucroInicial)} - ${formatCurrency(totalProvisoes)}) = ${formatCurrency(baseCalculo * 0.1)}`;
-                      }
-                      
-                      return (
-                        <div 
-                          key={key} 
-                          className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-sky-200 hover-scale"
-                          style={{ animationDelay: `${index * 0.1}s` }}
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium text-sky-700">{key}</span>
-                            {memoriaCalculo && (
-                              <span className="text-xs text-sky-600 mt-1">
-                                {memoriaCalculo}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-lg font-bold text-sky-800">
-                            {formatCurrency(value)}
+                    {/* Mostrar cálculo detalhado do XP */}
+                    {cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0 && (
+                      <div className="bg-sky-50 border border-sky-300 rounded-lg p-4 space-y-2">
+                        <h5 className="font-semibold text-sky-900 mb-3">Cálculo Base XP (10%)</h5>
+                        
+                        {/* Lucro Inicial */}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-sky-700">Lucro Inicial</span>
+                          <span className="font-bold text-sky-900">
+                            {formatCurrency(cashFlowData.lucroInicial)}
                           </span>
                         </div>
-                      );
-                    })}
+                        
+                        {/* Provisões do Lucro Bruto */}
+                        {cashFlowData.provisoesLucroBruto && Object.entries(cashFlowData.provisoesLucroBruto).map(([key, val]) => (
+                          <div key={key} className="flex items-center justify-between text-sm">
+                            <span className="text-red-600">- {key}</span>
+                            <span className="font-medium text-red-700">
+                              -{formatCurrency(val)}
+                            </span>
+                          </div>
+                        ))}
+                        
+                        {/* Base de Cálculo */}
+                        <Separator className="my-2" />
+                        <div className="flex items-center justify-between text-sm font-semibold">
+                          <span className="text-sky-800">Base de Cálculo</span>
+                          <span className="text-sky-900">
+                            {(() => {
+                              const totalProvisoes = cashFlowData.provisoesLucroBruto 
+                                ? Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0)
+                                : 0;
+                              return formatCurrency(cashFlowData.lucroInicial - totalProvisoes);
+                            })()}
+                          </span>
+                        </div>
+                        
+                        {/* XP 10% */}
+                        <div className="flex items-center justify-between pt-2 border-t-2 border-sky-300">
+                          <span className="font-bold text-sky-900">XP Investimento (10%)</span>
+                          <span className="text-lg font-bold text-sky-900">
+                            {(() => {
+                              const totalProvisoes = cashFlowData.provisoesLucroBruto 
+                                ? Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0)
+                                : 0;
+                              const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
+                              return formatCurrency(baseCalculo * 0.1);
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Outras aplicações */}
+                    {Object.entries(cashFlowData.aplicacoes).map(([key, value], index) => (
+                      <div 
+                        key={key} 
+                        className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-sky-200 hover-scale"
+                        style={{ animationDelay: `${index * 0.1}s` }}
+                      >
+                        <span className="font-medium text-sky-700">{key}</span>
+                        <span className="text-lg font-bold text-sky-800">
+                          {formatCurrency(value)}
+                        </span>
+                      </div>
+                    ))}
                   </CardContent>
                 </CollapsibleContent>
               </Card>
