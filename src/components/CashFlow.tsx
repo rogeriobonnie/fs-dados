@@ -1054,33 +1054,83 @@ const CashFlow: React.FC = () => {
 
           {/* Lucro Bruto - Base de Cálculo - XP Investimento */}
           {cashFlowData.lucroBruto !== undefined && cashFlowData.lucroBruto !== 0 ? (
-            <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-indigo-200 rounded-full">
-                      <BarChart3 className="h-6 w-6 text-indigo-700" />
+            <Collapsible defaultOpen={false}>
+              <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader>
+                    <div className="flex items-center justify-between w-full group">
+                      <CardTitle className="flex items-center gap-2 text-indigo-800">
+                        <BarChart3 className="h-5 w-5" />
+                        Lucro Bruto
+                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold text-indigo-800">
+                          {(() => {
+                            const totalProvisoes = cashFlowData.provisoesLucroBruto 
+                              ? Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0)
+                              : 0;
+                            const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
+                            const xpInvestimento = baseCalculo * 0.1;
+                            return formatCurrency(baseCalculo - xpInvestimento);
+                          })()}
+                        </span>
+                        <ChevronDown className="h-5 w-5 text-indigo-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-indigo-800">Lucro Bruto</h2>
-                      <p className="text-sm text-indigo-600">Base de Cálculo - XP Investimento</p>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3 pt-0">
+                    <div className="bg-indigo-50 border border-indigo-300 rounded-lg p-4 space-y-2">
+                      <h5 className="font-semibold text-indigo-900 mb-3">Memória de Cálculo</h5>
+                      
+                      {/* Base de Cálculo */}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-indigo-700">Base de Cálculo</span>
+                        <span className="font-bold text-indigo-900">
+                          {(() => {
+                            const totalProvisoes = cashFlowData.provisoesLucroBruto 
+                              ? Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0)
+                              : 0;
+                            return formatCurrency(cashFlowData.lucroInicial - totalProvisoes);
+                          })()}
+                        </span>
+                      </div>
+                      
+                      {/* XP Investimento */}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-red-600">- XP Investimento (10%)</span>
+                        <span className="font-medium text-red-700">
+                          -{(() => {
+                            const totalProvisoes = cashFlowData.provisoesLucroBruto 
+                              ? Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0)
+                              : 0;
+                            const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
+                            return formatCurrency(baseCalculo * 0.1);
+                          })()}
+                        </span>
+                      </div>
+                      
+                      {/* Lucro Bruto */}
+                      <Separator className="my-2" />
+                      <div className="flex items-center justify-between pt-2 border-t-2 border-indigo-300">
+                        <span className="font-bold text-indigo-900">Lucro Bruto</span>
+                        <span className="text-lg font-bold text-indigo-900">
+                          {(() => {
+                            const totalProvisoes = cashFlowData.provisoesLucroBruto 
+                              ? Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0)
+                              : 0;
+                            const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
+                            const xpInvestimento = baseCalculo * 0.1;
+                            return formatCurrency(baseCalculo - xpInvestimento);
+                          })()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-indigo-800">
-                      {(() => {
-                        const totalProvisoes = cashFlowData.provisoesLucroBruto 
-                          ? Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0)
-                          : 0;
-                        const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
-                        const xpInvestimento = baseCalculo * 0.1;
-                        return formatCurrency(baseCalculo - xpInvestimento);
-                      })()}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           ) : null}
 
           {/* Provisões - Linhas 45-60 */}
