@@ -161,15 +161,10 @@ const Index = () => {
       <div className="container mx-auto py-8 px-4">
         <div className="space-y-8">
           {/* Header */}
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-center bg-sky-500 -mx-4 px-4 py-6 rounded-lg">
             <div className="flex items-center gap-4">
               <img src={logoFS} alt="Fisioterapeutas do Sono" className="h-16 w-auto" />
-              <div className="space-y-1">
-                <h1 className="text-3xl font-bold tracking-tight">Controle FS</h1>
-                {isConnectedToSheets && (
-                  <p className="text-sm text-success">• Conectado ao Google Sheets</p>
-                )}
-              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-white">Controle FS</h1>
             </div>
             
             <div className="flex gap-2">
