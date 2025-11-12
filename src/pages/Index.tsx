@@ -223,12 +223,8 @@ const Index = () => {
               />
 
               {/* Nested Tabs for FS Turma IV content */}
-              <Tabs defaultValue="table" className="space-y-6">
+              <Tabs defaultValue="students" className="space-y-6">
                 <TabsList className="grid w-full grid-cols-3 text-xs">
-                  <TabsTrigger value="table" className="flex items-center gap-1 px-2">
-                    <Table2 className="h-3 w-3" />
-                    Tabela
-                  </TabsTrigger>
                   <TabsTrigger value="students" className="flex items-center gap-1 px-2">
                     <Users className="h-3 w-3" />
                     Alunos
@@ -237,11 +233,11 @@ const Index = () => {
                     <TrendingUp className="h-3 w-3" />
                     Mensal
                   </TabsTrigger>
+                  <TabsTrigger value="table" className="flex items-center gap-1 px-2">
+                    <Table2 className="h-3 w-3" />
+                    Tabela
+                  </TabsTrigger>
                 </TabsList>
-
-                <TabsContent value="table" className="space-y-6">
-                  <FinancialTable data={filteredData} />
-                </TabsContent>
 
                 <TabsContent value="students" className="space-y-6">
                   <StudentsDirectory data={filteredData} />
@@ -249,6 +245,10 @@ const Index = () => {
 
                 <TabsContent value="monthly" className="space-y-6">
                   <MonthlyRevenue data={filteredData} />
+                </TabsContent>
+
+                <TabsContent value="table" className="space-y-6">
+                  <FinancialTable data={filteredData} />
                 </TabsContent>
               </Tabs>
             </TabsContent>
