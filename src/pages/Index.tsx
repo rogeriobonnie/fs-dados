@@ -18,6 +18,7 @@ import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
 import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3 } from 'lucide-react';
+import logoFS from '@/assets/logo-fs.png';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -161,14 +162,14 @@ const Index = () => {
         <div className="space-y-8">
           {/* Header */}
           <div className="flex justify-between items-start">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight">Dashboard Financeiro</h1>
-              <p className="text-muted-foreground">
-                Controle completo de vendas, recebimentos e inadimplência
+            <div className="flex items-center gap-4">
+              <img src={logoFS} alt="Fisioterapeutas do Sono" className="h-16 w-auto" />
+              <div className="space-y-1">
+                <h1 className="text-3xl font-bold tracking-tight">Controle FS</h1>
                 {isConnectedToSheets && (
-                  <span className="ml-2 text-success">• Conectado ao Google Sheets</span>
+                  <p className="text-sm text-success">• Conectado ao Google Sheets</p>
                 )}
-              </p>
+              </div>
             </div>
             
             <div className="flex gap-2">
