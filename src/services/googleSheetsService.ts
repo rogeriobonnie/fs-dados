@@ -169,7 +169,7 @@ export class GoogleSheetsService {
     }
   }
 
-  static async fetchLanceADoisTaxData(): Promise<{ taxPercentage: number; month: string; year: string } | null> {
+  static async fetchLanceADoisTaxData(): Promise<{ taxPercentage: number; month: string; year: string }[]> {
     const apiKey = this.getApiKey();
     const sheetId = this.getSheetId();
     
@@ -502,10 +502,10 @@ export class GoogleSheetsService {
     return { revenues: lanceADoisRevenues, expenses: lanceADoisExpenses };
   }
 
-  private static parseLanceADoisTaxData(rows: string[][]): { taxPercentage: number; month: string; year: string } | null {
+  private static parseLanceADoisTaxData(rows: string[][]): { taxPercentage: number; month: string; year: string }[] {
     console.log('Tax Data Parsing - Total rows:', rows.length);
 
-    let best: { taxPercentage: number; month: string; year: string; dateStr: string } | null = null;
+    const taxRecords: { taxPercentage: number; month: string; year: string }[] = [];
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
@@ -530,30 +530,21 @@ export class GoogleSheetsService {
       // Extrair mês/ano da data (DD/MM/YYYY)
       let month = '';
       let year = '';
-      let ts = 0;
       if (date) {
         const dateParts = date.split('/');
         if (dateParts.length === 3) {
           month = dateParts[1].padStart(2, '0');
           year = dateParts[2];
-          const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(dateParts[0], 10));
-          ts = d.getTime();
         }
       }
 
-      // Seleciona o mais recente pela data
-      if (!best || ts > new Date(parseInt(best.year, 10), parseInt(best.month, 10) - 1, 1).getTime()) {
-        best = { taxPercentage, month, year, dateStr: date };
+      if (month && year && taxPercentage > 0) {
+        taxRecords.push({ taxPercentage, month, year });
       }
     }
 
-    if (best) {
-      console.log('Selected tax data (latest LANCE A DOIS):', best);
-      return { taxPercentage: best.taxPercentage, month: best.month, year: best.year };
-    }
-
-    console.log('No tax data found for LANCE A DOIS');
-    return null;
+    console.log('Parsed tax records:', taxRecords);
+    return taxRecords;
   }
 
   private static parseConsultantData(rows: string[][]): any[] {

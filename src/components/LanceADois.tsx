@@ -53,7 +53,7 @@ const LanceADois = () => {
   const [lanceData, setLanceData] = useState<LanceADoisRecord[]>([]);
   const [lanceExpenses, setLanceExpenses] = useState<LanceADoisExpense[]>([]);
   const [consultantData, setConsultantData] = useState<ConsultantRecord[]>([]);
-  const [taxData, setTaxData] = useState<{ taxPercentage: number; month: string; year: string } | null>(null);
+  const [taxData, setTaxData] = useState<{ taxPercentage: number; month: string; year: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
   const [expensesOpen, setExpensesOpen] = useState(false);
@@ -81,12 +81,13 @@ const LanceADois = () => {
       // Debug: Check September data
       const septemberExpenses = lanceDataResult.expenses.filter(e => e.month === '09');
       console.log('September expenses found:', septemberExpenses);
-      console.log('September tax data:', taxInfo && taxInfo.month === '09' ? taxInfo : 'No tax data for September');
+      const septemberTax = taxInfo.find(t => t.month === '09');
+      console.log('September tax data:', septemberTax || 'No tax data for September');
       
       setLanceData(lanceDataResult.revenues);
       setLanceExpenses(lanceDataResult.expenses);
       setConsultantData(consultantsData);
-      setTaxData(taxInfo);
+      setTaxData(taxInfo || []);
       
       toast({
         title: "Dados Lance a Dois carregados!",
@@ -97,7 +98,7 @@ const LanceADois = () => {
       setLanceData([]);
       setLanceExpenses([]);
       setConsultantData([]);
-      setTaxData(null);
+      setTaxData([]);
       toast({
         title: "Erro ao carregar dados",
         description: "Falha ao conectar com a Página2 da planilha.",
@@ -180,34 +181,25 @@ const LanceADois = () => {
 
     const total = filteredData.reduce((sum, record) => sum + record.amount, 0);
 
-    // Calculate taxes based on filtered data
+    // Calculate taxes based on filtered data - find matching tax record for selected month/year
     let taxAmount = 0;
     let taxPercentage = 12.89269; // Default tax percentage
     
-    if (taxData && taxData.taxPercentage > 0) {
-      taxPercentage = taxData.taxPercentage;
+    // Find the tax record that matches the selected month and year
+    const matchingTax = taxData.find(t => {
+      const monthMatches = selectedMonth === 'all' || t.month === selectedMonth;
+      const yearMatches = selectedYear === 'all' || t.year === selectedYear;
+      return monthMatches && yearMatches;
+    });
+    
+    if (matchingTax) {
+      taxPercentage = matchingTax.taxPercentage;
+      console.log('Found matching tax for period:', { selectedMonth, selectedYear, taxPercentage });
+    } else {
+      console.log('No matching tax found for period, using default:', { selectedMonth, selectedYear, taxPercentage });
     }
     
-    // If filters are applied, apply tax for matching month/year; otherwise use default percentage for the period
-    if (selectedMonth !== 'all' || selectedYear !== 'all') {
-      if (taxData) {
-        const taxMonthMatches = selectedMonth === 'all' || taxData.month === selectedMonth;
-        const taxYearMatches = selectedYear === 'all' || taxData.year === selectedYear;
-        if (taxMonthMatches && taxYearMatches) {
-          taxAmount = total * (taxPercentage / 100);
-        } else {
-          // Fallback: no specific tax row for the selected period -> use default
-          taxAmount = total * (12.89269 / 100);
-          console.log('Using default tax percentage for selected period', { selectedMonth, selectedYear });
-        }
-      } else {
-        // No tax data from sheet at all, apply default percentage
-        taxAmount = total * (12.89269 / 100);
-      }
-    } else {
-      // No filters, apply (latest or default) tax to total
-      taxAmount = total * (taxPercentage / 100);
-    }
+    taxAmount = total * (taxPercentage / 100);
     
     // Calculate Lance a Dois expenses (filtered by month/year)
     let filteredExpenses = lanceExpenses;
