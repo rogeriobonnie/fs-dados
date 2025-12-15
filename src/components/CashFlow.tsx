@@ -400,175 +400,414 @@ const CashFlow: React.FC = () => {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const marginBottom = 25;
     let yPosition = 20;
 
-    // Título
-    doc.setFontSize(22);
-    doc.setTextColor(31, 41, 55);
-    doc.text('Relatório de Fluxo de Caixa', pageWidth / 2, yPosition, { align: 'center' });
-    
-    yPosition += 10;
-    doc.setFontSize(12);
-    doc.setTextColor(107, 114, 128);
-    doc.text(selectedMonth || 'Período', pageWidth / 2, yPosition, { align: 'center' });
-    
-    yPosition += 15;
-
-    // Função auxiliar para adicionar seção
-    const addSection = (title: string, color: [number, number, number]) => {
-      if (yPosition > 270) {
+    // Sistema de proteção de seções - verifica se há espaço suficiente
+    const ensureSpace = (neededHeight: number): void => {
+      if (yPosition + neededHeight > pageHeight - marginBottom) {
         doc.addPage();
         yPosition = 20;
       }
-      doc.setFillColor(...color);
-      doc.rect(10, yPosition, pageWidth - 20, 8, 'F');
-      doc.setFontSize(12);
-      doc.setTextColor(255, 255, 255);
-      doc.text(title, 12, yPosition + 5.5);
-      yPosition += 12;
     };
 
-    // Função auxiliar para adicionar linha
-    const addLine = (label: string, value: string | number, indent = 0) => {
-      if (yPosition > 275) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      doc.setFontSize(10);
-      doc.setTextColor(55, 65, 81);
-      doc.text(label, 12 + indent, yPosition);
-      doc.setTextColor(31, 41, 55);
-      doc.text(typeof value === 'number' ? formatCurrency(value) : value, pageWidth - 12, yPosition, { align: 'right' });
+    // Estima altura de uma seção
+    const estimateHeight = (itemsCount: number, hasHeader = true, hasExtra = 0): number => {
+      const headerHeight = hasHeader ? 12 : 0;
+      const lineHeight = 7;
+      const padding = 5;
+      return headerHeight + (itemsCount * lineHeight) + padding + hasExtra;
+    };
+
+    // Adiciona cabeçalho de seção colorido
+    const addSectionHeader = (title: string, color: [number, number, number]): void => {
+      doc.setFillColor(...color);
+      doc.roundedRect(10, yPosition, pageWidth - 20, 10, 2, 2, 'F');
+      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255);
+      doc.text(title, 14, yPosition + 7);
+      yPosition += 14;
+    };
+
+    // Adiciona linha de item
+    const addLine = (label: string, value: number | string, indent = 0, textColor: [number, number, number] = [55, 65, 81], isBold = false): void => {
+      doc.setFontSize(isBold ? 10 : 9);
+      doc.setTextColor(...textColor);
+      if (isBold) doc.setFont('helvetica', 'bold');
+      else doc.setFont('helvetica', 'normal');
+      doc.text(label, 14 + indent, yPosition);
+      const valueStr = typeof value === 'number' ? formatCurrency(value) : value;
+      doc.text(valueStr, pageWidth - 14, yPosition, { align: 'right' });
       yPosition += 6;
     };
 
-    // Saldo Inicial
-    addSection('Saldo Inicial', [59, 130, 246]);
-    addLine('Valor disponível no início do período', cashFlowData.saldoInicial);
-    yPosition += 3;
+    // Adiciona box destacado para totais importantes
+    const addTotalBox = (label: string, value: number, bgColor: [number, number, number], textColor: [number, number, number]): void => {
+      ensureSpace(16);
+      doc.setFillColor(...bgColor);
+      doc.roundedRect(14, yPosition - 2, pageWidth - 28, 12, 2, 2, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(...textColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, 18, yPosition + 5);
+      doc.text(formatCurrency(value), pageWidth - 18, yPosition + 5, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      yPosition += 14;
+    };
 
-    // Entradas
-    addSection('Entradas', [34, 197, 94]);
+    // Adiciona separador
+    const addSeparator = (): void => {
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, yPosition, pageWidth - 14, yPosition);
+      yPosition += 4;
+    };
+
+    // ========================
+    // TÍTULO DO RELATÓRIO
+    // ========================
+    doc.setFontSize(20);
+    doc.setTextColor(31, 41, 55);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório de Fluxo de Caixa', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 8;
+    doc.setFontSize(12);
+    doc.setTextColor(107, 114, 128);
+    doc.setFont('helvetica', 'normal');
+    doc.text(selectedMonth || 'Período', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 12;
+
+    // ========================
+    // 1. SALDO INICIAL
+    // ========================
+    ensureSpace(estimateHeight(1));
+    addSectionHeader('Saldo Inicial', [59, 130, 246]);
+    addLine('Valor disponível no início do período', cashFlowData.saldoInicial, 0, [30, 64, 175], true);
+    yPosition += 4;
+
+    // ========================
+    // 2. ENTRADAS
+    // ========================
+    const entradasCount = Object.keys(cashFlowData.entradas).length;
+    const despesasCount = Object.keys(cashFlowData.despesasVendas).length;
+    const outrasEntradasCount = cashFlowData.outrasEntradasInfo ? Object.keys(cashFlowData.outrasEntradasInfo).length : 0;
+    const entradasHeight = estimateHeight(entradasCount + despesasCount + 6, true, outrasEntradasCount > 0 ? 40 : 0);
+    
+    ensureSpace(Math.min(entradasHeight, 120)); // Limita para evitar página vazia
+    addSectionHeader('Entradas', [34, 197, 94]);
+    
+    // Lista de entradas
     Object.entries(cashFlowData.entradas).forEach(([key, value]) => {
-      addLine(key, value, 3);
+      ensureSpace(8);
+      addLine(`+ ${key}`, value, 2, [21, 128, 61]);
     });
-    if (cashFlowData.totalDespesasVendas > 0) {
+
+    // Despesas sobre Vendas
+    if (despesasCount > 0) {
+      yPosition += 2;
+      addSeparator();
+      doc.setFontSize(9);
+      doc.setTextColor(161, 98, 7);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Despesas sobre Vendas:', 14, yPosition);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 6;
+      
+      Object.entries(cashFlowData.despesasVendas).forEach(([key, value]) => {
+        ensureSpace(8);
+        addLine(`- ${key}`, value, 4, [161, 98, 7]);
+      });
+    }
+
+    // Subtotais
+    yPosition += 2;
+    addSeparator();
+    ensureSpace(30);
+    addLine('Subtotal Entradas Brutas', cashFlowData.totalEntradasBrutas, 2, [21, 128, 61]);
+    addLine('Subtotal Despesas sobre Vendas', cashFlowData.totalDespesasVendas, 2, [161, 98, 7]);
+    yPosition += 2;
+    
+    // Total Entradas Líquidas (box destacado)
+    addTotalBox('TOTAL DE ENTRADAS LÍQUIDAS', cashFlowData.totalEntradas, [220, 252, 231], [21, 128, 61]);
+
+    // Outras Entradas (Informativo)
+    if (cashFlowData.outrasEntradasInfo && outrasEntradasCount > 0) {
+      ensureSpace(estimateHeight(outrasEntradasCount + 2));
+      addSeparator();
+      doc.setFillColor(219, 234, 254);
+      doc.roundedRect(14, yPosition - 2, pageWidth - 28, estimateHeight(outrasEntradasCount + 1, false, 10), 2, 2, 'F');
       yPosition += 2;
       doc.setFontSize(9);
-      doc.setTextColor(107, 114, 128);
-      doc.text('Despesas sobre Vendas:', 15, yPosition);
-      yPosition += 5;
-      Object.entries(cashFlowData.despesasVendas).forEach(([key, value]) => {
-        addLine(key, value, 6);
+      doc.setTextColor(29, 78, 216);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Outras Entradas (Informativo)', 18, yPosition);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 6;
+      
+      Object.entries(cashFlowData.outrasEntradasInfo).forEach(([key, value]) => {
+        addLine(key, value, 4, [29, 78, 216]);
       });
-      addLine('Total Despesas sobre Vendas', cashFlowData.totalDespesasVendas, 3);
+      
+      doc.setFontSize(7);
+      doc.setTextColor(96, 165, 250);
+      doc.text('* Valores apenas para consulta, não somados ao total', 18, yPosition);
+      yPosition += 8;
     }
-    yPosition += 2;
-    doc.setFontSize(10);
-    doc.setTextColor(107, 114, 128);
-    addLine('Subtotal Entradas Brutas', cashFlowData.totalEntradasBrutas, 3);
-    addLine('Subtotal Despesas s/ Vendas', cashFlowData.totalDespesasVendas, 3);
-    doc.setFontSize(11);
-    doc.setTextColor(22, 163, 74);
-    addLine('Total de Entradas Líquidas', cashFlowData.totalEntradas);
-    yPosition += 3;
+    yPosition += 4;
 
-    // Saídas
-    addSection('Saídas', [239, 68, 68]);
+    // ========================
+    // 3. SAÍDAS
+    // ========================
+    const saidasCount = Object.keys(cashFlowData.saidas).length;
+    ensureSpace(estimateHeight(saidasCount + 2));
+    addSectionHeader('Saídas', [239, 68, 68]);
+    
     Object.entries(cashFlowData.saidas).forEach(([key, value]) => {
-      addLine(key, value, 3);
+      ensureSpace(8);
+      addLine(`- ${key}`, value, 2, [185, 28, 28]);
     });
-    doc.setFontSize(11);
-    doc.setTextColor(220, 38, 38);
-    addLine('Total de Saídas', cashFlowData.totalSaidas);
-    yPosition += 3;
+    
+    yPosition += 2;
+    addTotalBox('TOTAL DE SAÍDAS', cashFlowData.totalSaidas, [254, 226, 226], [185, 28, 28]);
+    yPosition += 4;
 
-    // Saldo Final
-    addSection('Saldo Final', [59, 130, 246]);
+    // ========================
+    // 4. SALDO FINAL
+    // ========================
+    ensureSpace(25);
     const saldoPositivo = cashFlowData.saldoFinal >= 0;
-    doc.setTextColor(saldoPositivo ? 22 : 220, saldoPositivo ? 163 : 38, saldoPositivo ? 74 : 38);
-    addLine('Saldo ao final do período', cashFlowData.saldoFinal);
-    yPosition += 3;
+    addSectionHeader('Saldo Final', saldoPositivo ? [16, 185, 129] : [249, 115, 22]);
+    addLine('Resultado final do período', cashFlowData.saldoFinal, 0, saldoPositivo ? [5, 150, 105] : [194, 65, 12], true);
+    yPosition += 6;
 
-    // Resumo
-    addSection('Resumo do Período', [99, 102, 241]);
-    addLine('Saldo Inicial', cashFlowData.saldoInicial, 3);
-    addLine('Total Entradas', cashFlowData.totalEntradas, 3);
-    addLine('Total Saídas', cashFlowData.totalSaidas, 3);
-    addLine('Saldo Final', cashFlowData.saldoFinal, 3);
-    yPosition += 3;
+    // ========================
+    // 5. RESUMO DO PERÍODO
+    // ========================
+    ensureSpace(50);
+    addSectionHeader('Resumo do Período', [99, 102, 241]);
+    
+    // Grid de 3 colunas
+    const colWidth = (pageWidth - 40) / 3;
+    const startX = 14;
+    const boxHeight = 28;
+    
+    // Entradas
+    doc.setFillColor(220, 252, 231);
+    doc.roundedRect(startX, yPosition, colWidth - 4, boxHeight, 2, 2, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(21, 128, 61);
+    doc.text('Total Entradas', startX + (colWidth - 4) / 2, yPosition + 8, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatCurrency(cashFlowData.totalEntradas), startX + (colWidth - 4) / 2, yPosition + 18, { align: 'center' });
+    
+    // Saídas
+    doc.setFillColor(254, 226, 226);
+    doc.roundedRect(startX + colWidth, yPosition, colWidth - 4, boxHeight, 2, 2, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(185, 28, 28);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Total Saídas', startX + colWidth + (colWidth - 4) / 2, yPosition + 8, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatCurrency(cashFlowData.totalSaidas), startX + colWidth + (colWidth - 4) / 2, yPosition + 18, { align: 'center' });
+    
+    // Resultado
+    const resultado = cashFlowData.totalEntradas - cashFlowData.totalSaidas;
+    const resultadoPositivo = resultado >= 0;
+    doc.setFillColor(resultadoPositivo ? 219 : 254, resultadoPositivo ? 234 : 215, resultadoPositivo ? 254 : 170);
+    doc.roundedRect(startX + colWidth * 2, yPosition, colWidth - 4, boxHeight, 2, 2, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(resultadoPositivo ? 67 : 194, resultadoPositivo ? 56 : 65, resultadoPositivo ? 202 : 12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Resultado', startX + colWidth * 2 + (colWidth - 4) / 2, yPosition + 8, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatCurrency(resultado), startX + colWidth * 2 + (colWidth - 4) / 2, yPosition + 18, { align: 'center' });
+    
+    doc.setFont('helvetica', 'normal');
+    yPosition += boxHeight + 8;
 
-    // Lucro Inicial (se houver)
+    // ========================
+    // 6. LUCRO INICIAL
+    // ========================
     if (cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0) {
-      addSection('Lucro Inicial', [168, 85, 247]);
+      const rendimentosCount = cashFlowData.rendimentos ? Object.keys(cashFlowData.rendimentos).length : 0;
+      ensureSpace(estimateHeight(rendimentosCount + 4));
+      addSectionHeader('Lucro Inicial', [6, 182, 212]);
+      
+      addLine('Saldo Final', cashFlowData.saldoFinal, 2, [8, 145, 178]);
+      
       if (cashFlowData.valorAplicadoBancoInter) {
-        addLine('Valor Aplicado Banco Inter', cashFlowData.valorAplicadoBancoInter, 3);
+        addLine('Valor Aplicado Banco Inter', cashFlowData.valorAplicadoBancoInter, 2, [8, 145, 178]);
       }
-      if (cashFlowData.rendimentos && Object.keys(cashFlowData.rendimentos).length > 0) {
+      
+      if (cashFlowData.rendimentos) {
         Object.entries(cashFlowData.rendimentos).forEach(([key, value]) => {
-          addLine(key, value, 3);
+          ensureSpace(8);
+          addLine(key, value, 2, [8, 145, 178]);
         });
       }
-      doc.setFontSize(11);
-      doc.setTextColor(126, 34, 206);
-      addLine('Lucro Inicial', cashFlowData.lucroInicial);
-      yPosition += 3;
-    }
-
-    // Aplicações XP (se houver)
-    if (cashFlowData.aplicacoes && Object.keys(cashFlowData.aplicacoes).length > 0) {
-      addSection('Aplicações XP Investimento', [236, 72, 153]);
-      Object.entries(cashFlowData.aplicacoes).forEach(([key, value]) => {
-        addLine(key, value, 3);
-      });
-      yPosition += 3;
-    }
-
-    // Lucro Bruto (se houver)
-    if (cashFlowData.lucroBruto !== undefined && cashFlowData.lucroBruto !== 0) {
-      addSection('Lucro Bruto', [249, 115, 22]);
-      if (cashFlowData.provisoesLucroBruto && Object.keys(cashFlowData.provisoesLucroBruto).length > 0) {
-        Object.entries(cashFlowData.provisoesLucroBruto).forEach(([key, value]) => {
-          addLine(key, value, 3);
-        });
-      }
-      doc.setFontSize(11);
-      doc.setTextColor(202, 138, 4);
-      addLine('Lucro Bruto', cashFlowData.lucroBruto);
-      yPosition += 3;
-    }
-
-    // Provisões (se houver)
-    if (cashFlowData.provisoes && Object.keys(cashFlowData.provisoes).length > 0) {
-      addSection('Provisões', [245, 158, 11]);
-      Object.entries(cashFlowData.provisoes).forEach(([key, value]) => {
-        addLine(key, value, 3);
-      });
-      yPosition += 3;
-    }
-
-    // Lucro Líquido (se houver)
-    if (cashFlowData.lucroLiquido !== undefined && cashFlowData.lucroLiquido !== 0) {
-      addSection('Lucro Líquido', [16, 185, 129]);
-      const lucroPositivo = cashFlowData.lucroLiquido >= 0;
-      doc.setTextColor(lucroPositivo ? 5 : 220, lucroPositivo ? 150 : 38, lucroPositivo ? 105 : 38);
-      addLine('Resultado líquido do período', cashFlowData.lucroLiquido);
+      
       yPosition += 2;
-      doc.setFontSize(10);
-      doc.setTextColor(5, 150, 105);
-      addLine('Lucro por sócio (÷3)', cashFlowData.lucroLiquido / 3, 3);
+      addTotalBox('LUCRO INICIAL', cashFlowData.lucroInicial, [207, 250, 254], [8, 145, 178]);
+      yPosition += 4;
     }
 
-    // Rodapé
+    // ========================
+    // 7. XP INVESTIMENTO (com cálculo detalhado)
+    // ========================
+    if (cashFlowData.aplicacoes && Object.keys(cashFlowData.aplicacoes).length > 0) {
+      const provisoesLucroBrutoCount = cashFlowData.provisoesLucroBruto ? Object.keys(cashFlowData.provisoesLucroBruto).length : 0;
+      ensureSpace(estimateHeight(provisoesLucroBrutoCount + 8));
+      addSectionHeader('XP Investimento', [14, 165, 233]);
+      
+      // Cálculo detalhado
+      if (cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0) {
+        doc.setFillColor(224, 242, 254);
+        const calcBoxHeight = estimateHeight(provisoesLucroBrutoCount + 4, false, 15);
+        doc.roundedRect(14, yPosition - 2, pageWidth - 28, calcBoxHeight, 2, 2, 'F');
+        yPosition += 2;
+        
+        doc.setFontSize(9);
+        doc.setTextColor(3, 105, 161);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cálculo Base XP (10%)', 18, yPosition);
+        doc.setFont('helvetica', 'normal');
+        yPosition += 7;
+        
+        addLine('Lucro Inicial', cashFlowData.lucroInicial, 4, [3, 105, 161]);
+        
+        let totalProvisoes = 0;
+        if (cashFlowData.provisoesLucroBruto) {
+          Object.entries(cashFlowData.provisoesLucroBruto).forEach(([key, val]) => {
+            totalProvisoes += val;
+            addLine(`- ${key}`, -val, 4, [185, 28, 28]);
+          });
+        }
+        
+        const baseCalculo = cashFlowData.lucroInicial - totalProvisoes;
+        const xp10 = baseCalculo * 0.1;
+        
+        addSeparator();
+        addLine('Base de Cálculo', baseCalculo, 4, [3, 105, 161], true);
+        addLine('XP Investimento (10%)', xp10, 4, [3, 105, 161], true);
+        yPosition += 4;
+      }
+      
+      // Lista de aplicações
+      Object.entries(cashFlowData.aplicacoes).forEach(([key, value]) => {
+        ensureSpace(8);
+        addLine(key, value, 2, [14, 165, 233]);
+      });
+      yPosition += 6;
+    }
+
+    // ========================
+    // 8. LUCRO BRUTO (com memória de cálculo)
+    // ========================
+    if (cashFlowData.lucroBruto !== undefined && cashFlowData.lucroBruto !== 0) {
+      ensureSpace(50);
+      addSectionHeader('Lucro Bruto', [99, 102, 241]);
+      
+      // Memória de cálculo
+      doc.setFillColor(224, 231, 255);
+      doc.roundedRect(14, yPosition - 2, pageWidth - 28, 45, 2, 2, 'F');
+      yPosition += 2;
+      
+      doc.setFontSize(9);
+      doc.setTextColor(67, 56, 202);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Memória de Cálculo', 18, yPosition);
+      doc.setFont('helvetica', 'normal');
+      yPosition += 7;
+      
+      let totalProvisoes = 0;
+      if (cashFlowData.provisoesLucroBruto) {
+        totalProvisoes = Object.values(cashFlowData.provisoesLucroBruto).reduce((acc, val) => acc + val, 0);
+      }
+      const baseCalculo = (cashFlowData.lucroInicial || 0) - totalProvisoes;
+      const xpInvestimento = baseCalculo * 0.1;
+      const lucroBrutoCalc = baseCalculo - xpInvestimento;
+      
+      addLine('Base de Cálculo', baseCalculo, 4, [67, 56, 202]);
+      addLine('- XP Investimento (10%)', -xpInvestimento, 4, [185, 28, 28]);
+      addSeparator();
+      addLine('LUCRO BRUTO', lucroBrutoCalc, 4, [67, 56, 202], true);
+      yPosition += 8;
+    }
+
+    // ========================
+    // 9. PROVISÕES
+    // ========================
+    if (cashFlowData.provisoes && Object.keys(cashFlowData.provisoes).length > 0) {
+      const provisoesCount = Object.keys(cashFlowData.provisoes).length;
+      ensureSpace(estimateHeight(provisoesCount + 2));
+      addSectionHeader('Provisões', [168, 85, 247]);
+      
+      let totalProvisoes = 0;
+      Object.entries(cashFlowData.provisoes).forEach(([key, value]) => {
+        ensureSpace(8);
+        totalProvisoes += value;
+        addLine(`- ${key}`, value, 2, [126, 34, 206]);
+      });
+      
+      yPosition += 2;
+      addTotalBox('TOTAL PROVISÕES', totalProvisoes, [243, 232, 255], [126, 34, 206]);
+      yPosition += 4;
+    }
+
+    // ========================
+    // 10. LUCRO LÍQUIDO (com divisão por sócia)
+    // ========================
+    if (cashFlowData.lucroLiquido !== undefined && cashFlowData.lucroLiquido !== 0) {
+      ensureSpace(50);
+      const lucroPositivo = cashFlowData.lucroLiquido >= 0;
+      addSectionHeader('Lucro Líquido', lucroPositivo ? [20, 184, 166] : [239, 68, 68]);
+      
+      addLine('Resultado final após todas provisões', cashFlowData.lucroLiquido, 0, lucroPositivo ? [13, 148, 136] : [185, 28, 28], true);
+      
+      // Divisão por sócia
+      yPosition += 4;
+      doc.setFillColor(lucroPositivo ? 204 : 254, lucroPositivo ? 251 : 226, lucroPositivo ? 241 : 226);
+      doc.roundedRect(14, yPosition - 2, pageWidth - 28, 22, 2, 2, 'F');
+      yPosition += 4;
+      
+      doc.setFontSize(8);
+      doc.setTextColor(lucroPositivo ? 17 : 185, lucroPositivo ? 94 : 28, lucroPositivo ? 89 : 28);
+      doc.text('Divisão por Sócia (3 sócias)', 18, yPosition);
+      yPosition += 6;
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Valor por Sócia:', 18, yPosition);
+      doc.text(formatCurrency(cashFlowData.lucroLiquido / 3), pageWidth - 18, yPosition, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      yPosition += 10;
+    }
+
+    // ========================
+    // RODAPÉ
+    // ========================
     const pageCount = doc.getNumberOfPages();
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR');
+    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(156, 163, 175);
       doc.text(
-        `Página ${i} de ${pageCount} - Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+        `Página ${i} de ${pageCount} - ${selectedMonth || 'Período'}`,
         pageWidth / 2,
-        doc.internal.pageSize.height - 10,
+        pageHeight - 12,
+        { align: 'center' }
+      );
+      doc.text(
+        `Gerado em ${dateStr} às ${timeStr}`,
+        pageWidth / 2,
+        pageHeight - 7,
         { align: 'center' }
       );
     }
