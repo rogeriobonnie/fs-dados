@@ -34,6 +34,8 @@ interface CashFlowData {
   saldoFinal: number;
   despesasVendas: { [key: string]: number };
   totalDespesasVendas: number;
+  // Linhas 27-28: Outras Entradas (informativo)
+  outrasEntradasInfo?: { [key: string]: number };
   // Linhas 34-37: Lucro Inicial
   valorAplicadoBancoInter?: number;
   rendimentos?: { [key: string]: number };
@@ -89,6 +91,7 @@ const CashFlow: React.FC = () => {
       saldoFinal: 0,
       despesasVendas: {},
       totalDespesasVendas: 0,
+      outrasEntradasInfo: {},
       valorAplicadoBancoInter: 0,
       rendimentos: {},
       lucroInicial: 0,
@@ -139,6 +142,16 @@ const CashFlow: React.FC = () => {
           const valor = parseValor(valorStr);
 
           const tituloUp = (titulo || '').toString().toUpperCase();
+
+          // Linhas 27-28: Outras Entradas (informativo) - capturar antes de processar seções
+          const rowNumber = rowIndex + 1; // rowIndex é 0-based, linhas da planilha são 1-based
+          if (rowNumber === 27 || rowNumber === 28) {
+            if (titulo && titulo.trim() && valor !== 0) {
+              if (!monthData.outrasEntradasInfo) monthData.outrasEntradasInfo = {};
+              monthData.outrasEntradasInfo[titulo] = valor;
+              console.log(`Outras Entradas (linha ${rowNumber}):`, titulo, valor);
+            }
+          }
 
           if (tituloUp.includes('SALDO INICIAL')) {
             monthData.saldoInicial = valor;
@@ -218,7 +231,8 @@ const CashFlow: React.FC = () => {
           lucroInicial: monthData.lucroInicial,
           aplicacoes: monthData.aplicacoes,
           provisoesLucroBruto: monthData.provisoesLucroBruto,
-          lucroBruto: monthData.lucroBruto
+          lucroBruto: monthData.lucroBruto,
+          outrasEntradasInfo: monthData.outrasEntradasInfo
         });
         
         monthsData[month] = monthData;
@@ -769,6 +783,35 @@ const CashFlow: React.FC = () => {
                       +{formatCurrency(cashFlowData.totalEntradas)}
                     </span>
                   </div>
+                  
+                  {/* Outras Entradas - Informativo */}
+                  {cashFlowData.outrasEntradasInfo && Object.keys(cashFlowData.outrasEntradasInfo).length > 0 && (
+                    <>
+                      <Separator className="my-4" />
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <h4 className="font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4" />
+                          Outras Entradas (Informativo)
+                        </h4>
+                        <div className="space-y-2">
+                          {Object.entries(cashFlowData.outrasEntradasInfo).map(([key, value]) => (
+                            <div 
+                              key={key} 
+                              className="flex items-center justify-between p-2 bg-white/70 rounded-lg"
+                            >
+                              <span className="text-sm font-medium text-blue-600">{key}</span>
+                              <span className="text-base font-semibold text-blue-800">
+                                {formatCurrency(value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-blue-500 mt-3 italic">
+                          * Valores apenas para consulta, não somados ao total
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </CollapsibleContent>
             </Card>
