@@ -39,6 +39,7 @@ interface CashFlowData {
   // Linhas 34-37: Lucro Inicial
   valorAplicadoBancoInter?: number;
   rendimentos?: { [key: string]: number };
+  detalhesLucroInicial?: { [key: string]: number }; // Captura dinâmica de todas as linhas
   lucroInicial?: number;
   // Linhas 39-43: Lucro Bruto
   provisoesLucroBruto?: { [key: string]: number };
@@ -189,15 +190,10 @@ const CashFlow: React.FC = () => {
             } else if (currentSection === 'SAIDAS') {
               monthData.saidas[titulo] = Math.abs(valor);
             } else if (currentSection === 'LUCRO_INICIAL') {
-              // Linhas entre saldo final e lucro inicial (34-37)
-              if (tituloUp.includes('RENDIMENTO')) {
-                if (!monthData.rendimentos) monthData.rendimentos = {};
-                monthData.rendimentos[titulo] = valor;
-              } else if (tituloUp.includes('PROV')) {
-                // Provisões no Lucro Inicial (PROV LUCROS, PROV LANCE A DOIS, etc)
-                if (!monthData.rendimentos) monthData.rendimentos = {};
-                monthData.rendimentos[titulo] = valor;
-              }
+              // Captura dinâmica de TODAS as linhas entre SALDO FIM e LUCRO INICIAL
+              if (!monthData.detalhesLucroInicial) monthData.detalhesLucroInicial = {};
+              monthData.detalhesLucroInicial[titulo] = valor;
+              console.log('Detalhe Lucro Inicial (dinâmico):', titulo, valor);
             } else if (currentSection === 'LUCRO_BRUTO') {
               // Linhas entre lucro inicial e lucro bruto (39-42)
               if (tituloUp.includes('PROV')) {
@@ -313,13 +309,10 @@ const CashFlow: React.FC = () => {
         } else if (currentSection === 'SAIDAS') {
           monthsData[currentMonth].saidas[cat] = Math.abs(amt);
         } else if (currentSection === 'LUCRO_INICIAL') {
-          // Linhas entre saldo final e lucro inicial (34-37)
-          if (up.includes('RENDIMENTO') || up.includes('PROV')) {
-            if (!monthsData[currentMonth].rendimentos) monthsData[currentMonth].rendimentos = {};
-            monthsData[currentMonth].rendimentos[cat] = amt;
-          } else if (up.includes('VALOR APLICADO BANCO INTER')) {
-            monthsData[currentMonth].valorAplicadoBancoInter = amt;
-          }
+          // Captura dinâmica de TODAS as linhas entre SALDO FIM e LUCRO INICIAL
+          if (!monthsData[currentMonth].detalhesLucroInicial) monthsData[currentMonth].detalhesLucroInicial = {};
+          monthsData[currentMonth].detalhesLucroInicial[cat] = amt;
+          console.log('Detalhe Lucro Inicial (dinâmico - Caso 2):', cat, amt);
         } else if (currentSection === 'LUCRO_BRUTO') {
           // Linhas entre lucro inicial e lucro bruto (39-42)
           if (up.includes('PROV')) {
@@ -632,18 +625,15 @@ const CashFlow: React.FC = () => {
     // 6. LUCRO INICIAL
     // ========================
     if (cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0) {
-      const rendimentosCount = cashFlowData.rendimentos ? Object.keys(cashFlowData.rendimentos).length : 0;
-      ensureSpace(estimateHeight(rendimentosCount + 4));
+      const detalhesCount = cashFlowData.detalhesLucroInicial ? Object.keys(cashFlowData.detalhesLucroInicial).length : 0;
+      ensureSpace(estimateHeight(detalhesCount + 4));
       addSectionHeader('Lucro Inicial', [6, 182, 212]);
       
       addLine('Saldo Final', cashFlowData.saldoFinal, 2, [8, 145, 178]);
       
-      if (cashFlowData.valorAplicadoBancoInter) {
-        addLine('Valor Aplicado Banco Inter', cashFlowData.valorAplicadoBancoInter, 2, [8, 145, 178]);
-      }
-      
-      if (cashFlowData.rendimentos) {
-        Object.entries(cashFlowData.rendimentos).forEach(([key, value]) => {
+      // Exibir TODOS os detalhes capturados dinamicamente
+      if (cashFlowData.detalhesLucroInicial) {
+        Object.entries(cashFlowData.detalhesLucroInicial).forEach(([key, value]) => {
           ensureSpace(8);
           addLine(key, value, 2, [8, 145, 178]);
         });
@@ -1215,15 +1205,8 @@ const CashFlow: React.FC = () => {
                         {formatCurrency(cashFlowData.saldoFinal)}
                       </span>
                     </div>
-                    {cashFlowData.valorAplicadoBancoInter !== undefined && cashFlowData.valorAplicadoBancoInter !== 0 && (
-                      <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-cyan-200">
-                        <span className="font-medium text-cyan-700">Valor Aplicado Banco Inter</span>
-                        <span className="text-lg font-bold text-cyan-800">
-                          {formatCurrency(cashFlowData.valorAplicadoBancoInter)}
-                        </span>
-                      </div>
-                    )}
-                    {cashFlowData.rendimentos && Object.entries(cashFlowData.rendimentos).map(([key, value], index) => (
+                    {/* Exibir TODOS os detalhes capturados dinamicamente */}
+                    {cashFlowData.detalhesLucroInicial && Object.entries(cashFlowData.detalhesLucroInicial).map(([key, value]) => (
                       <div 
                         key={key} 
                         className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-cyan-200"
