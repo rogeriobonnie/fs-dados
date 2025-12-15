@@ -175,6 +175,11 @@ const CashFlow: React.FC = () => {
           } else if (tituloUp.includes('LUCRO LIQUIDO') || tituloUp.includes('LUCRO LÍQUIDO')) {
             monthData.lucroLiquido = valor;
             currentSection = '';
+          } else if (titulo && currentSection === 'LUCRO_INICIAL') {
+            // Captura dinâmica de TODAS as linhas entre SALDO FIM e LUCRO INICIAL (mesmo com valor 0)
+            if (!monthData.detalhesLucroInicial) monthData.detalhesLucroInicial = {};
+            monthData.detalhesLucroInicial[titulo] = valor;
+            console.log('Detalhe Lucro Inicial (dinâmico):', titulo, valor);
           } else if (titulo && valor !== 0) {
             if (currentSection === 'ENTRADAS') {
               monthData.entradas[titulo] = valor;
@@ -189,11 +194,6 @@ const CashFlow: React.FC = () => {
               console.log('Outras Entradas (dinâmico):', titulo, valor);
             } else if (currentSection === 'SAIDAS') {
               monthData.saidas[titulo] = Math.abs(valor);
-            } else if (currentSection === 'LUCRO_INICIAL') {
-              // Captura dinâmica de TODAS as linhas entre SALDO FIM e LUCRO INICIAL
-              if (!monthData.detalhesLucroInicial) monthData.detalhesLucroInicial = {};
-              monthData.detalhesLucroInicial[titulo] = valor;
-              console.log('Detalhe Lucro Inicial (dinâmico):', titulo, valor);
             } else if (currentSection === 'LUCRO_BRUTO') {
               // Linhas entre lucro inicial e lucro bruto (39-42)
               if (tituloUp.includes('PROV')) {
@@ -294,6 +294,11 @@ const CashFlow: React.FC = () => {
         currentSection = '';
       } else if (up.includes('PROV DESPESAS')) {
         currentSection = 'PROV_DESPESAS';
+      } else if (cat && currentSection === 'LUCRO_INICIAL') {
+        // Captura dinâmica de TODAS as linhas entre SALDO FIM e LUCRO INICIAL (mesmo com valor 0)
+        if (!monthsData[currentMonth].detalhesLucroInicial) monthsData[currentMonth].detalhesLucroInicial = {};
+        monthsData[currentMonth].detalhesLucroInicial[cat] = amt;
+        console.log('Detalhe Lucro Inicial (dinâmico - Caso 2):', cat, amt);
       } else if (cat && amt !== 0) {
         if (currentSection === 'ENTRADAS') {
           monthsData[currentMonth].entradas[cat] = amt;
@@ -308,11 +313,6 @@ const CashFlow: React.FC = () => {
           console.log('Outras Entradas (dinâmico - Caso 2):', cat, amt);
         } else if (currentSection === 'SAIDAS') {
           monthsData[currentMonth].saidas[cat] = Math.abs(amt);
-        } else if (currentSection === 'LUCRO_INICIAL') {
-          // Captura dinâmica de TODAS as linhas entre SALDO FIM e LUCRO INICIAL
-          if (!monthsData[currentMonth].detalhesLucroInicial) monthsData[currentMonth].detalhesLucroInicial = {};
-          monthsData[currentMonth].detalhesLucroInicial[cat] = amt;
-          console.log('Detalhe Lucro Inicial (dinâmico - Caso 2):', cat, amt);
         } else if (currentSection === 'LUCRO_BRUTO') {
           // Linhas entre lucro inicial e lucro bruto (39-42)
           if (up.includes('PROV')) {
