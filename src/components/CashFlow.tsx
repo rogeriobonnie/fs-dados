@@ -161,25 +161,23 @@ const CashFlow: React.FC = () => {
           } else if (tituloUp.includes('SALDO FIM')) {
             monthData.saldoFinal = valor;
             currentSection = 'LUCRO_INICIAL'; // Após saldo final, começam as linhas de lucro inicial
-          } else if (tituloUp.includes('VALOR APLICADO BANCO INTER')) {
-            monthData.valorAplicadoBancoInter = valor;
-          } else if (tituloUp.includes('RENDIMENTO')) {
-            if (!monthData.rendimentos) monthData.rendimentos = {};
-            monthData.rendimentos[titulo] = valor;
-          } else if (tituloUp.includes('LUCRO INICIAL')) {
+          } else if (currentSection === 'LUCRO_INICIAL' && tituloUp.includes('LUCRO INICIAL') && !tituloUp.includes('PROV')) {
+            // Este é o valor final do Lucro Inicial - fecha a seção
             monthData.lucroInicial = valor;
             currentSection = 'LUCRO_BRUTO'; // Após lucro inicial, começam as linhas de lucro bruto
+          } else if (currentSection === 'LUCRO_INICIAL' && titulo && titulo.trim()) {
+            // Captura QUALQUER linha entre SALDO FIM e LUCRO INICIAL
+            if (valor !== 0) {
+              if (!monthData.detalhesLucroInicial) monthData.detalhesLucroInicial = {};
+              monthData.detalhesLucroInicial[titulo] = valor;
+              console.log('Detalhe Lucro Inicial (dinâmico):', titulo, valor);
+            }
           } else if (tituloUp.includes('LUCRO BRUTO')) {
             monthData.lucroBruto = valor;
             currentSection = 'PROVISOES'; // Após lucro bruto, começam as provisões
           } else if (tituloUp.includes('LUCRO LIQUIDO') || tituloUp.includes('LUCRO LÍQUIDO')) {
             monthData.lucroLiquido = valor;
             currentSection = '';
-          } else if (titulo && currentSection === 'LUCRO_INICIAL') {
-            // Captura dinâmica de TODAS as linhas entre SALDO FIM e LUCRO INICIAL (mesmo com valor 0)
-            if (!monthData.detalhesLucroInicial) monthData.detalhesLucroInicial = {};
-            monthData.detalhesLucroInicial[titulo] = valor;
-            console.log('Detalhe Lucro Inicial (dinâmico):', titulo, valor);
           } else if (titulo && valor !== 0) {
             if (currentSection === 'ENTRADAS') {
               monthData.entradas[titulo] = valor;
@@ -283,9 +281,17 @@ const CashFlow: React.FC = () => {
       } else if (up.includes('SALDO FIM')) {
         monthsData[currentMonth].saldoFinal = amt;
         currentSection = 'LUCRO_INICIAL'; // Após saldo final, começam as linhas de lucro inicial
-      } else if (up.includes('LUCRO INICIAL')) {
+      } else if (currentSection === 'LUCRO_INICIAL' && up.includes('LUCRO INICIAL') && !up.includes('PROV')) {
+        // Este é o valor final do Lucro Inicial - fecha a seção
         monthsData[currentMonth].lucroInicial = amt;
         currentSection = 'LUCRO_BRUTO'; // Após lucro inicial, começam as linhas de lucro bruto
+      } else if (currentSection === 'LUCRO_INICIAL' && cat && cat.trim()) {
+        // Captura QUALQUER linha entre SALDO FIM e LUCRO INICIAL
+        if (amt !== 0) {
+          if (!monthsData[currentMonth].detalhesLucroInicial) monthsData[currentMonth].detalhesLucroInicial = {};
+          monthsData[currentMonth].detalhesLucroInicial[cat] = amt;
+          console.log('Detalhe Lucro Inicial (dinâmico - Caso 2):', cat, amt);
+        }
       } else if (up.includes('LUCRO BRUTO')) {
         monthsData[currentMonth].lucroBruto = amt;
         currentSection = 'PROVISOES'; // Após lucro bruto, começam as provisões
@@ -294,11 +300,6 @@ const CashFlow: React.FC = () => {
         currentSection = '';
       } else if (up.includes('PROV DESPESAS')) {
         currentSection = 'PROV_DESPESAS';
-      } else if (cat && currentSection === 'LUCRO_INICIAL') {
-        // Captura dinâmica de TODAS as linhas entre SALDO FIM e LUCRO INICIAL (mesmo com valor 0)
-        if (!monthsData[currentMonth].detalhesLucroInicial) monthsData[currentMonth].detalhesLucroInicial = {};
-        monthsData[currentMonth].detalhesLucroInicial[cat] = amt;
-        console.log('Detalhe Lucro Inicial (dinâmico - Caso 2):', cat, amt);
       } else if (cat && amt !== 0) {
         if (currentSection === 'ENTRADAS') {
           monthsData[currentMonth].entradas[cat] = amt;
