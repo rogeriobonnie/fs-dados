@@ -626,21 +626,26 @@ const CashFlow: React.FC = () => {
     // ========================
     if (cashFlowData.lucroInicial !== undefined && cashFlowData.lucroInicial !== 0) {
       const detalhesCount = cashFlowData.detalhesLucroInicial ? Object.keys(cashFlowData.detalhesLucroInicial).length : 0;
-      ensureSpace(estimateHeight(detalhesCount + 4));
+      ensureSpace(estimateHeight(detalhesCount + 5));
       addSectionHeader('Lucro Inicial', [6, 182, 212]);
       
       addLine('Saldo Final', cashFlowData.saldoFinal, 2, [8, 145, 178]);
       
-      // Exibir TODOS os detalhes capturados dinamicamente
+      // Exibir TODOS os detalhes com indicador de soma/subtração
       if (cashFlowData.detalhesLucroInicial) {
         Object.entries(cashFlowData.detalhesLucroInicial).forEach(([key, value]) => {
           ensureSpace(8);
-          addLine(key, value, 2, [8, 145, 178]);
+          const isPositive = value >= 0;
+          const prefix = isPositive ? '+ ' : '- ';
+          const displayValue = Math.abs(value);
+          const color: [number, number, number] = isPositive ? [22, 163, 74] : [220, 38, 38];
+          addLine(prefix + key, displayValue, 2, color);
         });
       }
       
+      addSeparator();
       yPosition += 2;
-      addTotalBox('LUCRO INICIAL', cashFlowData.lucroInicial, [207, 250, 254], [8, 145, 178]);
+      addTotalBox('= LUCRO INICIAL', cashFlowData.lucroInicial, [207, 250, 254], [8, 145, 178]);
       yPosition += 4;
     }
 
@@ -1199,24 +1204,42 @@ const CashFlow: React.FC = () => {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <CardContent className="space-y-3 pt-0">
+                    {/* Saldo Final como base */}
                     <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-cyan-200">
                       <span className="font-medium text-cyan-700">Saldo Final</span>
                       <span className="text-lg font-bold text-cyan-800">
                         {formatCurrency(cashFlowData.saldoFinal)}
                       </span>
                     </div>
-                    {/* Exibir TODOS os detalhes capturados dinamicamente */}
+                    
+                    {/* Exibir TODOS os detalhes com indicador de soma/subtração */}
                     {cashFlowData.detalhesLucroInicial && Object.entries(cashFlowData.detalhesLucroInicial).map(([key, value]) => (
                       <div 
                         key={key} 
-                        className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-cyan-200"
+                        className={`flex items-center justify-between p-3 rounded-lg border ${
+                          value >= 0 
+                            ? 'bg-green-50/50 border-green-200' 
+                            : 'bg-red-50/50 border-red-200'
+                        }`}
                       >
-                        <span className="font-medium text-cyan-700">{key}</span>
-                        <span className="text-lg font-bold text-cyan-800">
-                          {formatCurrency(value)}
+                        <span className={`font-medium flex items-center gap-2 ${value >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {value >= 0 ? <Plus className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
+                          {key}
+                        </span>
+                        <span className={`text-lg font-bold ${value >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                          {value >= 0 ? '+' : ''}{formatCurrency(value)}
                         </span>
                       </div>
                     ))}
+                    
+                    {/* Separador e Total */}
+                    <Separator className="my-2" />
+                    <div className="flex items-center justify-between p-3 bg-cyan-200/50 rounded-lg border-2 border-cyan-400">
+                      <span className="font-bold text-cyan-900">= LUCRO INICIAL</span>
+                      <span className="text-xl font-bold text-cyan-900">
+                        {formatCurrency(cashFlowData.lucroInicial)}
+                      </span>
+                    </div>
                   </CardContent>
                 </CollapsibleContent>
               </Card>
