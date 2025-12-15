@@ -34,7 +34,7 @@ interface CashFlowData {
   saldoFinal: number;
   despesasVendas: { [key: string]: number };
   totalDespesasVendas: number;
-  // Linhas 27-28: Outras Entradas (informativo)
+  // Outras Entradas (informativo) - capturadas dinamicamente entre TOTAL ENTRADAS e SAÍDAS
   outrasEntradasInfo?: { [key: string]: number };
   // Linhas 34-37: Lucro Inicial
   valorAplicadoBancoInter?: number;
@@ -143,16 +143,6 @@ const CashFlow: React.FC = () => {
 
           const tituloUp = (titulo || '').toString().toUpperCase();
 
-          // Linhas 27-28: Outras Entradas (informativo) - capturar antes de processar seções
-          const rowNumber = rowIndex + 1; // rowIndex é 0-based, linhas da planilha são 1-based
-          if (rowNumber === 27 || rowNumber === 28) {
-            if (titulo && titulo.trim() && valor !== 0) {
-              if (!monthData.outrasEntradasInfo) monthData.outrasEntradasInfo = {};
-              monthData.outrasEntradasInfo[titulo] = valor;
-              console.log(`Outras Entradas (linha ${rowNumber}):`, titulo, valor);
-            }
-          }
-
           if (tituloUp.includes('SALDO INICIAL')) {
             monthData.saldoInicial = valor;
           } else if (tituloUp.includes('ENTRADAS:')) {
@@ -161,7 +151,7 @@ const CashFlow: React.FC = () => {
             currentSection = 'DESPESAS_VENDAS';
           } else if (tituloUp.includes('TOTAL ENTRADAS')) {
             monthData.totalEntradas = valor;
-            currentSection = '';
+            currentSection = 'OUTRAS_ENTRADAS'; // Seção para capturar entradas informativas
           } else if (tituloUp.includes('SAÍDAS:') || tituloUp.includes('SAIDAS:')) {
             currentSection = 'SAIDAS';
           } else if (tituloUp.includes('TOTAL SAÍDAS') || tituloUp.includes('TOTAL SAIDAS')) {
@@ -188,9 +178,14 @@ const CashFlow: React.FC = () => {
             if (currentSection === 'ENTRADAS') {
               monthData.entradas[titulo] = valor;
               monthData.totalEntradasBrutas += valor;
-          } else if (currentSection === 'DESPESAS_VENDAS') {
-            monthData.despesasVendas[titulo] = valor;
-            monthData.totalDespesasVendas += valor;
+            } else if (currentSection === 'DESPESAS_VENDAS') {
+              monthData.despesasVendas[titulo] = valor;
+              monthData.totalDespesasVendas += valor;
+            } else if (currentSection === 'OUTRAS_ENTRADAS') {
+              // Captura dinâmica de outras entradas entre TOTAL ENTRADAS e SAÍDAS
+              if (!monthData.outrasEntradasInfo) monthData.outrasEntradasInfo = {};
+              monthData.outrasEntradasInfo[titulo] = valor;
+              console.log('Outras Entradas (dinâmico):', titulo, valor);
             } else if (currentSection === 'SAIDAS') {
               monthData.saidas[titulo] = Math.abs(valor);
             } else if (currentSection === 'LUCRO_INICIAL') {
@@ -283,7 +278,7 @@ const CashFlow: React.FC = () => {
         currentSection = 'DESPESAS_VENDAS';
       } else if (up.includes('TOTAL ENTRADAS')) {
         monthsData[currentMonth].totalEntradas = Math.abs(amt);
-        currentSection = '';
+        currentSection = 'OUTRAS_ENTRADAS'; // Seção para capturar entradas informativas
       } else if (up.includes('SAÍDAS:') || up.includes('SAIDAS:')) {
         currentSection = 'SAIDAS';
       } else if (up.includes('TOTAL SAÍDAS') || up.includes('TOTAL SAIDAS')) {
@@ -310,6 +305,11 @@ const CashFlow: React.FC = () => {
         } else if (currentSection === 'DESPESAS_VENDAS') {
           monthsData[currentMonth].despesasVendas[cat] = amt;
           monthsData[currentMonth].totalDespesasVendas += amt;
+        } else if (currentSection === 'OUTRAS_ENTRADAS') {
+          // Captura dinâmica de outras entradas entre TOTAL ENTRADAS e SAÍDAS
+          if (!monthsData[currentMonth].outrasEntradasInfo) monthsData[currentMonth].outrasEntradasInfo = {};
+          monthsData[currentMonth].outrasEntradasInfo[cat] = amt;
+          console.log('Outras Entradas (dinâmico - Caso 2):', cat, amt);
         } else if (currentSection === 'SAIDAS') {
           monthsData[currentMonth].saidas[cat] = Math.abs(amt);
         } else if (currentSection === 'LUCRO_INICIAL') {
