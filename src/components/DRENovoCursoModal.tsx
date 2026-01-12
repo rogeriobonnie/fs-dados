@@ -14,12 +14,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatCurrency } from '@/utils/financialCalculations';
-import { Calendar, User, CreditCard, DollarSign } from 'lucide-react';
+import { Calendar, User, CreditCard, DollarSign, Receipt } from 'lucide-react';
 
 export interface DRENovoVenda {
   data: string;
   aluno: string;
   formaPagamento: string;
+  valor: number;
+}
+
+export interface TaxaDetalhe {
+  data: string;
+  descricao: string;
   valor: number;
 }
 
@@ -30,6 +36,8 @@ interface DRENovoCursoModalProps {
   vendas?: DRENovoVenda[];
   vendasEntrada?: DRENovoVenda[];
   vendasTransitar?: DRENovoVenda[];
+  taxasDetalhadas?: TaxaDetalhe[];
+  totalTaxas?: number;
   tipoTransitar?: boolean;
 }
 
@@ -40,6 +48,8 @@ const DRENovoCursoModal: React.FC<DRENovoCursoModalProps> = ({
   vendas,
   vendasEntrada = [],
   vendasTransitar = [],
+  taxasDetalhadas = [],
+  totalTaxas = 0,
   tipoTransitar = false,
 }) => {
   // Support both old (vendas) and new (vendasEntrada/vendasTransitar) format
@@ -124,6 +134,38 @@ const DRENovoCursoModal: React.FC<DRENovoCursoModalProps> = ({
     </div>
   );
 
+  const renderTaxasTable = () => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="p-3 bg-red-50 flex items-center justify-between font-semibold">
+        <span className="flex items-center gap-2">
+          <Receipt className="h-4 w-4 text-red-600" />
+          🔴 TAXAS PLATAFORMA ({taxasDetalhadas.length} registro{taxasDetalhadas.length !== 1 ? 's' : ''})
+        </span>
+        <span className="text-red-600">-{formatCurrency(totalTaxas)}</span>
+      </div>
+      <Table>
+        <TableBody>
+          <TableRow className="bg-muted/30 text-xs text-muted-foreground">
+            <TableCell className="py-1 font-medium">Data</TableCell>
+            <TableCell className="py-1 font-medium">Descrição</TableCell>
+            <TableCell className="py-1 font-medium text-right">Valor</TableCell>
+          </TableRow>
+          {taxasDetalhadas.map((taxa, index) => (
+            <TableRow key={index}>
+              <TableCell className="font-mono text-sm">
+                {taxa.data || '-'}
+              </TableCell>
+              <TableCell>{taxa.descricao || '-'}</TableCell>
+              <TableCell className="text-right font-semibold text-red-600">
+                -{formatCurrency(taxa.valor)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -156,7 +198,7 @@ const DRENovoCursoModal: React.FC<DRENovoCursoModalProps> = ({
             </div>
           </div>
 
-          {/* New format - separate Entrada and Transitar */}
+          {/* New format - separate Entrada, Transitar, and Taxas */}
           {hasNewFormat ? (
             <div className="space-y-4">
               {vendasEntrada.length > 0 && (
@@ -167,12 +209,27 @@ const DRENovoCursoModal: React.FC<DRENovoCursoModalProps> = ({
                 renderVendasTable(vendasTransitar, '📙 TRANSITAR (Parceiro)', totalTransitar, 'bg-orange-50')
               )}
 
+              {/* Taxas Plataforma */}
+              {taxasDetalhadas.length > 0 && renderTaxasTable()}
+
               {/* Total Geral */}
-              <div className="flex items-center justify-between p-4 bg-muted/30 border rounded-lg">
-                <span className="font-semibold">TOTAL GERAL</span>
-                <span className="text-lg font-bold text-green-600">
-                  {formatCurrency(totalVendas)}
-                </span>
+              <div className="space-y-2 p-4 bg-muted/30 border rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Total Bruto</span>
+                  <span className="font-semibold text-green-600">{formatCurrency(totalVendas)}</span>
+                </div>
+                {totalTaxas > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">(-) Taxas Plataforma</span>
+                    <span className="font-semibold text-red-600">-{formatCurrency(totalTaxas)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="font-semibold">LÍQUIDO (sem impostos)</span>
+                  <span className="text-lg font-bold text-green-600">
+                    {formatCurrency(totalVendas - totalTaxas)}
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
