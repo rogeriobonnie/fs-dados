@@ -3,27 +3,90 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { formatCurrency } from '@/utils/financialCalculations';
 import { formatCurrentDate } from '@/utils/dateUtils';
-import { TrendingUp, Search, Filter, RefreshCw, Calendar, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  Search, 
+  Filter, 
+  RefreshCw, 
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Download,
+  FileText,
+  Minus,
+  Users
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import DRENovoCursoModal, { DRENovoVenda } from './DRENovoCursoModal';
 
-interface LanceADoisRecord {
-  id: string;
-  description: string;
-  details: string;
-  amount: number;
-  month: string;
-  year: string;
-  date: string;
-  extraDetail1: string;
-  extraDetail2: string;
+// Interfaces
+interface LanceADoisReceita {
+  descricao: string;
+  tipo: 'entrada' | 'transitar';
+  valorBruto: number;
+  taxasPlataforma: number;
+  impostos: number;
+  valorLiquido: number;
+  vendas: DRENovoVenda[];
 }
 
-interface LanceADoisExpense {
+interface LanceADoisSaida {
+  codigo: string;
+  descricao: string;
+  valor: number;
+}
+
+interface ConsultantCommission {
+  name: string;
+  total: number;
+  commission: number;
+  records: {
+    date: string;
+    customerName: string;
+    product: string;
+    amount: number;
+  }[];
+}
+
+interface LanceADoisDados {
+  mes: string;
+  ano: string;
+  receitas: LanceADoisReceita[];
+  taxasPlataforma: number;
+  impostos: number;
+  saidas: { [codigo: string]: LanceADoisSaida[] };
+  comissoesConsultoras: { [name: string]: ConsultantCommission };
+  totais: {
+    receitaBruta: number;
+    taxasPlataforma: number;
+    impostos: number;
+    receitaLiquida: number;
+    totalSaidas: number;
+    totalComissoes: number;
+    resultado: number;
+  };
+}
+
+interface RawDRERecord {
   id: string;
+  type: string;
   description: string;
   details: string;
   amount: number;
@@ -32,6 +95,9 @@ interface LanceADoisExpense {
   date: string;
   extraDetail1: string;
   extraDetail2: string;
+  extraDetail3: string;
+  originalAmount: number;
+  sourceType: string;
 }
 
 interface ConsultantRecord {
@@ -46,59 +112,71 @@ interface ConsultantRecord {
   product: string;
 }
 
-const LanceADois = () => {
+const monthNames: Record<string, string> = {
+  '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
+  '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
+  '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+};
+
+const codigoNames: Record<string, string> = {
+  '02': 'Saídas Gerais',
+  '02.1': 'Pessoal',
+  '02.2': 'Operacional',
+  '02.3': 'Marketing',
+  '02.4': 'Administrativo',
+  '02.5': 'Outros',
+};
+
+const COMMISSION_RATE = 0.03; // 3%
+
+const LanceADois: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [hasSearched, setHasSearched] = useState(false);
-  const [lanceData, setLanceData] = useState<LanceADoisRecord[]>([]);
-  const [lanceExpenses, setLanceExpenses] = useState<LanceADoisExpense[]>([]);
+  const [rawData, setRawData] = useState<RawDRERecord[]>([]);
   const [consultantData, setConsultantData] = useState<ConsultantRecord[]>([]);
   const [taxData, setTaxData] = useState<{ taxPercentage: number; month: string; year: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
-  const [expensesOpen, setExpensesOpen] = useState(false);
-  const [revenuesOpen, setRevenuesOpen] = useState(false);
-  const [commissionsOpen, setCommissionsOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    receitas: true,
+    saidas: true,
+    comissoes: true,
+  });
+  
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalCurso, setModalCurso] = useState('');
+  const [modalVendas, setModalVendas] = useState<DRENovoVenda[]>([]);
+  
   const { toast } = useToast();
 
-  // Commission rate for consultants
-  const COMMISSION_RATE = 0.03; // 3%
-
-  // Load Lance a Dois data from Google Sheets
-  const loadLanceADoisData = async () => {
+  // Load data from Google Sheets
+  const loadData = async () => {
     setIsLoading(true);
     try {
-      const [lanceDataResult, taxInfo, consultantsData] = await Promise.all([
-        GoogleSheetsService.fetchLanceADoisData(),
+      const [dreData, taxInfo, consultantsData] = await Promise.all([
+        GoogleSheetsService.fetchDREData(),
         GoogleSheetsService.fetchLanceADoisTaxData(),
         GoogleSheetsService.fetchConsultantData()
       ]);
       
-      console.log('Lance a Dois data loaded:', lanceDataResult);
+      console.log('Lance a Dois - DRE data loaded:', dreData.length, 'records');
       console.log('Tax data loaded:', taxInfo);
       console.log('Consultant data loaded:', consultantsData);
       
-      // Debug: Check September data
-      const septemberExpenses = lanceDataResult.expenses.filter(e => e.month === '09');
-      console.log('September expenses found:', septemberExpenses);
-      const septemberTax = taxInfo.find(t => t.month === '09');
-      console.log('September tax data:', septemberTax || 'No tax data for September');
-      
-      setLanceData(lanceDataResult.revenues);
-      setLanceExpenses(lanceDataResult.expenses);
-      setConsultantData(consultantsData);
+      setRawData(dreData);
       setTaxData(taxInfo || []);
+      setConsultantData(consultantsData);
       
       toast({
-        title: "Dados Lance a Dois carregados!",
-        description: `${lanceDataResult.revenues.length} receitas, ${lanceDataResult.expenses.length} despesas e ${consultantsData.length} comissões encontradas`,
+        title: "Dados carregados!",
+        description: `${dreData.length} registros carregados`,
       });
     } catch (error) {
       console.error('Error loading Lance a Dois data:', error);
-      setLanceData([]);
-      setLanceExpenses([]);
-      setConsultantData([]);
+      setRawData([]);
       setTaxData([]);
+      setConsultantData([]);
       toast({
         title: "Erro ao carregar dados",
         description: "Falha ao conectar com a Página2 da planilha.",
@@ -109,129 +187,210 @@ const LanceADois = () => {
     }
   };
 
-  // Auto-load data when component mounts
+  // Auto-load on mount
   useEffect(() => {
-    if (lanceData.length === 0) {
-      loadLanceADoisData();
+    if (rawData.length === 0) {
+      loadData();
     }
   }, []);
 
-  // Get available months and years
+  // Available months and years
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    lanceData.forEach(record => {
-      if (record.month) {
-        const month = record.month.padStart(2, '0');
-        months.add(month);
+    rawData.forEach(record => {
+      if (record.month && record.extraDetail3?.toUpperCase().includes('LANCE A DOIS')) {
+        months.add(record.month.padStart(2, '0'));
       }
     });
     return Array.from(months).sort();
-  }, [lanceData]);
+  }, [rawData]);
 
   const availableYears = useMemo(() => {
     const years = new Set<string>();
-    lanceData.forEach(record => {
-      if (record.year) {
+    rawData.forEach(record => {
+      if (record.year && record.extraDetail3?.toUpperCase().includes('LANCE A DOIS')) {
         years.add(record.year);
       }
     });
     return Array.from(years).sort().reverse();
-  }, [lanceData]);
+  }, [rawData]);
 
-  const monthNames: Record<string, string> = {
-    '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
-    '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
-    '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
-  };
+  // Process data into Lance a Dois structure
+  const processedData = useMemo((): LanceADoisDados => {
+    // Filter only LANCE A DOIS records
+    let filteredData = rawData.filter(record => 
+      record.extraDetail3?.toUpperCase().includes('LANCE A DOIS')
+    );
 
-  // Filter and process data
-  const processedData = useMemo(() => {
-    let filteredData = lanceData;
-
+    // Apply month/year filters
     if (selectedMonth !== 'all' || selectedYear !== 'all') {
-      filteredData = lanceData.filter(record => {
+      filteredData = filteredData.filter(record => {
         const monthMatches = selectedMonth === 'all' || record.month === selectedMonth;
         const yearMatches = selectedYear === 'all' || record.year === selectedYear;
         return monthMatches && yearMatches;
       });
     }
 
-    // Group by description
-    const grouped: { [key: string]: LanceADoisRecord[] } = {};
-    filteredData.forEach(record => {
-      const key = record.description || 'Sem descrição';
-      if (!grouped[key]) {
-        grouped[key] = [];
-      }
-      grouped[key].push(record);
+    console.log('Lance a Dois - Filtered data:', filteredData.length, 'records');
+
+    // Helper to normalize text
+    const normalize = (s?: string) => (s || '')
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+    // Check sourceType (column A)
+    const getSourceType = (record: RawDRERecord) => normalize(record.sourceType || '');
+
+    // Separate records by type based on column A codes
+    const entradasRecords = filteredData.filter(r => {
+      const st = getSourceType(r);
+      return st.startsWith('01') && !st.includes('TRANSITAR') && !st.includes('01.02');
     });
 
-    // Sort groups by total amount (descending)
-    const sortedGrouped = Object.entries(grouped)
-      .map(([category, records]) => ({
-        category,
-        records,
-        total: records.reduce((sum, r) => sum + r.amount, 0)
-      }))
-      .sort((a, b) => b.total - a.total)
-      .reduce((acc, item) => {
-        acc[item.category] = item.records;
-        return acc;
-      }, {} as { [key: string]: LanceADoisRecord[] });
+    const transitarRecords = filteredData.filter(r => {
+      const st = getSourceType(r);
+      return st.includes('TRANSITAR') || st.includes('01-TRANSITAR');
+    });
 
-    const total = filteredData.reduce((sum, record) => sum + record.amount, 0);
+    const taxaRecords = filteredData.filter(r => {
+      const st = getSourceType(r);
+      return st.includes('01.02') || st.includes('TAXA');
+    });
 
-    // Calculate taxes based on filtered data - find matching tax record for selected month/year
-    let taxAmount = 0;
-    let taxPercentage = 12.89269; // Default tax percentage
-    
-    // Find the tax record that matches the selected month and year
+    const saidasRecords = filteredData.filter(r => {
+      const st = getSourceType(r);
+      return st.startsWith('02') || st.includes('SAIDA');
+    });
+
+    console.log('Lance a Dois - Entradas:', entradasRecords.length);
+    console.log('Lance a Dois - Transitar:', transitarRecords.length);
+    console.log('Lance a Dois - Taxas:', taxaRecords.length);
+    console.log('Lance a Dois - Saídas:', saidasRecords.length);
+
+    // Calculate total platform fees (01.02-TAXAS)
+    const totalTaxasPlataforma = taxaRecords.reduce((s, r) => s + Math.abs(r.amount), 0);
+
+    // Calculate total bruto for tax distribution
+    const totalBrutoEntradas = entradasRecords.reduce((s, r) => s + r.amount, 0);
+    const totalBrutoTransitar = transitarRecords.reduce((s, r) => s + r.amount, 0);
+    const totalBruto = totalBrutoEntradas + totalBrutoTransitar;
+    const taxaPercentual = totalBruto > 0 ? totalTaxasPlataforma / totalBruto : 0;
+
+    // Get tax percentage for impostos
     const matchingTax = taxData.find(t => {
       const monthMatches = selectedMonth === 'all' || t.month === selectedMonth;
       const yearMatches = selectedYear === 'all' || t.year === selectedYear;
       return monthMatches && yearMatches;
     });
-    
-    if (matchingTax) {
-      taxPercentage = matchingTax.taxPercentage;
-      console.log('Found matching tax for period:', { selectedMonth, selectedYear, taxPercentage });
-    } else {
-      console.log('No matching tax found for period, using default:', { selectedMonth, selectedYear, taxPercentage });
-    }
-    
-    taxAmount = total * (taxPercentage / 100);
-    
-    // Calculate Lance a Dois expenses (filtered by month/year)
-    let filteredExpenses = lanceExpenses;
-    if (selectedMonth !== 'all' || selectedYear !== 'all') {
-      filteredExpenses = lanceExpenses.filter(expense => {
-        const monthMatches = selectedMonth === 'all' || expense.month === selectedMonth;
-        const yearMatches = selectedYear === 'all' || expense.year === selectedYear;
-        return monthMatches && yearMatches;
-      });
+    const impostosPercentual = matchingTax ? matchingTax.taxPercentage / 100 : 0.1289;
+
+    // Group receitas by description (curso) - combining entradas and transitar
+    const receitasMap = new Map<string, LanceADoisReceita>();
+
+    // Process entradas
+    entradasRecords.forEach(record => {
+      const key = record.description || 'Sem descrição';
+      const existing = receitasMap.get(key);
       
-      console.log('Filtering expenses:', {
-        selectedMonth,
-        selectedYear,
-        totalExpenses: lanceExpenses.length,
-        filteredExpenses: filteredExpenses.length,
-        sampleFiltered: filteredExpenses.slice(0, 3)
-      });
-    }
-    
-    // Group expenses by description (column B) and then by details (column C)
-    const groupedExpenses: { [key: string]: LanceADoisExpense[] } = {};
-    filteredExpenses.forEach(expense => {
-      const key = expense.description || 'Sem descrição';
-      if (!groupedExpenses[key]) {
-        groupedExpenses[key] = [];
+      if (existing && existing.tipo === 'entrada') {
+        existing.valorBruto += record.amount;
+        existing.vendas.push({
+          data: record.date,
+          aluno: record.details || record.extraDetail1 || '',
+          formaPagamento: record.extraDetail2 || '',
+          valor: record.amount,
+        });
+      } else {
+        receitasMap.set(key, {
+          descricao: key,
+          tipo: 'entrada',
+          valorBruto: record.amount,
+          taxasPlataforma: 0,
+          impostos: 0,
+          valorLiquido: 0,
+          vendas: [{
+            data: record.date,
+            aluno: record.details || record.extraDetail1 || '',
+            formaPagamento: record.extraDetail2 || '',
+            valor: record.amount,
+          }],
+        });
       }
-      groupedExpenses[key].push(expense);
     });
-    
-    const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    
-    // Calculate consultant commissions (filtered by month/year)
+
+    // Process transitar
+    transitarRecords.forEach(record => {
+      const key = record.description || 'Sem descrição';
+      const existingEntrada = receitasMap.get(key);
+      const transitarKey = `${key} (Transitar)`;
+      const existingTransitar = receitasMap.get(transitarKey);
+      
+      if (existingTransitar) {
+        existingTransitar.valorBruto += record.amount;
+        existingTransitar.vendas.push({
+          data: record.date,
+          aluno: record.details || record.extraDetail1 || '',
+          formaPagamento: record.extraDetail2 || '',
+          valor: record.amount,
+        });
+      } else {
+        receitasMap.set(transitarKey, {
+          descricao: key,
+          tipo: 'transitar',
+          valorBruto: record.amount,
+          taxasPlataforma: 0,
+          impostos: 0,
+          valorLiquido: 0,
+          vendas: [{
+            data: record.date,
+            aluno: record.details || record.extraDetail1 || '',
+            formaPagamento: record.extraDetail2 || '',
+            valor: record.amount,
+          }],
+        });
+      }
+    });
+
+    // Apply proportional taxes and impostos to each receita
+    receitasMap.forEach((receita) => {
+      receita.taxasPlataforma = receita.valorBruto * taxaPercentual;
+      receita.impostos = receita.valorBruto * impostosPercentual;
+      receita.valorLiquido = receita.valorBruto - receita.taxasPlataforma - receita.impostos;
+    });
+
+    const receitas = Array.from(receitasMap.values()).sort((a, b) => b.valorBruto - a.valorBruto);
+
+    // Group saídas by código (2.1, 2.2, etc.)
+    const saidasByCode: { [codigo: string]: LanceADoisSaida[] } = {};
+    saidasRecords.forEach(record => {
+      const st = getSourceType(record);
+      let codigo = '02';
+      
+      const codeMatch = st.match(/02\.(\d+)/);
+      if (codeMatch) {
+        codigo = `02.${codeMatch[1]}`;
+      } else if (st.includes('PESSOAL') || record.description?.toUpperCase().includes('PESSOAL')) {
+        codigo = '02.1';
+      } else if (st.includes('OPERACIONAL') || record.description?.toUpperCase().includes('OPERACIONAL')) {
+        codigo = '02.2';
+      } else if (st.includes('MARKETING') || record.description?.toUpperCase().includes('MARKETING')) {
+        codigo = '02.3';
+      }
+
+      if (!saidasByCode[codigo]) {
+        saidasByCode[codigo] = [];
+      }
+      
+      saidasByCode[codigo].push({
+        codigo,
+        descricao: record.description || 'Sem descrição',
+        valor: Math.abs(record.amount),
+      });
+    });
+
+    // Calculate consultant commissions (filtered by month/year and LANCE A DOIS)
     let filteredConsultants = consultantData;
     if (selectedMonth !== 'all' || selectedYear !== 'all') {
       filteredConsultants = consultantData.filter(consultant => {
@@ -240,69 +399,65 @@ const LanceADois = () => {
         return monthMatches && yearMatches;
       });
     }
-    
+
     // Group consultants by name and calculate commissions
-    const consultantCommissions: { [key: string]: { total: number; commission: number; records: ConsultantRecord[] } } = {};
+    const comissoesConsultoras: { [name: string]: ConsultantCommission } = {};
     filteredConsultants.forEach(record => {
       const name = record.consultantName || 'Sem nome';
-      if (!consultantCommissions[name]) {
-        consultantCommissions[name] = { total: 0, commission: 0, records: [] };
+      if (!comissoesConsultoras[name]) {
+        comissoesConsultoras[name] = { 
+          name, 
+          total: 0, 
+          commission: 0, 
+          records: [] 
+        };
       }
-      consultantCommissions[name].total += record.amount;
-      consultantCommissions[name].records.push(record);
+      comissoesConsultoras[name].total += record.amount;
+      comissoesConsultoras[name].records.push({
+        date: record.date,
+        customerName: record.customerName,
+        product: record.product,
+        amount: record.amount,
+      });
     });
-    
-    // Calculate total commissions (3% of total sales per consultant)
-    let totalConsultantCommissions = 0;
-    Object.keys(consultantCommissions).forEach(name => {
-      const commission = consultantCommissions[name].total * COMMISSION_RATE;
-      consultantCommissions[name].commission = commission;
-      totalConsultantCommissions += commission;
-    });
-    
-    // Revenue after tax, expenses, and consultant commissions
-    const revenueAfterTaxAndExpenses = total - taxAmount - totalExpenses - totalConsultantCommissions;
-    
-    // Calculate Lance a Dois commission (10% of revenue after tax and expenses)
-    const lanceADoisCommission = revenueAfterTaxAndExpenses * 0.10;
 
-    return { 
-      grouped: sortedGrouped, 
-      total, 
-      taxAmount, 
-      taxPercentage, 
-      totalExpenses,
-      groupedExpenses,
-      totalConsultantCommissions,
-      consultantCommissions,
-      revenueAfterTaxAndExpenses,
-      lanceADoisCommission,
-      count: filteredData.length,
-      expensesCount: filteredExpenses.length,
-      consultantsCount: filteredConsultants.length
+    // Calculate commissions (3%)
+    let totalComissoes = 0;
+    Object.keys(comissoesConsultoras).forEach(name => {
+      const commission = comissoesConsultoras[name].total * COMMISSION_RATE;
+      comissoesConsultoras[name].commission = commission;
+      totalComissoes += commission;
+    });
+
+    // Calculate totals
+    const totais = {
+      receitaBruta: totalBruto,
+      taxasPlataforma: totalTaxasPlataforma,
+      impostos: totalBruto * impostosPercentual,
+      receitaLiquida: totalBruto - totalTaxasPlataforma - (totalBruto * impostosPercentual),
+      totalSaidas: Object.values(saidasByCode).flat().reduce((s, item) => s + item.valor, 0),
+      totalComissoes,
+      resultado: 0,
     };
-  }, [lanceData, lanceExpenses, consultantData, selectedMonth, selectedYear, taxData]);
 
-  // Initialize open state for all categories (all closed by default)
-  useEffect(() => {
-    const initialState: { [key: string]: boolean } = {};
-    Object.keys(processedData.grouped).forEach(key => {
-      initialState[key] = false; // All closed by default
-    });
-    setOpenCategories(initialState);
-  }, [processedData.grouped]);
+    totais.resultado = totais.receitaLiquida - totais.totalSaidas - totais.totalComissoes;
 
-  const toggleCategory = (category: string) => {
-    setOpenCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
-  };
+    return {
+      mes: selectedMonth,
+      ano: selectedYear,
+      receitas,
+      taxasPlataforma: totalTaxasPlataforma,
+      impostos: totais.impostos,
+      saidas: saidasByCode,
+      comissoesConsultoras,
+      totais,
+    };
+  }, [rawData, consultantData, selectedMonth, selectedYear, taxData]);
 
   const handleSearch = () => {
     setHasSearched(true);
-    if (lanceData.length === 0) {
-      loadLanceADoisData();
+    if (rawData.length === 0) {
+      loadData();
     }
   };
 
@@ -312,216 +467,251 @@ const LanceADois = () => {
     setHasSearched(false);
   };
 
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  const openModal = (cursoNome: string, vendas: DRENovoVenda[]) => {
+    setModalCurso(cursoNome);
+    setModalVendas(vendas);
+    setModalOpen(true);
+  };
+
+  const getResultColor = (value: number) => {
+    if (value > 0) return 'text-green-600';
+    if (value < 0) return 'text-red-600';
+    return 'text-muted-foreground';
+  };
+
+  const getResultIcon = (value: number) => {
+    if (value > 0) return <TrendingUp className="h-4 w-4" />;
+    if (value < 0) return <TrendingDown className="h-4 w-4" />;
+    return <DollarSign className="h-4 w-4" />;
+  };
+
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
     let yPosition = 20;
 
-    // Title
+    // Colors
+    const greenColor: [number, number, number] = [34, 197, 94];
+    const redColor: [number, number, number] = [239, 68, 68];
+    const blueColor: [number, number, number] = [59, 130, 246];
+    const purpleColor: [number, number, number] = [139, 92, 246];
+
+    // Header
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('Relatorio Lance a Dois', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 10;
+    doc.text('DEMONSTRATIVO LANCE A DOIS', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 8;
 
-    // Period info
+    // Period
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const periodText = selectedMonth !== 'all' || selectedYear !== 'all' 
-      ? `Periodo: ${selectedMonth !== 'all' ? monthNames[selectedMonth] : 'Todos os meses'} ${selectedYear !== 'all' ? selectedYear : ''}`
-      : 'Periodo: Todos';
+      ? `${selectedMonth !== 'all' ? monthNames[selectedMonth] : 'Todos os meses'} ${selectedYear !== 'all' ? selectedYear : ''}`
+      : 'Todos os períodos';
     doc.text(periodText, pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 15;
 
-    // Gross Revenue Section
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(34, 197, 94); // green
-    doc.text('RECEITAS BRUTAS LANCE A DOIS', 20, yPosition);
-    yPosition += 8;
-
-    doc.setFontSize(12);
-    doc.text(`Total: ${formatCurrency(processedData.total)}`, 20, yPosition);
-    yPosition += 8;
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${processedData.count} registro(s) - ${Object.keys(processedData.grouped).length} categoria(s)`, 20, yPosition);
+    // Summary Box
+    doc.setFillColor(240, 240, 240);
+    doc.roundedRect(15, yPosition, pageWidth - 30, 50, 3, 3, 'F');
+    
     yPosition += 10;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMO GERAL', 20, yPosition);
+    yPosition += 8;
 
-    // Revenue breakdown by category
-    Object.entries(processedData.grouped).forEach(([category, records]) => {
-      if (yPosition > pageHeight - 30) {
-        doc.addPage();
-        yPosition = 20;
-      }
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    const summaryData = [
+      ['Receita Bruta', formatCurrency(processedData.totais.receitaBruta)],
+      ['(-) Taxas Plataforma', `- ${formatCurrency(processedData.totais.taxasPlataforma)}`],
+      ['(-) Impostos', `- ${formatCurrency(processedData.totais.impostos)}`],
+      ['(=) Receita Líquida', formatCurrency(processedData.totais.receitaLiquida)],
+      ['(-) Despesas', `- ${formatCurrency(processedData.totais.totalSaidas)}`],
+      ['(-) Comissões (3%)', `- ${formatCurrency(processedData.totais.totalComissoes)}`],
+    ];
 
-      const categoryTotal = records.reduce((sum, r) => sum + r.amount, 0);
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${category}:`, 25, yPosition);
-      doc.text(formatCurrency(categoryTotal), pageWidth - 25, yPosition, { align: 'right' });
-      yPosition += 6;
-
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      records.forEach((record) => {
-        if (yPosition > pageHeight - 20) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        doc.text(`- ${record.details}`, 30, yPosition);
-        doc.text(formatCurrency(record.amount), pageWidth - 30, yPosition, { align: 'right' });
-        yPosition += 4;
-      });
-      yPosition += 4;
+    summaryData.forEach(([label, value]) => {
+      doc.text(label, 25, yPosition);
+      doc.text(value, pageWidth - 25, yPosition, { align: 'right' });
+      yPosition += 5;
     });
 
+    yPosition += 3;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    const resultColor = processedData.totais.resultado >= 0 ? greenColor : redColor;
+    doc.setTextColor(...resultColor);
+    doc.text('RESULTADO', 25, yPosition);
+    doc.text(formatCurrency(processedData.totais.resultado), pageWidth - 25, yPosition, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    yPosition += 20;
+
+    // Receitas Table
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...greenColor);
+    doc.text('01 - RECEITAS BRUTAS (Por Curso)', 20, yPosition);
+    doc.setTextColor(0, 0, 0);
     yPosition += 5;
 
-    // Taxes Section
-    if (processedData.taxAmount > 0) {
-      if (yPosition > pageHeight - 40) {
-        doc.addPage();
-        yPosition = 20;
-      }
+    if (processedData.receitas.length > 0) {
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Curso', 'Tipo', 'Bruto', 'Taxas Plat.', 'Impostos', 'Líquido']],
+        body: processedData.receitas.map(r => [
+          r.descricao.substring(0, 25),
+          r.tipo === 'entrada' ? 'Entrada' : 'Transitar',
+          formatCurrency(r.valorBruto),
+          `- ${formatCurrency(r.taxasPlataforma)}`,
+          `- ${formatCurrency(r.impostos)}`,
+          formatCurrency(r.valorLiquido),
+        ]),
+        foot: [[
+          'TOTAL RECEITAS',
+          '',
+          formatCurrency(processedData.totais.receitaBruta),
+          `- ${formatCurrency(processedData.totais.taxasPlataforma)}`,
+          `- ${formatCurrency(processedData.totais.impostos)}`,
+          formatCurrency(processedData.totais.receitaLiquida),
+        ]],
+        theme: 'striped',
+        headStyles: { fillColor: greenColor, fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        footStyles: { fillColor: [220, 252, 231], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8 },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 20 },
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+        },
+      });
 
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(239, 68, 68); // red
-      doc.text('IMPOSTOS', 20, yPosition);
-      yPosition += 7;
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-      doc.text(`${processedData.taxPercentage.toFixed(2)}%: ${formatCurrency(processedData.taxAmount)}`, 25, yPosition);
-      yPosition += 10;
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
     }
 
-    // Expenses Section
-    if (processedData.totalExpenses > 0 || processedData.totalConsultantCommissions > 0) {
-      if (yPosition > pageHeight - 40) {
-        doc.addPage();
-        yPosition = 20;
-      }
-
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(239, 68, 68); // red
-      doc.text('DESPESAS LANCE A DOIS', 20, yPosition);
-      yPosition += 7;
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Total: ${formatCurrency(processedData.totalExpenses + processedData.totalConsultantCommissions)}`, 25, yPosition);
-      yPosition += 8;
-
-      // Regular expenses
-      if (processedData.totalExpenses > 0) {
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Despesas Gerais:', 25, yPosition);
-        yPosition += 5;
-
-        doc.setFont('helvetica', 'normal');
-        Object.entries(processedData.groupedExpenses)
-          .flatMap(([category, expenses]) =>
-            expenses.map((expense) => ({
-              ...expense,
-              category
-            }))
-          )
-          .sort((a, b) => b.amount - a.amount)
-          .forEach((expense) => {
-            if (yPosition > pageHeight - 20) {
-              doc.addPage();
-              yPosition = 20;
-            }
-            doc.text(`- ${expense.category} (${expense.details})`, 30, yPosition);
-            doc.text(formatCurrency(expense.amount), pageWidth - 30, yPosition, { align: 'right' });
-            yPosition += 5;
-          });
-        yPosition += 3;
-      }
-
-      // Consultant commissions
-      if (processedData.totalConsultantCommissions > 0) {
-        if (yPosition > pageHeight - 30) {
-          doc.addPage();
-          yPosition = 20;
-        }
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Comissoes Consultoras (3%):', 25, yPosition);
-        doc.text(formatCurrency(processedData.totalConsultantCommissions), pageWidth - 30, yPosition, { align: 'right' });
-        yPosition += 5;
-
-        doc.setFont('helvetica', 'normal');
-        Object.entries(processedData.consultantCommissions)
-          .sort(([, a], [, b]) => b.commission - a.commission)
-          .forEach(([name, data]) => {
-            if (yPosition > pageHeight - 20) {
-              doc.addPage();
-              yPosition = 20;
-            }
-            doc.text(`- ${name} (${data.records.length} venda(s))`, 30, yPosition);
-            doc.text(formatCurrency(data.commission), pageWidth - 30, yPosition, { align: 'right' });
-            yPosition += 5;
-          });
-        yPosition += 3;
-      }
-    }
-
-    yPosition += 5;
-
-    // Net Revenue Section
-    if (yPosition > pageHeight - 30) {
+    // Check if need new page
+    if (yPosition > 230) {
       doc.addPage();
       yPosition = 20;
     }
 
+    // Despesas Table
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(34, 197, 94); // green
-    doc.text('RECEITAS LIQUIDAS', 20, yPosition);
-    yPosition += 7;
-
-    doc.setFontSize(11);
+    doc.setTextColor(...redColor);
+    doc.text('02 - DESPESAS (Por Categoria)', 20, yPosition);
     doc.setTextColor(0, 0, 0);
-    doc.text(formatCurrency(processedData.revenueAfterTaxAndExpenses), 25, yPosition);
-    yPosition += 10;
+    yPosition += 5;
 
-    // Lance a Dois Commission
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(234, 179, 8); // yellow
-    doc.text('COMISSAO LANCE A DOIS (10%)', 20, yPosition);
-    yPosition += 7;
+    const allExpenses = Object.entries(processedData.saidas)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .flatMap(([codigo, items]) => 
+        items.map(item => ({
+          codigo,
+          categoria: codigoNames[codigo] || 'Outras',
+          descricao: item.descricao,
+          valor: item.valor,
+        }))
+      );
 
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
-    doc.text(formatCurrency(processedData.lanceADoisCommission), 25, yPosition);
+    if (allExpenses.length > 0) {
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Código', 'Categoria', 'Descrição', 'Valor']],
+        body: allExpenses.map(e => [
+          e.codigo,
+          e.categoria,
+          e.descricao.substring(0, 35),
+          formatCurrency(e.valor),
+        ]),
+        foot: [['', '', 'TOTAL DESPESAS', formatCurrency(processedData.totais.totalSaidas)]],
+        theme: 'striped',
+        headStyles: { fillColor: redColor, fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        footStyles: { fillColor: [254, 226, 226], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8 },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 20 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 80 },
+          3: { halign: 'right' },
+        },
+      });
 
-    // Footer
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // Check if need new page
+    if (yPosition > 230) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Comissões Table
+    if (Object.keys(processedData.comissoesConsultoras).length > 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...purpleColor);
+      doc.text('COMISSÕES CONSULTORAS (3%)', 20, yPosition);
+      doc.setTextColor(0, 0, 0);
+      yPosition += 5;
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Consultora', 'Vendas', 'Total Vendido', 'Comissão (3%)']],
+        body: Object.values(processedData.comissoesConsultoras)
+          .sort((a, b) => b.commission - a.commission)
+          .map(c => [
+            c.name,
+            c.records.length.toString(),
+            formatCurrency(c.total),
+            formatCurrency(c.commission),
+          ]),
+        foot: [['', '', 'TOTAL COMISSÕES', formatCurrency(processedData.totais.totalComissoes)]],
+        theme: 'striped',
+        headStyles: { fillColor: purpleColor, fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        footStyles: { fillColor: [237, 233, 254], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8 },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { halign: 'center' },
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+        },
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // Footer on all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(128, 128, 128);
-      doc.text(`Pagina ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-      doc.text(`Gerado em ${formatCurrentDate()}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+      doc.text(`Gerado em ${formatCurrentDate()}`, pageWidth - 20, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
     }
 
     doc.save(`lance_a_dois_${new Date().toISOString().split('T')[0]}.pdf`);
     
     toast({
       title: "PDF gerado!",
-      description: "O relatorio foi baixado com sucesso.",
+      description: "O relatório foi baixado com sucesso.",
     });
   };
 
@@ -532,7 +722,7 @@ const LanceADois = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Filtros Lance a Dois
+            Demonstrativo Comissões Lance a Dois
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -587,8 +777,8 @@ const LanceADois = () => {
                 </Button>
               )}
 
-              {lanceData.length > 0 && (
-                <Button variant="outline" onClick={loadLanceADoisData} disabled={isLoading}>
+              {rawData.length > 0 && (
+                <Button variant="outline" onClick={loadData} disabled={isLoading}>
                   <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                   Atualizar
                 </Button>
@@ -614,7 +804,7 @@ const LanceADois = () => {
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
+      {/* PDF Button */}
       {hasSearched && (
         <div className="flex justify-end">
           <Button onClick={generatePDF} className="flex items-center gap-2">
@@ -624,210 +814,412 @@ const LanceADois = () => {
         </div>
       )}
 
-      {/* Summary Card */}
+      {/* Summary Cards */}
       {hasSearched && (
-        <Card className="border-success/30 bg-gradient-to-br from-success/5 via-success/10 to-success/15 shadow-lg">
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div 
-                className="flex items-center justify-between cursor-pointer hover:bg-success/10 p-3 rounded-lg transition-all"
-                onClick={() => setRevenuesOpen(!revenuesOpen)}
-              >
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
-                    {revenuesOpen ? (
-                      <ChevronUp className="h-5 w-5 text-success" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-success" />
-                    )}
-                    <p className="text-sm font-medium text-success">Receitas Brutas Lance a Dois</p>
-                  </div>
-                  <p className="text-3xl font-bold text-success mt-2 ml-7">
-                    {formatCurrency(processedData.total)}
+                  <p className="text-sm font-medium text-green-700">Receita Líquida</p>
+                  <p className="text-2xl font-bold text-green-800">
+                    {formatCurrency(processedData.totais.receitaLiquida)}
                   </p>
-                  <p className="text-xs text-success/70 mt-2 ml-7">
-                    {processedData.count} registro{processedData.count !== 1 ? 's' : ''} • {Object.keys(processedData.grouped).length} categoria{Object.keys(processedData.grouped).length !== 1 ? 's' : ''}
+                  <p className="text-xs text-green-600 mt-1">
+                    Após taxas e impostos
                   </p>
                 </div>
-                <div className="p-4 bg-success/20 rounded-full">
-                  <TrendingUp className="h-8 w-8 text-success" />
+                <div className="p-3 bg-green-200 rounded-full">
+                  <TrendingUp className="h-6 w-6 text-green-700" />
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {revenuesOpen && (
-                <div className="ml-7 space-y-2 bg-success/5 p-4 rounded-lg border border-success/20 max-h-96 overflow-y-auto">
-                  {Object.entries(processedData.grouped).map(([category, records]) => {
-                    const categoryTotal = records.reduce((sum, r) => sum + r.amount, 0);
-                    const isOpen = openCategories[category];
-                    
-                    return (
-                      <div key={category} className="border-l-2 border-success/40 pl-3">
-                        <div 
-                          className="flex items-center justify-between mb-1 cursor-pointer hover:bg-success/10 p-2 rounded-lg transition-all"
-                          onClick={() => toggleCategory(category)}
-                        >
-                          <div className="flex items-center gap-2">
-                            {isOpen ? (
-                              <ChevronUp className="h-4 w-4 text-success" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 text-success" />
-                            )}
-                            <p className="font-medium text-sm text-success">{category}</p>
-                            <Badge variant="secondary" className="text-xs bg-success/10 text-success border-success/20">
-                              {records.length}
+          <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-700">Receita Bruta</p>
+                  <p className="text-2xl font-bold text-blue-800">
+                    {formatCurrency(processedData.totais.receitaBruta)}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {processedData.receitas.length} curso(s)
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-200 rounded-full">
+                  <DollarSign className="h-6 w-6 text-blue-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-red-700">Taxas + Impostos</p>
+                  <p className="text-2xl font-bold text-red-800">
+                    - {formatCurrency(processedData.totais.taxasPlataforma + processedData.totais.impostos)}
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">
+                    Deduções
+                  </p>
+                </div>
+                <div className="p-3 bg-red-200 rounded-full">
+                  <TrendingDown className="h-6 w-6 text-red-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`border-2 ${processedData.totais.resultado >= 0 ? 'border-green-300 bg-gradient-to-br from-green-50 to-green-100' : 'border-red-300 bg-gradient-to-br from-red-50 to-red-100'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Resultado</p>
+                  <p className={`text-2xl font-bold ${getResultColor(processedData.totais.resultado)}`}>
+                    {formatCurrency(processedData.totais.resultado)}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {processedData.totais.resultado >= 0 ? 'Lucro' : 'Prejuízo'}
+                  </p>
+                </div>
+                <div className={`p-3 rounded-full ${processedData.totais.resultado >= 0 ? 'bg-green-200' : 'bg-red-200'}`}>
+                  {getResultIcon(processedData.totais.resultado)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* 01 - RECEITAS BRUTAS Table */}
+      {hasSearched && (
+        <Card>
+          <Collapsible open={openSections.receitas} onOpenChange={() => toggleSection('receitas')}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-green-600">
+                    <TrendingUp className="h-5 w-5" />
+                    01 - RECEITAS BRUTAS (Por Curso)
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-green-600 font-bold">
+                      {formatCurrency(processedData.totais.receitaLiquida)}
+                    </span>
+                    {openSections.receitas ? (
+                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead>Curso</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-right">Valor Bruto</TableHead>
+                        <TableHead className="text-right">Taxas Plat.</TableHead>
+                        <TableHead className="text-right">Impostos</TableHead>
+                        <TableHead className="text-right">Líquido</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {processedData.receitas.map((receita, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <button
+                              onClick={() => openModal(receita.descricao, receita.vendas)}
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              {receita.descricao}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={receita.tipo === 'entrada' ? 'default' : 'secondary'}>
+                              {receita.tipo === 'entrada' ? 'Entrada' : 'Transitar'}
                             </Badge>
-                          </div>
-                          <p className="font-semibold text-success">{formatCurrency(categoryTotal)}</p>
-                        </div>
-                        
-                        {isOpen && (
-                          <div className="space-y-1 ml-6 mt-2">
-                            {records.map((record) => (
-                              <div key={record.id} className="flex items-center justify-between text-xs text-success/80 py-1">
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{record.details}</span>
-                                  {record.date && (
-                                    <span className="text-[10px] text-success/60">{record.date}</span>
-                                  )}
-                                </div>
-                                <span className="font-medium">{formatCurrency(record.amount)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Taxes */}
-              {processedData.taxAmount > 0 && (
-                <div className="border-t border-border pt-3">
-                  <div className="flex items-center justify-between p-2 bg-destructive/5 rounded-lg">
-                    <p className="text-sm font-medium text-destructive">
-                      Impostos ({processedData.taxPercentage.toFixed(2)}%)
-                    </p>
-                    <p className="text-lg font-semibold text-destructive">
-                      - {formatCurrency(processedData.taxAmount)}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Expenses */}
-              {(processedData.totalExpenses > 0 || processedData.totalConsultantCommissions > 0) && (
-                <div className="border-t border-border pt-3">
-                  <div 
-                    className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-3 rounded-lg transition-all bg-destructive/5"
-                    onClick={() => setExpensesOpen(!expensesOpen)}
-                  >
-                    <div className="flex items-center gap-2">
-                      {expensesOpen ? (
-                        <ChevronUp className="h-4 w-4 text-destructive" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-destructive" />
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatCurrency(receita.valorBruto)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-red-600">
+                            -{formatCurrency(receita.taxasPlataforma)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-red-600">
+                            -{formatCurrency(receita.impostos)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-semibold text-green-600">
+                            {formatCurrency(receita.valorLiquido)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {processedData.receitas.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            Nenhuma receita encontrada para o período selecionado.
+                          </TableCell>
+                        </TableRow>
                       )}
-                      <p className="text-sm font-medium text-destructive">
-                        Despesas Lance a Dois ({processedData.expensesCount + (processedData.consultantsCount > 0 ? 1 : 0)} categoria{processedData.expensesCount + (processedData.consultantsCount > 0 ? 1 : 0) !== 1 ? 's' : ''})
-                      </p>
-                    </div>
-                    <p className="text-lg font-semibold text-destructive">
-                      - {formatCurrency(processedData.totalExpenses + processedData.totalConsultantCommissions)}
-                    </p>
-                  </div>
+                    </TableBody>
+                  </Table>
                   
-                  {expensesOpen && (
-                    <div className="mt-2 ml-6 space-y-3 bg-destructive/5 p-3 rounded-lg border border-destructive/20">
-                      {/* Regular Expenses */}
-                      {processedData.totalExpenses > 0 && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold text-destructive/70 mb-2">Despesas Gerais:</p>
-                          {Object.entries(processedData.groupedExpenses)
-                            .flatMap(([category, expenses]) =>
-                              expenses.map((expense) => ({
-                                ...expense,
-                                category
-                              }))
-                            )
-                            .sort((a, b) => b.amount - a.amount)
-                            .map((expense) => (
-                              <div key={expense.id} className="flex items-center justify-between text-sm text-destructive/90 py-1">
-                                <span className="font-medium">{expense.category} ({expense.details})</span>
-                                <span className="font-semibold">{formatCurrency(expense.amount)}</span>
-                              </div>
-                            ))
-                          }
-                        </div>
-                      )}
-                      
-                      {/* Consultant Commissions */}
-                      {processedData.totalConsultantCommissions > 0 && (
-                        <div className="space-y-1 pt-3 border-t border-destructive/20">
-                          <div 
-                            className="flex items-center justify-between cursor-pointer hover:bg-destructive/10 p-2 rounded-lg transition-all"
-                            onClick={() => setCommissionsOpen(!commissionsOpen)}
-                          >
-                            <div className="flex items-center gap-2">
-                              {commissionsOpen ? (
-                                <ChevronUp className="h-3 w-3 text-destructive" />
-                              ) : (
-                                <ChevronDown className="h-3 w-3 text-destructive" />
-                              )}
-                              <span className="text-xs font-semibold text-destructive/70">
-                                Comissões Consultoras (3%):
-                              </span>
-                            </div>
-                            <span className="text-sm font-bold text-destructive">
-                              {formatCurrency(processedData.totalConsultantCommissions)}
-                            </span>
-                          </div>
-                          
-                          {commissionsOpen && (
-                            <div className="ml-4 space-y-1">
-                              {Object.entries(processedData.consultantCommissions)
-                                .sort(([, a], [, b]) => b.commission - a.commission)
-                                .map(([name, data]) => (
-                                  <div key={name} className="flex items-center justify-between text-sm text-destructive/90 py-1">
-                                    <span className="font-medium">{name} ({data.records.length} venda{data.records.length !== 1 ? 's' : ''})</span>
-                                    <span className="font-semibold">{formatCurrency(data.commission)}</span>
-                                  </div>
-                                ))
-                              }
-                            </div>
-                          )}
-                        </div>
-                      )}
+                  {/* Subtotal */}
+                  {processedData.receitas.length > 0 && (
+                    <div className="flex items-center justify-between p-4 bg-green-50 border-t font-semibold">
+                      <span>SUBTOTAL RECEITAS</span>
+                      <div className="flex gap-6">
+                        <span className="text-right w-24">
+                          {formatCurrency(processedData.totais.receitaBruta)}
+                        </span>
+                        <span className="text-right w-24 text-red-600">
+                          -{formatCurrency(processedData.totais.taxasPlataforma)}
+                        </span>
+                        <span className="text-right w-24 text-red-600">
+                          -{formatCurrency(processedData.totais.impostos)}
+                        </span>
+                        <span className="text-right w-24 text-green-600">
+                          {formatCurrency(processedData.totais.receitaLiquida)}
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      )}
 
-              {/* Net Revenue */}
-              <div className="border-t-2 border-success/30 pt-3">
-                <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
-                  <p className="text-sm font-medium text-success">Receitas Líquidas</p>
-                  <p className="text-xl font-bold text-success">
-                    {formatCurrency(processedData.revenueAfterTaxAndExpenses)}
-                  </p>
+      {/* 02 - SAÍDAS Table */}
+      {hasSearched && (
+        <Card>
+          <Collapsible open={openSections.saidas} onOpenChange={() => toggleSection('saidas')}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-red-600">
+                    <TrendingDown className="h-5 w-5" />
+                    02 - DESPESAS
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-red-600 font-bold">
+                      -{formatCurrency(processedData.totais.totalSaidas)}
+                    </span>
+                    {openSections.saidas ? (
+                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-4">
+                {Object.entries(processedData.saidas)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([codigo, items]) => {
+                    const subtotal = items.reduce((s, i) => s + i.valor, 0);
+                    return (
+                      <div key={codigo} className="border rounded-lg overflow-hidden">
+                        <div className="bg-red-50 p-3 flex items-center justify-between font-semibold">
+                          <span className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-red-600" />
+                            {codigo} - {codigoNames[codigo] || 'Despesas'}
+                          </span>
+                          <span className="text-red-600">
+                            {formatCurrency(subtotal)}
+                          </span>
+                        </div>
+                        <div className="divide-y">
+                          {items.map((item, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 hover:bg-muted/30">
+                              <span className="text-muted-foreground pl-6 flex items-center gap-2">
+                                <Minus className="h-3 w-3" />
+                                {item.descricao}
+                              </span>
+                              <span className="font-mono">
+                                {formatCurrency(item.valor)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {Object.keys(processedData.saidas).length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma despesa encontrada para o período selecionado.
+                  </div>
+                )}
+
+                {/* Total Saídas */}
+                {Object.keys(processedData.saidas).length > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-red-100 rounded-lg font-bold text-lg">
+                    <span>TOTAL DESPESAS</span>
+                    <span className="text-red-600">
+                      -{formatCurrency(processedData.totais.totalSaidas)}
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      )}
+
+      {/* Comissões Consultoras */}
+      {hasSearched && Object.keys(processedData.comissoesConsultoras).length > 0 && (
+        <Card>
+          <Collapsible open={openSections.comissoes} onOpenChange={() => toggleSection('comissoes')}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-purple-600">
+                    <Users className="h-5 w-5" />
+                    COMISSÕES CONSULTORAS (3%)
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-purple-600 font-bold">
+                      -{formatCurrency(processedData.totais.totalComissoes)}
+                    </span>
+                    {openSections.comissoes ? (
+                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead>Consultora</TableHead>
+                        <TableHead className="text-center">Vendas</TableHead>
+                        <TableHead className="text-right">Total Vendido</TableHead>
+                        <TableHead className="text-right">Comissão (3%)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.values(processedData.comissoesConsultoras)
+                        .sort((a, b) => b.commission - a.commission)
+                        .map((consultora, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{consultora.name}</TableCell>
+                            <TableCell className="text-center">{consultora.records.length}</TableCell>
+                            <TableCell className="text-right font-mono">
+                              {formatCurrency(consultora.total)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-semibold text-purple-600">
+                              {formatCurrency(consultora.commission)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                  
+                  <div className="flex items-center justify-between p-4 bg-purple-50 border-t font-semibold">
+                    <span>TOTAL COMISSÕES</span>
+                    <span className="text-purple-600">
+                      {formatCurrency(processedData.totais.totalComissoes)}
+                    </span>
+                  </div>
                 </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      )}
+
+      {/* Resultado Final */}
+      {hasSearched && (
+        <Card className={`border-2 ${processedData.totais.resultado >= 0 ? 'border-green-400' : 'border-red-400'}`}>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-lg">
+                <span className="text-muted-foreground">Receita Líquida</span>
+                <span className="font-semibold text-green-600">
+                  {formatCurrency(processedData.totais.receitaLiquida)}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between text-lg">
+                <span className="text-muted-foreground">(-) Total Despesas</span>
+                <span className="font-semibold text-red-600">
+                  -{formatCurrency(processedData.totais.totalSaidas)}
+                </span>
               </div>
 
-              {/* LAD Commission */}
-              <div className="border-t border-border pt-3">
-                <div className="flex items-center justify-between p-2 bg-warning/5 rounded-lg">
-                  <p className="text-sm font-medium text-warning">
-                    Comissão Lance a Dois (10%)
-                  </p>
-                  <p className="text-lg font-semibold text-warning">
-                    - {formatCurrency(processedData.lanceADoisCommission)}
-                  </p>
+              <div className="flex items-center justify-between text-lg">
+                <span className="text-muted-foreground">(-) Comissões (3%)</span>
+                <span className="font-semibold text-purple-600">
+                  -{formatCurrency(processedData.totais.totalComissoes)}
+                </span>
+              </div>
+
+              <div className="border-t-2 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xl font-bold">
+                    {getResultIcon(processedData.totais.resultado)}
+                    <span>RESULTADO</span>
+                  </div>
+                  <span className={`text-3xl font-bold ${getResultColor(processedData.totais.resultado)}`}>
+                    {formatCurrency(processedData.totais.resultado)}
+                  </span>
                 </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {processedData.totais.resultado >= 0 
+                    ? 'Lucro no período selecionado' 
+                    : 'Prejuízo no período selecionado'}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Initial State */}
+      {!hasSearched && (
+        <Card className="border-dashed">
+          <CardContent className="p-12 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="p-4 bg-muted rounded-full">
+                <Search className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Demonstrativo Lance a Dois</h3>
+                <p className="text-muted-foreground mt-1">
+                  Selecione um período e clique em "Consultar" para visualizar o demonstrativo.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Modal */}
+      <DRENovoCursoModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        cursoNome={modalCurso}
+        vendas={modalVendas}
+      />
     </div>
   );
 };
