@@ -7,6 +7,7 @@ import { QuickFilters } from '@/components/QuickFilters';
 import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { MonthlyCommissionReport } from '@/components/MonthlyCommissionReport';
 import FinancialDRE from '@/components/FinancialDRE';
+import FinancialDRENovo from '@/components/FinancialDRENovo';
 import CashFlow from '@/components/CashFlow';
 import Comissoes from '@/components/Comissoes';
 import { PinAuth } from '@/components/PinAuth';
@@ -254,11 +255,15 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="demonstracoes" className="space-y-6">
-              <Tabs defaultValue="dre" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+              <Tabs defaultValue="dre-novo" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="dre-novo" className="flex items-center gap-1">
+                    <BarChart3 className="h-4 w-4" />
+                    DRE Novo
+                  </TabsTrigger>
                   <TabsTrigger value="dre" className="flex items-center gap-1">
                     <BarChart3 className="h-4 w-4" />
-                    DRE
+                    DRE Antigo
                   </TabsTrigger>
                   <TabsTrigger value="fluxo-caixa" className="flex items-center gap-1">
                     <DollarSign className="h-4 w-4" />
@@ -269,6 +274,9 @@ const Index = () => {
                     Comissões
                   </TabsTrigger>
                 </TabsList>
+                <TabsContent value="dre-novo" className="space-y-6">
+                  <FinancialDRENovo />
+                </TabsContent>
                 <TabsContent value="dre" className="space-y-6">
                   <FinancialDRE data={filteredData} />
                 </TabsContent>
