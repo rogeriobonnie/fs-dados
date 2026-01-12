@@ -9,6 +9,7 @@ import { formatCurrentDate } from '@/utils/dateUtils';
 import { Search, Filter, RefreshCw, Calendar, Users, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ConsultantRecord {
   id: string;
@@ -277,8 +278,8 @@ const Consultoras = () => {
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPosition = 20;
 
-    const consultantData = consultantName === 'STELLA' ? processedData.stella : processedData.stephanie;
-    const color = consultantName === 'STELLA' ? [59, 130, 246] : [139, 92, 246]; // blue or purple
+    const data = consultantName === 'STELLA' ? processedData.stella : processedData.stephanie;
+    const color: [number, number, number] = consultantName === 'STELLA' ? [59, 130, 246] : [139, 92, 246];
 
     // Title
     doc.setFontSize(18);
@@ -295,51 +296,89 @@ const Consultoras = () => {
     doc.text(periodText, pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 15;
 
-    // Consultant Section
-    doc.setFontSize(14);
+    // Summary box
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(15, yPosition - 5, pageWidth - 30, 30, 3, 3, 'F');
+    
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(color[0], color[1], color[2]);
-    doc.text(consultantName, 20, yPosition);
-    yPosition += 8;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
-    doc.text(`Total de Vendas: ${formatCurrency(consultantData.total)}`, 20, yPosition);
-    yPosition += 6;
-    doc.text(`Comissão (3%): ${formatCurrency(consultantData.commission)}`, 20, yPosition);
-    yPosition += 6;
-    doc.text(`Registros: ${consultantData.records.length}`, 20, yPosition);
-    yPosition += 10;
+    doc.text(`Total de Vendas: ${formatCurrency(data.total)}`, 20, yPosition + 5);
+    doc.text(`Comissão (3%): ${formatCurrency(data.commission)}`, 20, yPosition + 13);
+    doc.text(`Total de Registros: ${data.records.length}`, 20, yPosition + 21);
+    yPosition += 35;
 
-    // Records
-    if (consultantData.records.length > 0) {
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Detalhamento:', 25, yPosition);
-      yPosition += 5;
+    // Group records by course/product
+    const recordsByCourse: { [curso: string]: ConsultantRecord[] } = {};
+    data.records.forEach(record => {
+      const curso = record.product || 'Sem Curso';
+      if (!recordsByCourse[curso]) {
+        recordsByCourse[curso] = [];
+      }
+      recordsByCourse[curso].push(record);
+    });
+
+    // Sort courses alphabetically
+    const sortedCourses = Object.keys(recordsByCourse).sort();
+
+    // Generate table for each course
+    sortedCourses.forEach((curso) => {
+      const records = recordsByCourse[curso];
       
-      doc.setFont('helvetica', 'normal');
-      consultantData.records.forEach((record, index) => {
-        if (yPosition > pageHeight - 20) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        doc.text(`• ${record.date || 'Sem data'} | ${record.customerName} | ${record.product}`, 30, yPosition);
-        yPosition += 4;
-        doc.text(`  ${formatCurrency(record.amount)}`, 35, yPosition);
-        yPosition += 6;
-      });
-    }
+      // Check if we need a new page for the course title
+      if (yPosition > pageHeight - 50) {
+        doc.addPage();
+        yPosition = 20;
+      }
 
-    // Footer
+      // Course title
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(color[0], color[1], color[2]);
+      doc.text(`📚 ${curso}`, 15, yPosition);
+      doc.setTextColor(0, 0, 0);
+      yPosition += 3;
+
+      // Table with autoTable
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Data', 'Cliente', 'Valor']],
+        body: records.map(r => [
+          r.date || 'Sem data',
+          r.customerName || 'Sem nome',
+          formatCurrency(r.amount)
+        ]),
+        theme: 'striped',
+        headStyles: { 
+          fillColor: color,
+          fontSize: 9,
+          fontStyle: 'bold',
+          halign: 'left'
+        },
+        bodyStyles: { 
+          fontSize: 9,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 35, halign: 'right' }
+        },
+        margin: { left: 15, right: 15 },
+        tableWidth: 'auto',
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 12;
+    });
+
+    // Footer on all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(128, 128, 128);
       doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-      doc.text(`Gerado em ${formatCurrentDate()}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+      doc.text(`Gerado em ${formatCurrentDate()}`, pageWidth - 15, pageHeight - 10, { align: 'right' });
     }
 
     doc.save(`comissao_${consultantName.toLowerCase()}_${new Date().toISOString().split('T')[0]}.pdf`);
