@@ -34,7 +34,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import DRENovoCursoModal, { DRENovoVenda } from './DRENovoCursoModal';
+import DRENovoCursoModal, { DRENovoVenda, TaxaDetalhe } from './DRENovoCursoModal';
 
 // Interfaces
 interface LanceADoisReceita {
@@ -43,6 +43,7 @@ interface LanceADoisReceita {
   valorTransitar: number;
   valorBruto: number;
   taxasPlataforma: number;
+  taxasDetalhadas: TaxaDetalhe[];
   impostos: number;
   valorLiquido: number;
   vendasEntrada: DRENovoVenda[];
@@ -154,6 +155,8 @@ const LanceADois: React.FC = () => {
   const [modalCurso, setModalCurso] = useState('');
   const [modalVendasEntrada, setModalVendasEntrada] = useState<DRENovoVenda[]>([]);
   const [modalVendasTransitar, setModalVendasTransitar] = useState<DRENovoVenda[]>([]);
+  const [modalTaxasDetalhadas, setModalTaxasDetalhadas] = useState<TaxaDetalhe[]>([]);
+  const [modalTotalTaxas, setModalTotalTaxas] = useState<number>(0);
   
   const { toast } = useToast();
 
@@ -276,15 +279,6 @@ const LanceADois: React.FC = () => {
     console.log('Lance a Dois - Taxas:', taxaRecords.length);
     console.log('Lance a Dois - Saídas:', saidasRecords.length);
 
-    // Calculate total platform fees (01.02-TAXAS)
-    const totalTaxasPlataforma = taxaRecords.reduce((s, r) => s + Math.abs(r.amount), 0);
-
-    // Calculate total bruto for tax distribution
-    const totalBrutoEntradas = entradasRecords.reduce((s, r) => s + r.amount, 0);
-    const totalBrutoTransitar = transitarRecords.reduce((s, r) => s + r.amount, 0);
-    const totalBruto = totalBrutoEntradas + totalBrutoTransitar;
-    const taxaPercentual = totalBruto > 0 ? totalTaxasPlataforma / totalBruto : 0;
-
     // Get tax percentage for impostos
     const matchingTax = taxData.find(t => {
       const monthMatches = selectedMonth === 'all' || t.month === selectedMonth;
@@ -292,6 +286,11 @@ const LanceADois: React.FC = () => {
       return monthMatches && yearMatches;
     });
     const impostosPercentual = matchingTax ? matchingTax.taxPercentage / 100 : 0.1289;
+
+    // Calculate total bruto for impostos calculation
+    const totalBrutoEntradas = entradasRecords.reduce((s, r) => s + r.amount, 0);
+    const totalBrutoTransitar = transitarRecords.reduce((s, r) => s + r.amount, 0);
+    const totalBruto = totalBrutoEntradas + totalBrutoTransitar;
 
     // Group receitas by description (curso) - combining entradas and transitar in same row
     const receitasMap = new Map<string, LanceADoisReceita>();
@@ -317,6 +316,7 @@ const LanceADois: React.FC = () => {
           valorTransitar: 0,
           valorBruto: record.amount,
           taxasPlataforma: 0,
+          taxasDetalhadas: [],
           impostos: 0,
           valorLiquido: 0,
           vendasEntrada: [{
@@ -351,6 +351,7 @@ const LanceADois: React.FC = () => {
           valorTransitar: record.amount,
           valorBruto: record.amount,
           taxasPlataforma: 0,
+          taxasDetalhadas: [],
           impostos: 0,
           valorLiquido: 0,
           vendasEntrada: [],
@@ -364,9 +365,27 @@ const LanceADois: React.FC = () => {
       }
     });
 
-    // Apply proportional taxes and impostos to each receita
+    // Process taxes - associate directly by course name (column B - description)
+    taxaRecords.forEach(record => {
+      const cursoKey = record.description || 'Sem descrição';
+      const existing = receitasMap.get(cursoKey);
+      
+      if (existing) {
+        const taxaValor = Math.abs(record.amount);
+        existing.taxasPlataforma += taxaValor;
+        existing.taxasDetalhadas.push({
+          data: record.date,
+          descricao: record.details || record.extraDetail1 || 'Taxa plataforma',
+          valor: taxaValor,
+        });
+      }
+    });
+
+    // Calculate total platform fees from actual tax records associated with courses
+    const totalTaxasPlataforma = Array.from(receitasMap.values()).reduce((s, r) => s + r.taxasPlataforma, 0);
+
+    // Apply impostos proportionally to each receita and calculate valorLiquido
     receitasMap.forEach((receita) => {
-      receita.taxasPlataforma = receita.valorBruto * taxaPercentual;
       receita.impostos = receita.valorBruto * impostosPercentual;
       receita.valorLiquido = receita.valorBruto - receita.taxasPlataforma - receita.impostos;
     });
@@ -498,10 +517,12 @@ const LanceADois: React.FC = () => {
     }));
   };
 
-  const openModal = (cursoNome: string, vendasEntrada: DRENovoVenda[], vendasTransitar: DRENovoVenda[]) => {
+  const openModal = (cursoNome: string, vendasEntrada: DRENovoVenda[], vendasTransitar: DRENovoVenda[], taxasDetalhadas: TaxaDetalhe[], totalTaxas: number) => {
     setModalCurso(cursoNome);
     setModalVendasEntrada(vendasEntrada);
     setModalVendasTransitar(vendasTransitar);
+    setModalTaxasDetalhadas(taxasDetalhadas);
+    setModalTotalTaxas(totalTaxas);
     setModalOpen(true);
   };
 
@@ -906,24 +927,6 @@ const LanceADois: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className={`border-2 ${processedData.totais.resultado >= 0 ? 'border-green-300 bg-gradient-to-br from-green-50 to-green-100' : 'border-red-300 bg-gradient-to-br from-red-50 to-red-100'}`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Resultado</p>
-                  <p className={`text-2xl font-bold ${getResultColor(processedData.totais.resultado)}`}>
-                    {formatCurrency(processedData.totais.resultado)}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {processedData.totais.resultado >= 0 ? 'Lucro' : 'Prejuízo'}
-                  </p>
-                </div>
-                <div className={`p-3 rounded-full ${processedData.totais.resultado >= 0 ? 'bg-green-200' : 'bg-red-200'}`}>
-                  {getResultIcon(processedData.totais.resultado)}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
 
@@ -979,7 +982,7 @@ const LanceADois: React.FC = () => {
                           <TableRow key={index}>
                             <TableCell>
                               <button
-                                onClick={() => openModal(receita.descricao, receita.vendasEntrada, receita.vendasTransitar)}
+                                onClick={() => openModal(receita.descricao, receita.vendasEntrada, receita.vendasTransitar, receita.taxasDetalhadas, receita.taxasPlataforma)}
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                               >
                                 <ExternalLink className="h-3 w-3" />
@@ -1281,6 +1284,8 @@ const LanceADois: React.FC = () => {
         cursoNome={modalCurso}
         vendasEntrada={modalVendasEntrada}
         vendasTransitar={modalVendasTransitar}
+        taxasDetalhadas={modalTaxasDetalhadas}
+        totalTaxas={modalTotalTaxas}
       />
     </div>
   );
