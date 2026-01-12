@@ -39,12 +39,14 @@ import DRENovoCursoModal, { DRENovoVenda } from './DRENovoCursoModal';
 // Interfaces
 interface LanceADoisReceita {
   descricao: string;
-  tipo: 'entrada' | 'transitar';
+  valorEntrada: number;
+  valorTransitar: number;
   valorBruto: number;
   taxasPlataforma: number;
   impostos: number;
   valorLiquido: number;
-  vendas: DRENovoVenda[];
+  vendasEntrada: DRENovoVenda[];
+  vendasTransitar: DRENovoVenda[];
 }
 
 interface LanceADoisSaida {
@@ -81,6 +83,8 @@ interface LanceADoisDados {
     receitaLiquida: number;
     totalSaidas: number;
     totalComissoes: number;
+    resultadoParcial: number;
+    comissaoLanceADois: number;
     resultado: number;
   };
 }
@@ -128,7 +132,8 @@ const codigoNames: Record<string, string> = {
   '02.5': 'Outros',
 };
 
-const COMMISSION_RATE = 0.03; // 3%
+const COMMISSION_RATE = 0.03; // 3% - Comissão das consultoras
+const LANCE_A_DOIS_RATE = 0.10; // 10% - Comissão Lance a Dois sobre o resultado
 
 const LanceADois: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
@@ -147,7 +152,8 @@ const LanceADois: React.FC = () => {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCurso, setModalCurso] = useState('');
-  const [modalVendas, setModalVendas] = useState<DRENovoVenda[]>([]);
+  const [modalVendasEntrada, setModalVendasEntrada] = useState<DRENovoVenda[]>([]);
+  const [modalVendasTransitar, setModalVendasTransitar] = useState<DRENovoVenda[]>([]);
   
   const { toast } = useToast();
 
@@ -287,7 +293,7 @@ const LanceADois: React.FC = () => {
     });
     const impostosPercentual = matchingTax ? matchingTax.taxPercentage / 100 : 0.1289;
 
-    // Group receitas by description (curso) - combining entradas and transitar
+    // Group receitas by description (curso) - combining entradas and transitar in same row
     const receitasMap = new Map<string, LanceADoisReceita>();
 
     // Process entradas
@@ -295,9 +301,10 @@ const LanceADois: React.FC = () => {
       const key = record.description || 'Sem descrição';
       const existing = receitasMap.get(key);
       
-      if (existing && existing.tipo === 'entrada') {
+      if (existing) {
+        existing.valorEntrada += record.amount;
         existing.valorBruto += record.amount;
-        existing.vendas.push({
+        existing.vendasEntrada.push({
           data: record.date,
           aluno: record.details || record.extraDetail1 || '',
           formaPagamento: record.extraDetail2 || '',
@@ -306,45 +313,48 @@ const LanceADois: React.FC = () => {
       } else {
         receitasMap.set(key, {
           descricao: key,
-          tipo: 'entrada',
+          valorEntrada: record.amount,
+          valorTransitar: 0,
           valorBruto: record.amount,
           taxasPlataforma: 0,
           impostos: 0,
           valorLiquido: 0,
-          vendas: [{
+          vendasEntrada: [{
             data: record.date,
             aluno: record.details || record.extraDetail1 || '',
             formaPagamento: record.extraDetail2 || '',
             valor: record.amount,
           }],
+          vendasTransitar: [],
         });
       }
     });
 
-    // Process transitar
+    // Process transitar - add to same curso if exists, or create new
     transitarRecords.forEach(record => {
       const key = record.description || 'Sem descrição';
-      const existingEntrada = receitasMap.get(key);
-      const transitarKey = `${key} (Transitar)`;
-      const existingTransitar = receitasMap.get(transitarKey);
+      const existing = receitasMap.get(key);
       
-      if (existingTransitar) {
-        existingTransitar.valorBruto += record.amount;
-        existingTransitar.vendas.push({
+      if (existing) {
+        existing.valorTransitar += record.amount;
+        existing.valorBruto += record.amount;
+        existing.vendasTransitar.push({
           data: record.date,
           aluno: record.details || record.extraDetail1 || '',
           formaPagamento: record.extraDetail2 || '',
           valor: record.amount,
         });
       } else {
-        receitasMap.set(transitarKey, {
+        receitasMap.set(key, {
           descricao: key,
-          tipo: 'transitar',
+          valorEntrada: 0,
+          valorTransitar: record.amount,
           valorBruto: record.amount,
           taxasPlataforma: 0,
           impostos: 0,
           valorLiquido: 0,
-          vendas: [{
+          vendasEntrada: [],
+          vendasTransitar: [{
             data: record.date,
             aluno: record.details || record.extraDetail1 || '',
             formaPagamento: record.extraDetail2 || '',
@@ -432,17 +442,29 @@ const LanceADois: React.FC = () => {
     });
 
     // Calculate totals
+    const totalSaidasCalc = Object.values(saidasByCode).flat().reduce((s, item) => s + item.valor, 0);
+    const receitaLiquidaCalc = totalBruto - totalTaxasPlataforma - (totalBruto * impostosPercentual);
+    
+    // Resultado Parcial = Receita Líquida - Despesas - Comissões Consultoras (3%)
+    const resultadoParcial = receitaLiquidaCalc - totalSaidasCalc - totalComissoes;
+    
+    // Comissão Lance a Dois = 10% do Resultado Parcial (apenas se positivo)
+    const comissaoLanceADois = resultadoParcial > 0 ? resultadoParcial * LANCE_A_DOIS_RATE : 0;
+    
+    // Resultado Final = Resultado Parcial - Comissão Lance a Dois
+    const resultadoFinal = resultadoParcial - comissaoLanceADois;
+
     const totais = {
       receitaBruta: totalBruto,
       taxasPlataforma: totalTaxasPlataforma,
       impostos: totalBruto * impostosPercentual,
-      receitaLiquida: totalBruto - totalTaxasPlataforma - (totalBruto * impostosPercentual),
-      totalSaidas: Object.values(saidasByCode).flat().reduce((s, item) => s + item.valor, 0),
+      receitaLiquida: receitaLiquidaCalc,
+      totalSaidas: totalSaidasCalc,
       totalComissoes,
-      resultado: 0,
+      resultadoParcial,
+      comissaoLanceADois,
+      resultado: resultadoFinal,
     };
-
-    totais.resultado = totais.receitaLiquida - totais.totalSaidas - totais.totalComissoes;
 
     return {
       mes: selectedMonth,
@@ -476,9 +498,10 @@ const LanceADois: React.FC = () => {
     }));
   };
 
-  const openModal = (cursoNome: string, vendas: DRENovoVenda[]) => {
+  const openModal = (cursoNome: string, vendasEntrada: DRENovoVenda[], vendasTransitar: DRENovoVenda[]) => {
     setModalCurso(cursoNome);
-    setModalVendas(vendas);
+    setModalVendasEntrada(vendasEntrada);
+    setModalVendasTransitar(vendasTransitar);
     setModalOpen(true);
   };
 
@@ -539,7 +562,9 @@ const LanceADois: React.FC = () => {
       ['(-) Impostos', `- ${formatCurrency(processedData.totais.impostos)}`],
       ['(=) Receita Líquida', formatCurrency(processedData.totais.receitaLiquida)],
       ['(-) Despesas', `- ${formatCurrency(processedData.totais.totalSaidas)}`],
-      ['(-) Comissões (3%)', `- ${formatCurrency(processedData.totais.totalComissoes)}`],
+      ['(-) Comissões Consultoras (3%)', `- ${formatCurrency(processedData.totais.totalComissoes)}`],
+      ['(=) Resultado Parcial', formatCurrency(processedData.totais.resultadoParcial)],
+      ['(-) Comissão Lance a Dois (10%)', `- ${formatCurrency(processedData.totais.comissaoLanceADois)}`],
     ];
 
     summaryData.forEach(([label, value]) => {
@@ -553,7 +578,7 @@ const LanceADois: React.FC = () => {
     doc.setFontSize(11);
     const resultColor = processedData.totais.resultado >= 0 ? greenColor : redColor;
     doc.setTextColor(...resultColor);
-    doc.text('RESULTADO', 25, yPosition);
+    doc.text('RESULTADO FINAL', 25, yPosition);
     doc.text(formatCurrency(processedData.totais.resultado), pageWidth - 25, yPosition, { align: 'right' });
     doc.setTextColor(0, 0, 0);
     yPosition += 20;
@@ -569,35 +594,38 @@ const LanceADois: React.FC = () => {
     if (processedData.receitas.length > 0) {
       autoTable(doc, {
         startY: yPosition,
-        head: [['Curso', 'Tipo', 'Bruto', 'Taxas Plat.', 'Impostos', 'Líquido']],
+        head: [['Curso', 'Entrada', 'Transitar', 'Tot.Bruto', 'Taxas Pl.', 'Impostos', 'Líquido']],
         body: processedData.receitas.map(r => [
-          r.descricao.substring(0, 25),
-          r.tipo === 'entrada' ? 'Entrada' : 'Transitar',
+          r.descricao.substring(0, 20),
+          formatCurrency(r.valorEntrada),
+          r.valorTransitar > 0 ? formatCurrency(r.valorTransitar) : '-',
           formatCurrency(r.valorBruto),
           `- ${formatCurrency(r.taxasPlataforma)}`,
           `- ${formatCurrency(r.impostos)}`,
           formatCurrency(r.valorLiquido),
         ]),
         foot: [[
-          'TOTAL RECEITAS',
-          '',
+          'TOTAL',
+          formatCurrency(processedData.receitas.reduce((s, r) => s + r.valorEntrada, 0)),
+          formatCurrency(processedData.receitas.reduce((s, r) => s + r.valorTransitar, 0)),
           formatCurrency(processedData.totais.receitaBruta),
           `- ${formatCurrency(processedData.totais.taxasPlataforma)}`,
           `- ${formatCurrency(processedData.totais.impostos)}`,
           formatCurrency(processedData.totais.receitaLiquida),
         ]],
         theme: 'striped',
-        headStyles: { fillColor: greenColor, fontSize: 8 },
-        bodyStyles: { fontSize: 8 },
-        footStyles: { fillColor: [220, 252, 231], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8 },
+        headStyles: { fillColor: greenColor, fontSize: 7 },
+        bodyStyles: { fontSize: 7 },
+        footStyles: { fillColor: [220, 252, 231], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 7 },
         margin: { left: 15, right: 15 },
         columnStyles: {
-          0: { cellWidth: 50 },
-          1: { cellWidth: 20 },
-          2: { halign: 'right' },
-          3: { halign: 'right' },
-          4: { halign: 'right' },
-          5: { halign: 'right' },
+          0: { cellWidth: 35 },
+          1: { halign: 'right', cellWidth: 22 },
+          2: { halign: 'right', cellWidth: 22 },
+          3: { halign: 'right', cellWidth: 22 },
+          4: { halign: 'right', cellWidth: 22 },
+          5: { halign: 'right', cellWidth: 22 },
+          6: { halign: 'right', cellWidth: 22 },
         },
       });
 
@@ -931,9 +959,10 @@ const LanceADois: React.FC = () => {
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead>Curso</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead className="text-right">Valor Bruto</TableHead>
-                        <TableHead className="text-right">Taxas Plat.</TableHead>
+                        <TableHead className="text-right">Entrada</TableHead>
+                        <TableHead className="text-right">Transitar</TableHead>
+                        <TableHead className="text-right">Tot.Bruto</TableHead>
+                        <TableHead className="text-right">Taxas Pl.</TableHead>
                         <TableHead className="text-right">Impostos</TableHead>
                         <TableHead className="text-right">Líquido</TableHead>
                       </TableRow>
@@ -943,19 +972,20 @@ const LanceADois: React.FC = () => {
                         <TableRow key={index}>
                           <TableCell>
                             <button
-                              onClick={() => openModal(receita.descricao, receita.vendas)}
+                              onClick={() => openModal(receita.descricao, receita.vendasEntrada, receita.vendasTransitar)}
                               className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                             >
                               <ExternalLink className="h-3 w-3" />
                               {receita.descricao}
                             </button>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant={receita.tipo === 'entrada' ? 'default' : 'secondary'}>
-                              {receita.tipo === 'entrada' ? 'Entrada' : 'Transitar'}
-                            </Badge>
-                          </TableCell>
                           <TableCell className="text-right font-mono">
+                            {receita.valorEntrada > 0 ? formatCurrency(receita.valorEntrada) : '-'}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-orange-600">
+                            {receita.valorTransitar > 0 ? formatCurrency(receita.valorTransitar) : '-'}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-semibold">
                             {formatCurrency(receita.valorBruto)}
                           </TableCell>
                           <TableCell className="text-right font-mono text-red-600">
@@ -971,7 +1001,7 @@ const LanceADois: React.FC = () => {
                       ))}
                       {processedData.receitas.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                             Nenhuma receita encontrada para o período selecionado.
                           </TableCell>
                         </TableRow>
@@ -1177,9 +1207,25 @@ const LanceADois: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between text-lg">
-                <span className="text-muted-foreground">(-) Comissões (3%)</span>
+                <span className="text-muted-foreground">(-) Comissões Consultoras (3%)</span>
                 <span className="font-semibold text-purple-600">
                   -{formatCurrency(processedData.totais.totalComissoes)}
+                </span>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between text-lg">
+                  <span className="text-muted-foreground font-medium">(=) Resultado Parcial</span>
+                  <span className={`font-semibold ${processedData.totais.resultadoParcial >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(processedData.totais.resultadoParcial)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-lg bg-amber-50 p-3 rounded-lg -mx-3">
+                <span className="text-amber-700 font-medium">(-) Comissão Lance a Dois (10%)</span>
+                <span className="font-semibold text-amber-700">
+                  -{formatCurrency(processedData.totais.comissaoLanceADois)}
                 </span>
               </div>
 
@@ -1187,7 +1233,7 @@ const LanceADois: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xl font-bold">
                     {getResultIcon(processedData.totais.resultado)}
-                    <span>RESULTADO</span>
+                    <span>RESULTADO FINAL</span>
                   </div>
                   <span className={`text-3xl font-bold ${getResultColor(processedData.totais.resultado)}`}>
                     {formatCurrency(processedData.totais.resultado)}
@@ -1195,7 +1241,7 @@ const LanceADois: React.FC = () => {
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
                   {processedData.totais.resultado >= 0 
-                    ? 'Lucro no período selecionado' 
+                    ? 'Lucro no período selecionado (após 10% Lance a Dois)' 
                     : 'Prejuízo no período selecionado'}
                 </p>
               </div>
@@ -1228,7 +1274,8 @@ const LanceADois: React.FC = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         cursoNome={modalCurso}
-        vendas={modalVendas}
+        vendasEntrada={modalVendasEntrada}
+        vendasTransitar={modalVendasTransitar}
       />
     </div>
   );
