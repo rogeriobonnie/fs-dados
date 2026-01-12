@@ -564,7 +564,6 @@ const LanceADois: React.FC = () => {
       ['(-) Despesas', `- ${formatCurrency(processedData.totais.totalSaidas)}`],
       ['(-) Comissões Consultoras (3%)', `- ${formatCurrency(processedData.totais.totalComissoes)}`],
       ['(=) Resultado Parcial', formatCurrency(processedData.totais.resultadoParcial)],
-      ['(-) Comissão Lance a Dois (10%)', `- ${formatCurrency(processedData.totais.comissaoLanceADois)}`],
     ];
 
     summaryData.forEach(([label, value]) => {
@@ -576,10 +575,10 @@ const LanceADois: React.FC = () => {
     yPosition += 3;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    const resultColor = processedData.totais.resultado >= 0 ? greenColor : redColor;
-    doc.setTextColor(...resultColor);
-    doc.text('RESULTADO FINAL', 25, yPosition);
-    doc.text(formatCurrency(processedData.totais.resultado), pageWidth - 25, yPosition, { align: 'right' });
+    const amberColor: [number, number, number] = [180, 83, 9]; // amber-800
+    doc.setTextColor(...amberColor);
+    doc.text('COMISSÃO LANCE A DOIS (10%)', 25, yPosition);
+    doc.text(formatCurrency(processedData.totais.comissaoLanceADois), pageWidth - 25, yPosition, { align: 'right' });
     doc.setTextColor(0, 0, 0);
     yPosition += 20;
 
@@ -968,37 +967,52 @@ const LanceADois: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {processedData.receitas.map((receita, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <button
-                              onClick={() => openModal(receita.descricao, receita.vendasEntrada, receita.vendasTransitar)}
-                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              {receita.descricao}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {receita.valorEntrada > 0 ? formatCurrency(receita.valorEntrada) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-orange-600">
-                            {receita.valorTransitar > 0 ? formatCurrency(receita.valorTransitar) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-semibold">
-                            {formatCurrency(receita.valorBruto)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-red-600">
-                            -{formatCurrency(receita.taxasPlataforma)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-red-600">
-                            -{formatCurrency(receita.impostos)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-semibold text-green-600">
-                            {formatCurrency(receita.valorLiquido)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {processedData.receitas.map((receita, index) => {
+                        const taxaPercent = receita.valorBruto > 0 
+                          ? ((receita.taxasPlataforma / receita.valorBruto) * 100).toFixed(1) 
+                          : '0';
+                        const impostosPercent = receita.valorBruto > 0 
+                          ? ((receita.impostos / receita.valorBruto) * 100).toFixed(1) 
+                          : '0';
+                        
+                        return (
+                          <TableRow key={index}>
+                            <TableCell>
+                              <button
+                                onClick={() => openModal(receita.descricao, receita.vendasEntrada, receita.vendasTransitar)}
+                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                {receita.descricao}
+                              </button>
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              {receita.valorEntrada > 0 ? formatCurrency(receita.valorEntrada) : '-'}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-orange-600">
+                              {receita.valorTransitar > 0 ? formatCurrency(receita.valorTransitar) : '-'}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-semibold">
+                              {formatCurrency(receita.valorBruto)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-red-600">
+                              <div className="flex flex-col items-end">
+                                <span>-{formatCurrency(receita.taxasPlataforma)}</span>
+                                <span className="text-xs text-muted-foreground">({taxaPercent}%)</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-red-600">
+                              <div className="flex flex-col items-end">
+                                <span>-{formatCurrency(receita.impostos)}</span>
+                                <span className="text-xs text-muted-foreground">({impostosPercent}%)</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-semibold text-green-600">
+                              {formatCurrency(receita.valorLiquido)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {processedData.receitas.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
@@ -1187,26 +1201,26 @@ const LanceADois: React.FC = () => {
         </Card>
       )}
 
-      {/* Resultado Final */}
+      {/* Comissão Lance a Dois - Fim do Relatório */}
       {hasSearched && (
-        <Card className={`border-2 ${processedData.totais.resultado >= 0 ? 'border-green-400' : 'border-red-400'}`}>
+        <Card className="border-2 border-amber-400 bg-gradient-to-br from-amber-50 to-amber-100">
           <CardContent className="p-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-lg">
+              <div className="flex items-center justify-between text-base">
                 <span className="text-muted-foreground">Receita Líquida</span>
                 <span className="font-semibold text-green-600">
                   {formatCurrency(processedData.totais.receitaLiquida)}
                 </span>
               </div>
               
-              <div className="flex items-center justify-between text-lg">
+              <div className="flex items-center justify-between text-base">
                 <span className="text-muted-foreground">(-) Total Despesas</span>
                 <span className="font-semibold text-red-600">
                   -{formatCurrency(processedData.totais.totalSaidas)}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-lg">
+              <div className="flex items-center justify-between text-base">
                 <span className="text-muted-foreground">(-) Comissões Consultoras (3%)</span>
                 <span className="font-semibold text-purple-600">
                   -{formatCurrency(processedData.totais.totalComissoes)}
@@ -1214,7 +1228,7 @@ const LanceADois: React.FC = () => {
               </div>
 
               <div className="border-t pt-4">
-                <div className="flex items-center justify-between text-lg">
+                <div className="flex items-center justify-between text-base">
                   <span className="text-muted-foreground font-medium">(=) Resultado Parcial</span>
                   <span className={`font-semibold ${processedData.totais.resultadoParcial >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {formatCurrency(processedData.totais.resultadoParcial)}
@@ -1222,27 +1236,18 @@ const LanceADois: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-lg bg-amber-50 p-3 rounded-lg -mx-3">
-                <span className="text-amber-700 font-medium">(-) Comissão Lance a Dois (10%)</span>
-                <span className="font-semibold text-amber-700">
-                  -{formatCurrency(processedData.totais.comissaoLanceADois)}
-                </span>
-              </div>
-
-              <div className="border-t-2 pt-4">
+              <div className="border-t-2 border-amber-300 pt-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xl font-bold">
-                    {getResultIcon(processedData.totais.resultado)}
-                    <span>RESULTADO FINAL</span>
+                  <div className="flex items-center gap-2 text-xl font-bold text-amber-800">
+                    <DollarSign className="h-5 w-5" />
+                    <span>COMISSÃO LANCE A DOIS (10%)</span>
                   </div>
-                  <span className={`text-3xl font-bold ${getResultColor(processedData.totais.resultado)}`}>
-                    {formatCurrency(processedData.totais.resultado)}
+                  <span className="text-3xl font-bold text-amber-800">
+                    {formatCurrency(processedData.totais.comissaoLanceADois)}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {processedData.totais.resultado >= 0 
-                    ? 'Lucro no período selecionado (após 10% Lance a Dois)' 
-                    : 'Prejuízo no período selecionado'}
+                <p className="text-sm text-amber-700 mt-2">
+                  10% sobre o resultado parcial de {formatCurrency(processedData.totais.resultadoParcial)}
                 </p>
               </div>
             </div>
