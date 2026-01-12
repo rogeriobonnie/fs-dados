@@ -50,6 +50,7 @@ interface LanceADoisReceita {
 interface LanceADoisSaida {
   codigo: string;
   descricao: string;
+  detalhe: string;
   valor: number;
 }
 
@@ -386,6 +387,7 @@ const LanceADois: React.FC = () => {
       saidasByCode[codigo].push({
         codigo,
         descricao: record.description || 'Sem descrição',
+        detalhe: record.details || '',
         valor: Math.abs(record.amount),
       });
     });
@@ -623,6 +625,7 @@ const LanceADois: React.FC = () => {
           codigo,
           categoria: codigoNames[codigo] || 'Outras',
           descricao: item.descricao,
+          detalhe: item.detalhe,
           valor: item.valor,
         }))
       );
@@ -630,24 +633,26 @@ const LanceADois: React.FC = () => {
     if (allExpenses.length > 0) {
       autoTable(doc, {
         startY: yPosition,
-        head: [['Código', 'Categoria', 'Descrição', 'Valor']],
+        head: [['Código', 'Categoria', 'Descrição', 'Detalhe', 'Valor']],
         body: allExpenses.map(e => [
           e.codigo,
           e.categoria,
-          e.descricao.substring(0, 35),
+          e.descricao.substring(0, 25),
+          e.detalhe.substring(0, 30),
           formatCurrency(e.valor),
         ]),
-        foot: [['', '', 'TOTAL DESPESAS', formatCurrency(processedData.totais.totalSaidas)]],
+        foot: [['', '', '', 'TOTAL DESPESAS', formatCurrency(processedData.totais.totalSaidas)]],
         theme: 'striped',
         headStyles: { fillColor: redColor, fontSize: 8 },
         bodyStyles: { fontSize: 8 },
         footStyles: { fillColor: [254, 226, 226], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8 },
         margin: { left: 15, right: 15 },
         columnStyles: {
-          0: { cellWidth: 20 },
-          1: { cellWidth: 35 },
-          2: { cellWidth: 80 },
-          3: { halign: 'right' },
+          0: { cellWidth: 15 },
+          1: { cellWidth: 25 },
+          2: { cellWidth: 45 },
+          3: { cellWidth: 50 },
+          4: { halign: 'right' },
         },
       });
 
@@ -1045,10 +1050,15 @@ const LanceADois: React.FC = () => {
                         <div className="divide-y">
                           {items.map((item, index) => (
                             <div key={index} className="flex items-center justify-between p-3 hover:bg-muted/30">
-                              <span className="text-muted-foreground pl-6 flex items-center gap-2">
-                                <Minus className="h-3 w-3" />
-                                {item.descricao}
-                              </span>
+                              <div className="pl-6 flex items-center gap-2">
+                                <Minus className="h-3 w-3 text-muted-foreground" />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{item.descricao}</span>
+                                  {item.detalhe && (
+                                    <span className="text-xs text-muted-foreground">{item.detalhe}</span>
+                                  )}
+                                </div>
+                              </div>
                               <span className="font-mono">
                                 {formatCurrency(item.valor)}
                               </span>
