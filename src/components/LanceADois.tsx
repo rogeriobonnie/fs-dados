@@ -365,21 +365,65 @@ const LanceADois: React.FC = () => {
       }
     });
 
-    // Process taxes - associate directly by course name (column B - description)
+    // Process taxes - associate by course name with flexible matching
+    // Helper to normalize keys for matching
+    const normalizeKey = (s: string) => (s || '')
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Create normalized key map for lookup
+    const normalizedKeyMap = new Map<string, string>();
+    receitasMap.forEach((_, key) => {
+      normalizedKeyMap.set(normalizeKey(key), key);
+    });
+
+    const taxasNaoAssociadas: TaxaDetalhe[] = [];
+
     taxaRecords.forEach(record => {
-      const cursoKey = record.description || 'Sem descrição';
-      const existing = receitasMap.get(cursoKey);
+      const taxaDescNorm = normalizeKey(record.description);
       
-      if (existing) {
-        const taxaValor = Math.abs(record.amount);
-        existing.taxasPlataforma += taxaValor;
-        existing.taxasDetalhadas.push({
+      // 1. Try exact normalized match
+      let originalKey = normalizedKeyMap.get(taxaDescNorm);
+      
+      // 2. If not found, try partial match (contains)
+      if (!originalKey) {
+        for (const [normKey, origKey] of normalizedKeyMap) {
+          if (normKey.includes(taxaDescNorm) || taxaDescNorm.includes(normKey)) {
+            originalKey = origKey;
+            console.log(`Taxa match parcial: "${record.description}" -> "${origKey}"`);
+            break;
+          }
+        }
+      }
+      
+      if (originalKey) {
+        const existing = receitasMap.get(originalKey);
+        if (existing) {
+          const taxaValor = Math.abs(record.amount);
+          existing.taxasPlataforma += taxaValor;
+          existing.taxasDetalhadas.push({
+            data: record.date,
+            descricao: record.details || record.extraDetail1 || 'Taxa plataforma',
+            valor: taxaValor,
+          });
+        }
+      } else {
+        // Tax not associated with any course
+        taxasNaoAssociadas.push({
           data: record.date,
-          descricao: record.details || record.extraDetail1 || 'Taxa plataforma',
-          valor: taxaValor,
+          descricao: `${record.description}: ${record.details || ''}`,
+          valor: Math.abs(record.amount),
         });
+        console.warn('Taxa não associada:', record.description, record.amount);
       }
     });
+
+    if (taxasNaoAssociadas.length > 0) {
+      console.log('Taxas não associadas a cursos:', taxasNaoAssociadas);
+    }
 
     // Calculate total platform fees from actual tax records associated with courses
     const totalTaxasPlataforma = Array.from(receitasMap.values()).reduce((s, r) => s + r.taxasPlataforma, 0);
@@ -614,38 +658,32 @@ const LanceADois: React.FC = () => {
     if (processedData.receitas.length > 0) {
       autoTable(doc, {
         startY: yPosition,
-        head: [['Curso', 'Entrada', 'Transitar', 'Tot.Bruto', 'Taxas Pl.', 'Impostos', 'Líquido']],
+        head: [['Curso', 'Receita', 'Taxas Pl.', 'Impostos', 'Líquido']],
         body: processedData.receitas.map(r => [
-          r.descricao.substring(0, 20),
-          formatCurrency(r.valorEntrada),
-          r.valorTransitar > 0 ? formatCurrency(r.valorTransitar) : '-',
-          formatCurrency(r.valorBruto),
+          r.descricao.substring(0, 25),
+          formatCurrency(r.valorEntrada + r.valorTransitar),
           `- ${formatCurrency(r.taxasPlataforma)}`,
           `- ${formatCurrency(r.impostos)}`,
           formatCurrency(r.valorLiquido),
         ]),
         foot: [[
           'TOTAL',
-          formatCurrency(processedData.receitas.reduce((s, r) => s + r.valorEntrada, 0)),
-          formatCurrency(processedData.receitas.reduce((s, r) => s + r.valorTransitar, 0)),
           formatCurrency(processedData.totais.receitaBruta),
           `- ${formatCurrency(processedData.totais.taxasPlataforma)}`,
           `- ${formatCurrency(processedData.totais.impostos)}`,
           formatCurrency(processedData.totais.receitaLiquida),
         ]],
         theme: 'striped',
-        headStyles: { fillColor: greenColor, fontSize: 7 },
-        bodyStyles: { fontSize: 7 },
-        footStyles: { fillColor: [220, 252, 231], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 7 },
+        headStyles: { fillColor: greenColor, fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        footStyles: { fillColor: [220, 252, 231], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8 },
         margin: { left: 15, right: 15 },
         columnStyles: {
-          0: { cellWidth: 35 },
-          1: { halign: 'right', cellWidth: 22 },
-          2: { halign: 'right', cellWidth: 22 },
-          3: { halign: 'right', cellWidth: 22 },
-          4: { halign: 'right', cellWidth: 22 },
-          5: { halign: 'right', cellWidth: 22 },
-          6: { halign: 'right', cellWidth: 22 },
+          0: { cellWidth: 50 },
+          1: { halign: 'right', cellWidth: 35 },
+          2: { halign: 'right', cellWidth: 30 },
+          3: { halign: 'right', cellWidth: 30 },
+          4: { halign: 'right', cellWidth: 30 },
         },
       });
 
@@ -961,9 +999,7 @@ const LanceADois: React.FC = () => {
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead>Curso</TableHead>
-                        <TableHead className="text-right">Entrada</TableHead>
-                        <TableHead className="text-right">Transitar</TableHead>
-                        <TableHead className="text-right">Tot.Bruto</TableHead>
+                        <TableHead className="text-right">Receita</TableHead>
                         <TableHead className="text-right">Taxas Pl.</TableHead>
                         <TableHead className="text-right">Impostos</TableHead>
                         <TableHead className="text-right">Líquido</TableHead>
@@ -971,11 +1007,12 @@ const LanceADois: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                       {processedData.receitas.map((receita, index) => {
-                        const taxaPercent = receita.valorBruto > 0 
-                          ? ((receita.taxasPlataforma / receita.valorBruto) * 100).toFixed(1) 
+                        const receitaTotal = receita.valorEntrada + receita.valorTransitar;
+                        const taxaPercent = receitaTotal > 0 
+                          ? ((receita.taxasPlataforma / receitaTotal) * 100).toFixed(1) 
                           : '0';
-                        const impostosPercent = receita.valorBruto > 0 
-                          ? ((receita.impostos / receita.valorBruto) * 100).toFixed(1) 
+                        const impostosPercent = receitaTotal > 0 
+                          ? ((receita.impostos / receitaTotal) * 100).toFixed(1) 
                           : '0';
                         
                         return (
@@ -990,13 +1027,12 @@ const LanceADois: React.FC = () => {
                               </button>
                             </TableCell>
                             <TableCell className="text-right font-mono">
-                              {receita.valorEntrada > 0 ? formatCurrency(receita.valorEntrada) : '-'}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-orange-600">
-                              {receita.valorTransitar > 0 ? formatCurrency(receita.valorTransitar) : '-'}
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-semibold">
-                              {formatCurrency(receita.valorBruto)}
+                              <div className="flex flex-col items-end">
+                                <span>{formatCurrency(receitaTotal)}</span>
+                                {receita.valorTransitar > 0 && (
+                                  <span className="text-xs text-orange-600">(inclui parceiro)</span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="text-right font-mono text-red-600">
                               <div className="flex flex-col items-end">
@@ -1018,7 +1054,7 @@ const LanceADois: React.FC = () => {
                       })}
                       {processedData.receitas.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                             Nenhuma receita encontrada para o período selecionado.
                           </TableCell>
                         </TableRow>
