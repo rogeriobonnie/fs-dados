@@ -572,8 +572,11 @@ export class GoogleSheetsService {
         continue;
       }
       
-      // Only process revenue entries (01-ENTRADAS)
-      if (!type.toUpperCase().includes('01-ENTRADAS') && !type.toUpperCase().includes('ENTRADA')) {
+      // Process revenue entries (01-ENTRADAS and 01-TRANSITAR)
+      const isEntrada = type.toUpperCase().includes('01-ENTRADAS') || type.toUpperCase().includes('ENTRADA');
+      const isTransitar = type.toUpperCase().includes('01-TRANSITAR') || type.toUpperCase().includes('TRANSITAR');
+      
+      if (!isEntrada && !isTransitar) {
         continue;
       }
       
