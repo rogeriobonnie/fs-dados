@@ -41,14 +41,7 @@ interface DRENovoReceita {
   vendas: DRENovoVenda[];
 }
 
-interface DRENovoTransitar {
-  descricao: string;
-  valorBruto: number;
-  taxa: number;
-  liquidoCurso: number;
-  comissaoFS: number;
-  vendas: DRENovoVenda[];
-}
+// Transitar foi movido para CursosParceiros.tsx
 
 interface DRENovoSaida {
   codigo: string;
@@ -60,16 +53,11 @@ interface DRENovoDados {
   mes: string;
   ano: string;
   entradas: DRENovoReceita[];
-  transitar: DRENovoTransitar[];
   saidas: { [codigo: string]: DRENovoSaida[] };
   totais: {
     brutoEntradas: number;
     taxasEntradas: number;
     liquidoEntradas: number;
-    brutoTransitar: number;
-    taxasTransitar: number;
-    liquidoCursoTransitar: number;
-    comissaoFSTransitar: number;
     totalReceitaLiquida: number;
     totalSaidas: number;
     resultado: number;
@@ -106,7 +94,6 @@ const FinancialDRENovo: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     entradas: true,
-    transitar: true,
     saidas: true,
   });
   
@@ -114,7 +101,6 @@ const FinancialDRENovo: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCurso, setModalCurso] = useState('');
   const [modalVendas, setModalVendas] = useState<DRENovoVenda[]>([]);
-  const [modalTransitar, setModalTransitar] = useState(false);
   
   const { toast } = useToast();
 
@@ -265,46 +251,6 @@ const FinancialDRENovo: React.FC = () => {
 
     const entradas = Array.from(entradasMap.values());
 
-    // Group transitar by description (curso parceiro)
-    const transitarMap = new Map<string, DRENovoTransitar>();
-    transitarRecords.forEach(record => {
-      const key = record.description || 'Sem descrição';
-      const existing = transitarMap.get(key);
-      
-      if (existing) {
-        existing.valorBruto += record.amount;
-        existing.vendas.push({
-          data: record.date,
-          aluno: record.details || record.extraDetail1 || '',
-          formaPagamento: record.extraDetail2 || '',
-          valor: record.amount,
-        });
-      } else {
-        transitarMap.set(key, {
-          descricao: key,
-          valorBruto: record.amount,
-          taxa: 0,
-          liquidoCurso: 0,
-          comissaoFS: 0,
-          vendas: [{
-            data: record.date,
-            aluno: record.details || record.extraDetail1 || '',
-            formaPagamento: record.extraDetail2 || '',
-            valor: record.amount,
-          }],
-        });
-      }
-    });
-
-    // Calculate for transitar: taxa sobre bruto, comissão 10%
-    transitarMap.forEach((transitar) => {
-      transitar.taxa = transitar.valorBruto * taxaPercentual; // Taxa sobre o bruto
-      transitar.liquidoCurso = transitar.valorBruto - transitar.taxa; // Líquido que vai pro curso
-      transitar.comissaoFS = transitar.valorBruto * 0.10; // Comissão FS 10% do bruto
-    });
-
-    const transitar = Array.from(transitarMap.values());
-
     // Group saídas by código (2.1, 2.2, etc.)
     const saidasByCode: { [codigo: string]: DRENovoSaida[] } = {};
     saidasRecords.forEach(record => {
@@ -335,21 +281,17 @@ const FinancialDRENovo: React.FC = () => {
       });
     });
 
-    // Calculate totals
+    // Calculate totals (sem transitar - agora está na aba Cursos Parceiros)
     const totais = {
       brutoEntradas: entradas.reduce((s, e) => s + e.valorBruto, 0),
       taxasEntradas: entradas.reduce((s, e) => s + e.taxa, 0),
       liquidoEntradas: entradas.reduce((s, e) => s + e.valorLiquido, 0),
-      brutoTransitar: transitar.reduce((s, t) => s + t.valorBruto, 0),
-      taxasTransitar: transitar.reduce((s, t) => s + t.taxa, 0),
-      liquidoCursoTransitar: transitar.reduce((s, t) => s + t.liquidoCurso, 0),
-      comissaoFSTransitar: transitar.reduce((s, t) => s + t.comissaoFS, 0),
       totalReceitaLiquida: 0,
       totalSaidas: 0,
       resultado: 0,
     };
 
-    totais.totalReceitaLiquida = totais.liquidoEntradas + totais.comissaoFSTransitar;
+    totais.totalReceitaLiquida = totais.liquidoEntradas;
     totais.totalSaidas = Object.values(saidasByCode).flat().reduce((s, item) => s + item.valor, 0);
     totais.resultado = totais.totalReceitaLiquida - totais.totalSaidas;
 
@@ -357,7 +299,6 @@ const FinancialDRENovo: React.FC = () => {
       mes: selectedMonth,
       ano: selectedYear,
       entradas,
-      transitar,
       saidas: saidasByCode,
       totais,
     };
@@ -383,10 +324,9 @@ const FinancialDRENovo: React.FC = () => {
     }));
   };
 
-  const openModal = (cursoNome: string, vendas: DRENovoVenda[], isTransitar: boolean = false) => {
+  const openModal = (cursoNome: string, vendas: DRENovoVenda[]) => {
     setModalCurso(cursoNome);
     setModalVendas(vendas);
-    setModalTransitar(isTransitar);
     setModalOpen(true);
   };
 
@@ -541,25 +481,6 @@ const FinancialDRENovo: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-purple-700">Comissão FS (10%)</p>
-                  <p className="text-2xl font-bold text-purple-800">
-                    {formatCurrency(processedData.totais.comissaoFSTransitar)}
-                  </p>
-                  <p className="text-xs text-purple-600 mt-1">
-                    De parceiros
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-200 rounded-full">
-                  <ArrowRightLeft className="h-6 w-6 text-purple-700" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card className={`border-2 ${processedData.totais.resultado >= 0 ? 'border-green-300 bg-gradient-to-br from-green-50 to-green-100' : 'border-red-300 bg-gradient-to-br from-red-50 to-red-100'}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -674,109 +595,7 @@ const FinancialDRENovo: React.FC = () => {
         </Card>
       )}
 
-      {/* 01-TRANSITAR Table */}
-      {hasSearched && (
-        <Card>
-          <Collapsible open={openSections.transitar} onOpenChange={() => toggleSection('transitar')}>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-purple-600">
-                    <ArrowRightLeft className="h-5 w-5" />
-                    01-TRANSITAR (Parceiros - Comissão 10%)
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-purple-600 font-bold">
-                      {formatCurrency(processedData.totais.comissaoFSTransitar)}
-                    </span>
-                    {openSections.transitar ? (
-                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                </CardTitle>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent>
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead>Curso</TableHead>
-                        <TableHead className="text-right text-gray-400">Valor Bruto</TableHead>
-                        <TableHead className="text-right">Taxas (01.02)</TableHead>
-                        <TableHead className="text-right text-gray-400">Líq. Curso</TableHead>
-                        <TableHead className="text-right">Comissão FS (10%)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {processedData.transitar.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <button
-                              onClick={() => openModal(item.descricao, item.vendas, true)}
-                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              {item.descricao}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-gray-400">
-                            {formatCurrency(item.valorBruto)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-red-600">
-                            -{formatCurrency(item.taxa)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-gray-400">
-                            {formatCurrency(item.liquidoCurso)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono font-semibold text-purple-600">
-                            {formatCurrency(item.comissaoFS)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {processedData.transitar.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                            Nenhum registro de transitar encontrado para o período selecionado.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                  
-                  {/* Subtotal */}
-                  {processedData.transitar.length > 0 && (
-                    <div className="flex items-center justify-between p-4 bg-purple-50 border-t font-semibold">
-                      <span>SUBTOTAL TRANSITAR</span>
-                      <div className="flex gap-8">
-                        <span className="text-right w-28 text-gray-400">
-                          {formatCurrency(processedData.totais.brutoTransitar)}
-                        </span>
-                        <span className="text-right w-28 text-red-600">
-                          -{formatCurrency(processedData.totais.taxasTransitar)}
-                        </span>
-                        <span className="text-right w-28 text-gray-400">
-                          {formatCurrency(processedData.totais.liquidoCursoTransitar)}
-                        </span>
-                        <span className="text-right w-28 text-purple-600">
-                          {formatCurrency(processedData.totais.comissaoFSTransitar)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-xs text-muted-foreground mt-2 italic">
-                  * Valor Bruto e Líquido Curso são informativos. Apenas a Comissão FS (10% do bruto) soma ao resultado.
-                </p>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
+      {/* Transitar foi movido para a aba Cursos Parceiros */}
 
       {/* 02-SAÍDAS Table */}
       {hasSearched && (
@@ -872,10 +691,6 @@ const FinancialDRENovo: React.FC = () => {
                 <span>Entradas Líquidas (Cursos FS)</span>
                 <span>{formatCurrency(processedData.totais.liquidoEntradas)}</span>
               </div>
-              <div className="flex items-center justify-between text-sm text-muted-foreground pl-4">
-                <span>Comissão FS (10% Transitar)</span>
-                <span>{formatCurrency(processedData.totais.comissaoFSTransitar)}</span>
-              </div>
               
               <div className="border-t pt-4">
                 <div className="flex items-center justify-between text-lg">
@@ -920,14 +735,13 @@ const FinancialDRENovo: React.FC = () => {
                 <span><strong>01-ENTRADAS:</strong> Cursos FS (Bruto → Taxa → Líquido)</span>
               </li>
               <li className="flex items-center gap-2">
-                <ArrowRightLeft className="h-4 w-4 text-purple-600" />
-                <span><strong>01-TRANSITAR:</strong> Parceiros (Comissão FS 10%)</span>
-              </li>
-              <li className="flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-red-600" />
                 <span><strong>02-SAÍDAS:</strong> Despesas por categoria</span>
               </li>
             </ul>
+            <p className="text-xs text-muted-foreground mt-4 italic">
+              * Cursos parceiros (Transitar) estão na aba "Cursos Parceiros"
+            </p>
           </CardContent>
         </Card>
       )}
@@ -938,7 +752,6 @@ const FinancialDRENovo: React.FC = () => {
         onClose={() => setModalOpen(false)}
         cursoNome={modalCurso}
         vendas={modalVendas}
-        tipoTransitar={modalTransitar}
       />
     </div>
   );
