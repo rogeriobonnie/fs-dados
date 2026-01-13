@@ -39,6 +39,7 @@ interface VendaDetalhe {
   aluno: string;
   valor: number;
   vendedor: string;
+  marcadorL2: string; // Coluna G - indica se é "LANCE A DOIS"
 }
 
 interface TaxaDetalhe {
@@ -60,6 +61,7 @@ interface CursoParceiro {
   comissaoFS: number;
   comissaoL2Proporcional: number;
   valorFinal: number;
+  temLanceADois: boolean; // Indica se curso tem registro com "LANCE A DOIS" na coluna G
 }
 
 interface RawDRERecord {
@@ -233,6 +235,8 @@ const CursosParceiros: React.FC = () => {
       
       // Check if seller is STELLA - use vendedor field (Column I) or fallback to extraDetail1
       const vendedor = (record.vendedor || record.extraDetail1 || '').toUpperCase();
+      // Coluna G - marcador Lance a Dois
+      const marcadorL2 = (record.extraDetail3 || '').toUpperCase();
       
       if (existing) {
         existing.valorBruto += record.amount;
@@ -241,6 +245,7 @@ const CursosParceiros: React.FC = () => {
           aluno: record.details || '',
           valor: record.amount,
           vendedor: vendedor,
+          marcadorL2: marcadorL2,
         });
       } else {
         cursosMap.set(key, {
@@ -250,6 +255,7 @@ const CursosParceiros: React.FC = () => {
             aluno: record.details || '',
             valor: record.amount,
             vendedor: vendedor,
+            marcadorL2: marcadorL2,
           }],
           valorBruto: record.amount,
           taxasPlataforma: 0,
@@ -261,6 +267,7 @@ const CursosParceiros: React.FC = () => {
           comissaoFS: 0,
           comissaoL2Proporcional: 0,
           valorFinal: 0,
+          temLanceADois: false,
         });
       }
     });
@@ -309,6 +316,12 @@ const CursosParceiros: React.FC = () => {
     const l2ReceitaTotal = isDecember2025 ? L2_DEZEMBRO_2025.receitaTotal : 1; // avoid division by zero
     
     cursosMap.forEach((curso) => {
+      // Verificar se curso tem registro com "LANCE A DOIS" na coluna G
+      curso.temLanceADois = curso.vendas.some(venda => 
+        venda.marcadorL2.includes('LANCE A DOIS') || 
+        venda.marcadorL2.includes('LANCE')
+      );
+      
       // Impostos = bruto * alíquota
       curso.impostos = curso.valorBruto * (curso.aliquotaImposto / 100);
       
@@ -321,8 +334,8 @@ const CursosParceiros: React.FC = () => {
       // Comissão FS = 10% do líquido
       curso.comissaoFS = curso.valorLiquido * FS_COMMISSION_RATE;
       
-      // Comissão L2 Proporcional = (bruto do curso / receita total L2) * comissão L2 total
-      if (isDecember2025 && l2ReceitaTotal > 0) {
+      // Comissão L2 Proporcional = SÓ SE TIVER LANCE A DOIS na coluna G
+      if (isDecember2025 && l2ReceitaTotal > 0 && curso.temLanceADois) {
         const proporcao = curso.valorBruto / l2ReceitaTotal;
         curso.comissaoL2Proporcional = l2ComissaoTotal * proporcao;
       } else {
@@ -651,6 +664,11 @@ const CursosParceiros: React.FC = () => {
                     <Badge variant="secondary" className="ml-2">
                       {curso.vendas.length} venda(s)
                     </Badge>
+                    {curso.temLanceADois ? (
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-300">Lance a Dois</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-slate-500">Sem L2</Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-purple-600 font-bold">
