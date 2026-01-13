@@ -8,6 +8,7 @@ import { MonthlyRevenue } from '@/components/MonthlyRevenue';
 import { MonthlyCommissionReport } from '@/components/MonthlyCommissionReport';
 import FinancialDRE from '@/components/FinancialDRE';
 import FinancialDRENovo from '@/components/FinancialDRENovo';
+import CursosParceiros from '@/components/CursosParceiros';
 import CashFlow from '@/components/CashFlow';
 import Comissoes from '@/components/Comissoes';
 import { PinAuth } from '@/components/PinAuth';
@@ -256,10 +257,14 @@ const Index = () => {
 
             <TabsContent value="demonstracoes" className="space-y-6">
               <Tabs defaultValue="dre-novo" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="dre-novo" className="flex items-center gap-1">
                     <BarChart3 className="h-4 w-4" />
                     DRE Novo
+                  </TabsTrigger>
+                  <TabsTrigger value="cursos-parceiros" className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    Cursos Parceiros
                   </TabsTrigger>
                   <TabsTrigger value="dre" className="flex items-center gap-1">
                     <BarChart3 className="h-4 w-4" />
@@ -276,6 +281,9 @@ const Index = () => {
                 </TabsList>
                 <TabsContent value="dre-novo" className="space-y-6">
                   <FinancialDRENovo />
+                </TabsContent>
+                <TabsContent value="cursos-parceiros" className="space-y-6">
+                  <CursosParceiros />
                 </TabsContent>
                 <TabsContent value="dre" className="space-y-6">
                   <FinancialDRE data={filteredData} />
