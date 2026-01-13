@@ -246,6 +246,7 @@ export class GoogleSheetsService {
       const date = (row[5] || '').toString().trim(); // Column F - date
       const extraDetail3 = (row[6] || '').toString().trim(); // Column G - Marker (e.g., IGOR, LANCE A DOIS)
       const extraDetail2 = (row[7] || '').toString().trim(); // Column H - Banco
+      const vendedor = (row[8] || '').toString().trim(); // Column I - Vendedor (STELLA, etc.)
       
       // SKIP rows where column H contains "PAGO" (case insensitive)
       if (extraDetail2.toUpperCase().includes('PAGO')) {
@@ -334,6 +335,7 @@ export class GoogleSheetsService {
           extraDetail1,
           extraDetail3,
           extraDetail2,
+          vendedor, // Column I - Vendedor
           originalAmount: amount,
           sourceType: type // preserva valor original da coluna A (ex.: 02-SAÍDAS)
         });
