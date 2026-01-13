@@ -58,6 +58,7 @@ interface CursoParceiro {
   valorLiquido: number;
   comissaoStella: number;
   comissaoFS: number;
+  comissaoL2Proporcional: number;
   valorFinal: number;
 }
 
@@ -73,6 +74,7 @@ interface RawDRERecord {
   extraDetail1: string;
   extraDetail2: string;
   extraDetail3: string;
+  vendedor: string;
   originalAmount: number;
   sourceType: string;
 }
@@ -85,6 +87,12 @@ const monthNames: Record<string, string> = {
 
 const STELLA_COMMISSION_RATE = 0.03; // 3% - Comissão Stella
 const FS_COMMISSION_RATE = 0.10; // 10% - Comissão FS sobre líquido
+
+// Dados Lance a Dois Dezembro 2025 - para cálculo proporcional
+const L2_DEZEMBRO_2025 = {
+  comissaoTotal: 4729.77,
+  receitaTotal: 62645.28,
+};
 
 const CursosParceiros: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
@@ -182,6 +190,7 @@ const CursosParceiros: React.FC = () => {
     valorLiquido: number;
     comissaoStella: number;
     comissaoFS: number;
+    comissaoL2Proporcional: number;
     valorFinal: number;
   }} => {
     // Filter TRANSITAR records
@@ -222,8 +231,8 @@ const CursosParceiros: React.FC = () => {
       const key = record.description || 'Sem descrição';
       const existing = cursosMap.get(key);
       
-      // Check if seller is STELLA (column I = extraDetail1 in some cases)
-      const vendedor = (record.extraDetail1 || '').toUpperCase();
+      // Check if seller is STELLA - use vendedor field (Column I) or fallback to extraDetail1
+      const vendedor = (record.vendedor || record.extraDetail1 || '').toUpperCase();
       
       if (existing) {
         existing.valorBruto += record.amount;
@@ -250,6 +259,7 @@ const CursosParceiros: React.FC = () => {
           valorLiquido: 0,
           comissaoStella: 0,
           comissaoFS: 0,
+          comissaoL2Proporcional: 0,
           valorFinal: 0,
         });
       }
@@ -293,6 +303,11 @@ const CursosParceiros: React.FC = () => {
     });
 
     // Calculate derived values for each course
+    // Get L2 data for December 2025 (if selected month/year match)
+    const isDecember2025 = selectedMonth === '12' && selectedYear === '2025';
+    const l2ComissaoTotal = isDecember2025 ? L2_DEZEMBRO_2025.comissaoTotal : 0;
+    const l2ReceitaTotal = isDecember2025 ? L2_DEZEMBRO_2025.receitaTotal : 1; // avoid division by zero
+    
     cursosMap.forEach((curso) => {
       // Impostos = bruto * alíquota
       curso.impostos = curso.valorBruto * (curso.aliquotaImposto / 100);
@@ -300,16 +315,22 @@ const CursosParceiros: React.FC = () => {
       // Valor Líquido = Bruto - Taxas - Impostos
       curso.valorLiquido = curso.valorBruto - curso.taxasPlataforma - curso.impostos;
       
-      // Comissão Stella = 3% do bruto (se vendedor = STELLA)
-      const vendasStella = curso.vendas.filter(v => v.vendedor.includes('STELLA'));
-      const totalVendasStella = vendasStella.reduce((s, v) => s + v.valor, 0);
-      curso.comissaoStella = totalVendasStella * STELLA_COMMISSION_RATE;
+      // Comissão Stella = SEMPRE 3% do bruto para cursos parceiros
+      curso.comissaoStella = curso.valorBruto * STELLA_COMMISSION_RATE;
       
       // Comissão FS = 10% do líquido
       curso.comissaoFS = curso.valorLiquido * FS_COMMISSION_RATE;
       
-      // Valor Final = Líquido - Comissão Stella - Comissão FS
-      curso.valorFinal = curso.valorLiquido - curso.comissaoStella - curso.comissaoFS;
+      // Comissão L2 Proporcional = (bruto do curso / receita total L2) * comissão L2 total
+      if (isDecember2025 && l2ReceitaTotal > 0) {
+        const proporcao = curso.valorBruto / l2ReceitaTotal;
+        curso.comissaoL2Proporcional = l2ComissaoTotal * proporcao;
+      } else {
+        curso.comissaoL2Proporcional = 0;
+      }
+      
+      // Valor Final = Líquido - Comissão Stella - Comissão FS - Comissão L2
+      curso.valorFinal = curso.valorLiquido - curso.comissaoStella - curso.comissaoFS - curso.comissaoL2Proporcional;
     });
 
     const cursos = Array.from(cursosMap.values()).sort((a, b) => b.valorBruto - a.valorBruto);
@@ -322,6 +343,7 @@ const CursosParceiros: React.FC = () => {
       valorLiquido: cursos.reduce((s, c) => s + c.valorLiquido, 0),
       comissaoStella: cursos.reduce((s, c) => s + c.comissaoStella, 0),
       comissaoFS: cursos.reduce((s, c) => s + c.comissaoFS, 0),
+      comissaoL2Proporcional: cursos.reduce((s, c) => s + c.comissaoL2Proporcional, 0),
       valorFinal: cursos.reduce((s, c) => s + c.valorFinal, 0),
     };
 
@@ -406,6 +428,9 @@ const CursosParceiros: React.FC = () => {
         ['= Valor Líquido do Curso', formatCurrency(curso.valorLiquido)],
         ['(-) Comissão Stella (3% do bruto)', `- ${formatCurrency(curso.comissaoStella)}`],
         ['(-) Comissão FS (10% do líquido)', `- ${formatCurrency(curso.comissaoFS)}`],
+        ...(curso.comissaoL2Proporcional > 0 
+          ? [['(-) Comissão L2 Proporcional', `- ${formatCurrency(curso.comissaoL2Proporcional)}`]]
+          : []),
       ],
       foot: [['= VALOR FINAL DO CURSO', formatCurrency(curso.valorFinal)]],
       theme: 'plain',
@@ -739,6 +764,14 @@ const CursosParceiros: React.FC = () => {
                             - {formatCurrency(curso.comissaoFS)}
                           </TableCell>
                         </TableRow>
+                        {curso.comissaoL2Proporcional > 0 && (
+                          <TableRow className="bg-indigo-50">
+                            <TableCell className="text-indigo-700">(-) Comissão L2 Proporcional</TableCell>
+                            <TableCell className="text-right font-mono text-indigo-600">
+                              - {formatCurrency(curso.comissaoL2Proporcional)}
+                            </TableCell>
+                          </TableRow>
+                        )}
                         <TableRow className="bg-amber-100 border-t-2 border-amber-300">
                           <TableCell className="font-bold text-amber-800">= VALOR FINAL DO CURSO</TableCell>
                           <TableCell className="text-right font-mono font-bold text-amber-700 text-lg">
@@ -804,6 +837,14 @@ const CursosParceiros: React.FC = () => {
                       {formatCurrency(processedData.totais.comissaoFS)}
                     </TableCell>
                   </TableRow>
+                  {processedData.totais.comissaoL2Proporcional > 0 && (
+                    <TableRow className="bg-indigo-50">
+                      <TableCell className="font-semibold text-indigo-700">Total Comissões L2 Proporcional</TableCell>
+                      <TableCell className="text-right font-mono font-bold text-indigo-600">
+                        - {formatCurrency(processedData.totais.comissaoL2Proporcional)}
+                      </TableCell>
+                    </TableRow>
+                  )}
                   <TableRow className="bg-amber-100 border-t-2 border-amber-300">
                     <TableCell className="font-bold text-amber-800 text-lg">TOTAL VALOR FINAL (Para Parceiros)</TableCell>
                     <TableCell className="text-right font-mono font-bold text-amber-700 text-xl">
