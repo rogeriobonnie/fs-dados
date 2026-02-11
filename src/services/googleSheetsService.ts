@@ -1,4 +1,5 @@
 import { FinancialRecord } from '@/types/financial';
+import { Pagina5Record } from '@/types/pagina5';
 
 export class GoogleSheetsService {
   private static API_KEY_STORAGE_KEY = 'google_sheets_api_key';
@@ -777,6 +778,107 @@ export class GoogleSheetsService {
     if (!specialCondition) return false;
     const cleanValue = specialCondition.toString().trim().toUpperCase();
     return cleanValue.includes('BOLSA') || cleanValue.includes('SCHOLARSHIP');
+  }
+
+  // ============ Página5 - Painel Financeiro ============
+
+  static async fetchPagina5Data(): Promise<Pagina5Record[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+    
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      const range = 'Página5!A:O';
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados da Página5: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+      
+      return this.parsePagina5Data(rows);
+    } catch (error) {
+      console.error('Error fetching Página5 data:', error);
+      throw error;
+    }
+  }
+
+  private static parsePagina5Data(rows: string[][]): Pagina5Record[] {
+    const records: Pagina5Record[] = [];
+    
+    // Skip row 0 (totals) and row 1 (header)
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      
+      const dateStr = (row[0] || '').toString().trim();
+      const descricao = (row[1] || '').toString().trim();
+      const detalhamento = (row[2] || '').toString().trim();
+      const custo = (row[3] || '').toString().trim();
+      const valorBruto = this.parseAmount(row[4] || '');
+      const taxas = this.parseAmount(row[5] || '');
+      const acrescimos = this.parseAmount(row[6] || '');
+      const valorLiquido = this.parseAmount(row[7] || '');
+      const banco = (row[8] || '').toString().trim().toUpperCase();
+      const impAliq = this.parseAmount(row[9] || '');
+      const vrImposto = this.parseAmount(row[10] || '');
+      const vendedor = (row[11] || '').toString().trim();
+      const vrVendedor = this.parseAmount(row[12] || '');
+      const mkt = (row[13] || '').toString().trim();
+      const vrMkt = this.parseAmount(row[14] || '');
+      
+      if (!custo && !descricao && valorBruto === 0) continue;
+      
+      // Parse date DD/MM/YY or DD/MM/YYYY
+      let month = 0;
+      let year = 0;
+      let dateFormatted = '';
+      if (dateStr) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0]);
+          month = parseInt(parts[1]);
+          year = parseInt(parts[2]);
+          if (year < 100) year += 2000;
+          dateFormatted = `${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}/${year}`;
+        }
+      }
+      
+      // Determine cost code number
+      const custoNum = parseInt(custo.split('-')[0]) || 0;
+      
+      records.push({
+        id: `p5_${i}`,
+        date: dateFormatted,
+        descricao,
+        detalhamento,
+        custo,
+        custoNum,
+        valorBruto,
+        taxas,
+        acrescimos,
+        valorLiquido,
+        banco,
+        impAliq,
+        vrImposto,
+        vendedor,
+        vrVendedor,
+        mkt,
+        vrMkt,
+        month,
+        year,
+      });
+    }
+    
+    console.log('Parsed Página5 records:', records.length);
+    return records;
   }
 
   static async updateSheetData(records: FinancialRecord[]): Promise<boolean> {
