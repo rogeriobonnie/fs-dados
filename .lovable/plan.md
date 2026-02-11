@@ -1,64 +1,49 @@
 
 
-## Plano: Corrigir Fluxo de Caixa para bater com Saldo dos Bancos
+## Ajustes no Painel Financeiro
 
-### Problema Identificado
+### 1. Cards do Painel Financeiro - Refletir dados reais da DRE
 
-O Fluxo de Caixa e a Tabela de Bancos calculam valores de formas diferentes, por isso nunca batem:
+Os 4 cards atuais usam calculos simplificados que nao batem com a DRE. Vou atualizar para usar a mesma logica:
 
-| Item | Fluxo de Caixa (errado) | Tabela de Bancos (correto) |
-|------|------------------------|---------------------------|
-| Saidas (21-30) | usa `valorBruto` | usa `valorLiquido` |
-| Entradas (97-98) | usa `valorBruto` | usa `valorLiquido` |
-| Transferencias (99) | IGNORA | Inclui no calculo |
-| Resultado de Caixa | formula propria | receitas - despesas real |
+| Card | Hoje (simplificado) | Corrigido (real) |
+|------|---------------------|------------------|
+| Saldo Inicial | `valorBruto` dos registros custoNum 0 | Mantido (ja esta correto) |
+| Receitas | `valorLiquido` bruto | Resultado real: liquido - impostos - comissoes vendedores |
+| Despesas | `abs(valorLiquido)` despesas 11-20 | Mantido (ja esta correto) |
+| Resultado | Receitas - Despesas simples | Resultado real da DRE (receitas resultado - despesas) |
 
-### Solucao
+**Arquivo**: `src/components/PainelFinanceiro.tsx`
 
-Alinhar o Fluxo de Caixa com a mesma logica da tabela de bancos. Usar `valorLiquido` consistentemente e incluir transferencias.
+- Atualizar o calculo do `summary` para considerar impostos e comissoes de vendedores no valor de receitas, alinhando com a DRE
+- Receitas no card mostrara o "Resultado Receitas" (liquido - impostos - comissoes vendedores com campo vendedor preenchido)
+- Resultado sera Receitas (resultado) - Despesas
 
-### O que muda na tela
+### 2. Lance a Dois - Incluir nome (detalhamento) ao lado do curso
 
-```text
-FLUXO DE CAIXA
-  Saldo Inicial                              R$ X
-  (+) Resultado de Caixa                     R$ Y  (receitas valorLiquido - despesas valorLiquido)
-  = Disponivel                               R$ X + Y
-  (-) Saidas de Caixa                        R$ Z  (valorLiquido, nao valorBruto)
-  (+) Entradas de Caixa                      R$ W  (valorLiquido, nao valorBruto)
-  (+/-) Transferencias                       R$ T  (custoNum 99, soma liquida)
-  = SALDO FINAL LIVRE                        R$ X + Y - Z + W + T  (= soma saldos finais bancos)
-```
+Na tabela de receitas do Lance a Dois, adicionar a coluna "Nome" (campo `detalhamento` do registro) logo apos a coluna "Curso".
+
+**Arquivo**: `src/components/ComissoesPainel.tsx`
+
+- Na tabela de receitas LAD, adicionar `<TableHead>Nome</TableHead>` apos "Curso"
+- Na linha de dados, adicionar `<TableCell>{r.detalhamento}</TableCell>` apos `r.descricao`
+- Atualizar o `colSpan` do footer de 2 para 3
+- Atualizar o PDF do LAD para incluir a coluna "Nome" tambem
 
 ### Detalhes Tecnicos
 
-Arquivo: `src/components/DREFluxoCaixa.tsx`
-
-**1. Saidas de caixa (linha 128)**: trocar `valorBruto` por `valorLiquido`
-
+**PainelFinanceiro.tsx - novo calculo summary:**
 ```text
-ANTES: totalSaidasCaixa += Math.abs(r.valorBruto)
-DEPOIS: totalSaidasCaixa += Math.abs(r.valorLiquido)
+const receitas = filteredData.filter(r => r.custoNum >= 1 && r.custoNum <= 10);
+const totalBruto = soma valorBruto
+const totalImpostos = soma vrImposto
+const totalComVend = soma vrVendedor (apenas quando vendedor preenchido)
+const totalResultadoReceitas = soma valorLiquido - totalImpostos - totalComVend
+const resultado = totalResultadoReceitas - totalDespesas
 ```
 
-**2. Entradas de caixa (linha 134)**: trocar `valorBruto` por `valorLiquido`
-
-```text
-ANTES: totalEntradasCaixa += Math.abs(r.valorBruto)
-DEPOIS: totalEntradasCaixa += Math.abs(r.valorLiquido)
-```
-
-**3. Adicionar transferencias no calculo do fluxo (apos linha 135)**:
-
-```text
-totalTransferencias = soma de valorLiquido das transferencias (custoNum 99), ignorando banco PROVISAO
-saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa + totalTransferencias
-```
-
-Obs: transferencias somam zero no total (saem de um banco e entram em outro), mas sao necessarias para a conta fechar corretamente caso haja arredondamentos.
-
-**4. Exibir transferencias no resumo do fluxo (UI e PDF)** se o valor for diferente de zero.
-
-**5. Manter `resultadoCaixa = totalLiquidoReceitas - totalDespesas`** -- isso ja esta alinhado com a tabela de bancos (ambos usam `valorLiquido` para receitas e despesas).
-
-Resultado: o Saldo Final Livre vai bater exatamente com a soma dos saldos finais dos bancos.
+**ComissoesPainel.tsx - nova coluna:**
+- Header: Data | Curso | Nome | Bruto | Taxas | ...
+- Body: r.date | r.descricao | r.detalhamento | ...
+- Footer colSpan: 2 -> 3
+- PDF head: adicionar 'Nome' apos 'Curso'
