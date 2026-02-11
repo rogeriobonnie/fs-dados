@@ -38,7 +38,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
   // Lance a Dois - Receitas
   const receitasLAD = useMemo(() => {
     return data.filter(r =>
-      r.custoNum >= 1 && r.custoNum <= 10 &&
+      ((r.custoNum >= 1 && r.custoNum <= 10) || r.custoNum === 97) &&
       (r.mkt || '').toUpperCase().includes('LANCE')
     );
   }, [data]);
