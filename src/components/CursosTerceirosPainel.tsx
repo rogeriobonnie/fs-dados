@@ -28,6 +28,9 @@ interface CursoTerceiro {
   vrVendedor: number;
   vrMkt: number;
   valorFinal: number;
+  comissaoFS: number;
+  proporcaoLAD: number;
+  valorLiquidoCurso: number;
   vendas: Pagina5Record[];
 }
 
@@ -37,6 +40,32 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
 
   const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
   const year = selectedYear || '';
+
+  // Calculate Lance a Dois commission and total receitas for proportion
+  const ladInfo = useMemo(() => {
+    const receitasLAD = data.filter(r =>
+      ((r.custoNum >= 1 && r.custoNum <= 10) || r.custoNum === 97) &&
+      (r.mkt || '').toUpperCase().includes('LANCE')
+    );
+    const despesasLAD = data.filter(r =>
+      r.custoNum >= 11 && r.custoNum <= 20 &&
+      (r.mkt || '').toUpperCase().includes('LANCE')
+    );
+
+    const bruto = receitasLAD.reduce((s, r) => s + r.valorBruto, 0);
+    const taxas = receitasLAD.reduce((s, r) => s + r.taxas, 0);
+    const acrescimos = receitasLAD.reduce((s, r) => s + r.acrescimos, 0);
+    const impostos = receitasLAD.reduce((s, r) => s + r.vrImposto, 0);
+    const comVend = receitasLAD.reduce((s, r) => s + r.vrVendedor, 0);
+    const totalReceitaLiquida = bruto - taxas + acrescimos - impostos - comVend;
+
+    const totalDespesasLAD = despesasLAD.reduce((s, r) => s + r.valorLiquido, 0);
+    const resultadoLiquido = totalReceitaLiquida + totalDespesasLAD;
+    const comissaoLAD = resultadoLiquido * 0.10;
+    const totalReceitasBruto = bruto;
+
+    return { comissaoLAD, totalReceitasBruto };
+  }, [data]);
 
   const terceiros = useMemo(() => {
     const items = data.filter(r => r.custoNum === 97);
@@ -48,7 +77,8 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
       if (!map.has(key)) {
         map.set(key, {
           nome: key, valorBruto: 0, taxas: 0, acrescimos: 0, valorLiquido: 0,
-          vrImposto: 0, vrVendedor: 0, vrMkt: 0, valorFinal: 0, vendas: [],
+          vrImposto: 0, vrVendedor: 0, vrMkt: 0, valorFinal: 0,
+          comissaoFS: 0, proporcaoLAD: 0, valorLiquidoCurso: 0, vendas: [],
         });
       }
       const c = map.get(key)!;
@@ -62,13 +92,23 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
       c.vendas.push(r);
     });
 
-    map.forEach(c => { c.valorFinal = c.valorLiquido - c.vrImposto - c.vrVendedor - c.vrMkt; });
+    const proporcao = ladInfo.totalReceitasBruto > 0
+      ? ladInfo.comissaoLAD / ladInfo.totalReceitasBruto
+      : 0;
+
+    map.forEach(c => {
+      c.valorFinal = c.valorLiquido - c.vrImposto - c.vrVendedor - c.vrMkt;
+      c.comissaoFS = c.valorFinal * 0.10;
+      c.proporcaoLAD = c.valorBruto * proporcao;
+      c.valorLiquidoCurso = c.valorFinal - c.comissaoFS - c.proporcaoLAD;
+    });
     return Array.from(map.values()).sort((a, b) => b.valorBruto - a.valorBruto);
-  }, [data]);
+  }, [data, ladInfo]);
 
   const totalBruto = terceiros.reduce((s, c) => s + c.valorBruto, 0);
   const totalLiquido = terceiros.reduce((s, c) => s + c.valorLiquido, 0);
   const totalFinal = terceiros.reduce((s, c) => s + c.valorFinal, 0);
+  const totalLiquidoCurso = terceiros.reduce((s, c) => s + c.valorLiquidoCurso, 0);
 
   // Generate individual PDF per curso
   const generateCursoPDF = (curso: CursoTerceiro) => {
@@ -98,6 +138,10 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
         ['(-) Comissão Vendedor', `-${fmt(curso.vrVendedor)}`],
         ['(-) Comissão MKT', `-${fmt(curso.vrMkt)}`],
         ['= VALOR FINAL', fmt(curso.valorFinal)],
+        ['', ''],
+        ['(-) Comissão FS (10%)', `-${fmt(curso.comissaoFS)}`],
+        ['(-) Comissão Lance a Dois (proporcional)', `-${fmt(curso.proporcaoLAD)}`],
+        ['= VALOR LÍQUIDO DO CURSO', fmt(curso.valorLiquidoCurso)],
       ],
       theme: 'grid', styles: { fontSize: 10 },
       headStyles: { fillColor: [66, 66, 66] },
@@ -105,7 +149,11 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
       didParseCell: (data: any) => {
         if (data.section === 'body' && (data.row.index === 3 || data.row.index === 8)) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = data.row.index === 8 ? [220, 255, 220] : [240, 240, 240];
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+        if (data.section === 'body' && data.row.index === 12) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [220, 255, 220];
         }
       },
     });
@@ -145,7 +193,7 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
   return (
     <div className="space-y-6 mt-4">
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Bruto</p>
@@ -162,6 +210,13 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Valor Final (- imp - comissões)</p>
             <p className="text-lg font-bold" style={{ color: 'hsl(var(--success))' }}>{fmt(totalFinal)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Valor Líquido Cursos</p>
+            <p className="text-lg font-bold" style={{ color: 'hsl(var(--success))' }}>{fmt(totalLiquidoCurso)}</p>
+            <p className="text-[10px] text-muted-foreground">Final - FS 10% - Prop. LAD</p>
           </CardContent>
         </Card>
       </div>
@@ -182,7 +237,7 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
                       <Badge variant="secondary" className="text-xs">{curso.vendas.length} vendas</Badge>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm">{fmt(curso.valorFinal)}</span>
+                      <span className="font-bold text-sm">{fmt(curso.valorLiquidoCurso)}</span>
                       <Button
                         variant="ghost" size="sm" className="h-6 px-2"
                         onClick={(e) => { e.stopPropagation(); generateCursoPDF(curso); }}
@@ -210,7 +265,14 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
                     <div className="flex justify-between"><span className="text-xs">(-) Comissão Vendedor</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(curso.vrVendedor)}</span></div>
                     <div className="flex justify-between"><span className="text-xs">(-) Comissão MKT</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(curso.vrMkt)}</span></div>
                     <div className="border-t my-2" />
-                    <div className="flex justify-between font-bold text-sm"><span>= VALOR FINAL</span><span className="text-primary">{fmt(curso.valorFinal)}</span></div>
+                    <div className="flex justify-between font-bold text-sm"><span>= VALOR FINAL</span><span>{fmt(curso.valorFinal)}</span></div>
+
+                    <div className="mt-3" />
+                    <p className="text-xs font-bold text-muted-foreground mb-2">COMISSÕES</p>
+                    <div className="flex justify-between"><span className="text-xs">(-) Comissão FS (10% do Valor Final)</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(curso.comissaoFS)}</span></div>
+                    <div className="flex justify-between"><span className="text-xs">(-) Comissão Lance a Dois (proporcional)</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(curso.proporcaoLAD)}</span></div>
+                    <div className="border-t-2 border-primary my-2" />
+                    <div className="flex justify-between font-bold text-sm"><span>= VALOR LÍQUIDO DO CURSO</span><span className="text-primary">{fmt(curso.valorLiquidoCurso)}</span></div>
                   </div>
 
                   {/* Individual sales */}
