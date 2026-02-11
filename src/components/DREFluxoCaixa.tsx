@@ -403,13 +403,27 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     });
     y = (doc as any).lastAutoTable.finalY + 6;
 
-    // Saldo por Banco
-    const finalRows = fluxoBancos.map(b => [b.banco, fmt(b.saldoFinal)]);
-    finalRows.push(['TOTAL', fmt(fluxoTotal.saldoFinal)]);
+    // Saldo por Banco - Simplificado
+    const bancoRows = fluxoBancos.map(b => {
+      const entradas = b.receitas + b.resgates + Math.max(0, b.transferencias);
+      const saidas = b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias));
+      const saldoFinal = b.saldoInicial + entradas - saidas;
+      return [b.banco, fmt(b.saldoInicial), `+${fmt(entradas)}`, `-${fmt(saidas)}`, fmt(saldoFinal)];
+    });
+    const totEntradas = fluxoBancos.reduce((s, b) => s + b.receitas + b.resgates + Math.max(0, b.transferencias), 0);
+    const totSaidas = fluxoBancos.reduce((s, b) => s + b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias)), 0);
+    const totSaldoFinal = fluxoTotal.saldoInicial + totEntradas - totSaidas;
+    bancoRows.push(['TOTAL', fmt(fluxoTotal.saldoInicial), `+${fmt(totEntradas)}`, `-${fmt(totSaidas)}`, fmt(totSaldoFinal)]);
     autoTable(doc, {
-      startY: y, head: [['SALDO POR BANCO', 'Valor']], body: finalRows,
+      startY: y, head: [['Banco', 'Saldo Inicial', '+ Entradas', '- Saídas', 'Saldo Final']], body: bancoRows,
       theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [66, 66, 66] },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.row.index === bancoRows.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+      },
     });
     y = (doc as any).lastAutoTable.finalY + 10;
 
@@ -787,13 +801,13 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
           </CardContent>
         </Card>
 
-        {/* SALDO POR BANCO - Detalhado */}
+        {/* SALDO POR BANCO - Simplificado */}
         {fluxoBancos.length > 0 && (
           <Card className="border-l-4 border-l-primary">
             <CardHeader className="py-3 px-4">
               <div className="flex items-center gap-2">
                 <Landmark className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-semibold">SALDO POR BANCO — Detalhamento</CardTitle>
+                <CardTitle className="text-sm font-semibold">SALDO POR BANCO</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
@@ -803,39 +817,42 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                     <TableRow>
                       <TableHead className="text-xs">Banco</TableHead>
                       <TableHead className="text-xs text-right">Saldo Inicial</TableHead>
-                      <TableHead className="text-xs text-right">+ Receitas</TableHead>
-                      <TableHead className="text-xs text-right">- Despesas</TableHead>
-                      <TableHead className="text-xs text-right">- Saídas Cx</TableHead>
-                      <TableHead className="text-xs text-right">+ Entradas Cx</TableHead>
-                      <TableHead className="text-xs text-right">± Transferências</TableHead>
+                      <TableHead className="text-xs text-right">+ Entradas</TableHead>
+                      <TableHead className="text-xs text-right">- Saídas</TableHead>
                       <TableHead className="text-xs text-right font-bold">Saldo Final</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {fluxoBancos.map(b => (
-                      <TableRow key={b.banco}>
-                        <TableCell className="text-xs font-medium">{b.banco}</TableCell>
-                        <TableCell className="text-xs text-right">{fmt(b.saldoInicial)}</TableCell>
-                        <TableCell className="text-xs text-right" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(b.receitas)}</TableCell>
-                        <TableCell className="text-xs text-right" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(b.despesas)}</TableCell>
-                        <TableCell className="text-xs text-right" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(b.destinacoes)}</TableCell>
-                        <TableCell className="text-xs text-right" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(b.resgates)}</TableCell>
-                        <TableCell className="text-xs text-right">{b.transferencias >= 0 ? '+' : ''}{fmt(b.transferencias)}</TableCell>
-                        <TableCell className="text-xs text-right font-bold">{fmt(b.saldoFinal)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {fluxoBancos.map(b => {
+                      const entradas = b.receitas + b.resgates + Math.max(0, b.transferencias);
+                      const saidas = b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias));
+                      const saldoFinal = b.saldoInicial + entradas - saidas;
+                      return (
+                        <TableRow key={b.banco}>
+                          <TableCell className="text-xs font-medium">{b.banco}</TableCell>
+                          <TableCell className="text-xs text-right">{fmt(b.saldoInicial)}</TableCell>
+                          <TableCell className="text-xs text-right" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(entradas)}</TableCell>
+                          <TableCell className="text-xs text-right" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(saidas)}</TableCell>
+                          <TableCell className="text-xs text-right font-bold">{fmt(saldoFinal)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                   <TableFooter>
-                    <TableRow className="bg-primary/10">
-                      <TableCell className="text-xs font-bold">TOTAL</TableCell>
-                      <TableCell className="text-xs text-right font-bold">{fmt(fluxoTotal.saldoInicial)}</TableCell>
-                      <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(fluxoTotal.receitas)}</TableCell>
-                      <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(fluxoTotal.despesas)}</TableCell>
-                      <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(fluxoTotal.destinacoes)}</TableCell>
-                      <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(fluxoTotal.resgates)}</TableCell>
-                      <TableCell className="text-xs text-right font-bold">{fluxoTotal.transferencias >= 0 ? '+' : ''}{fmt(fluxoTotal.transferencias)}</TableCell>
-                      <TableCell className="text-xs text-right font-bold text-primary">{fmt(fluxoTotal.saldoFinal)}</TableCell>
-                    </TableRow>
+                    {(() => {
+                      const totEntradas = fluxoBancos.reduce((s, b) => s + b.receitas + b.resgates + Math.max(0, b.transferencias), 0);
+                      const totSaidas = fluxoBancos.reduce((s, b) => s + b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias)), 0);
+                      const totSaldoFinal = fluxoTotal.saldoInicial + totEntradas - totSaidas;
+                      return (
+                        <TableRow className="bg-primary/10">
+                          <TableCell className="text-xs font-bold">TOTAL</TableCell>
+                          <TableCell className="text-xs text-right font-bold">{fmt(fluxoTotal.saldoInicial)}</TableCell>
+                          <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totEntradas)}</TableCell>
+                          <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totSaidas)}</TableCell>
+                          <TableCell className="text-xs text-right font-bold text-primary">{fmt(totSaldoFinal)}</TableCell>
+                        </TableRow>
+                      );
+                    })()}
                   </TableFooter>
                 </Table>
               </div>
