@@ -39,7 +39,8 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
         if (!receitas[r.custo]) receitas[r.custo] = [];
         receitas[r.custo].push(r);
-      } else if (r.custoNum >= 11 && r.custoNum <= 20) {
+      } else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO') {
+        // Despesas: exclui banco=PAGO (já foi pago, não entra no resultado)
         if (!despesas[r.custo]) despesas[r.custo] = [];
         despesas[r.custo].push(r);
       } else if (r.custoNum >= 21 && r.custoNum <= 30) {
@@ -305,48 +306,39 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     y = (doc as any).lastAutoTable.finalY + 6;
 
     // Resultado do mês
+    const resultadoBody: string[][] = [
+      ['RESULTADO DO MÊS (Receita Líquida - Despesas)', fmt(totals.resultadoMes)],
+    ];
+    // Provisões dentro do resultado
+    if (totals.totalProvisoes > 0) {
+      Object.entries(grouped.provisoes).sort(([a], [b]) => a.localeCompare(b)).forEach(([, items]) => {
+        items.forEach(r => {
+          resultadoBody.push([`  ${r.date} - ${r.descricao} ${r.detalhamento || ''}`, `-${fmt(Math.abs(r.valorLiquido))}`]);
+        });
+      });
+      resultadoBody.push(['(-) Total Provisões', `-${fmt(totals.totalProvisoes)}`]);
+      resultadoBody.push(['RESULTADO COM PROVISÕES', fmt(totals.resultadoAposProvisoes)]);
+    }
+
     autoTable(doc, {
       startY: y,
-      body: [['RESULTADO DO MÊS (Receita Líquida - Despesas)', fmt(totals.resultadoMes)]],
-      theme: 'grid', styles: { fontSize: 11, fontStyle: 'bold' },
-      columnStyles: { 1: { halign: 'right' } },
-      bodyStyles: { fillColor: totals.resultadoMes >= 0 ? [220, 255, 220] : [255, 220, 220] },
+      body: resultadoBody,
+      theme: 'grid', styles: { fontSize: 9 },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.row.index === 0) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 11;
+          data.cell.styles.fillColor = totals.resultadoMes >= 0 ? [220, 255, 220] : [255, 220, 220];
+        }
+        if (data.section === 'body' && data.row.index === resultadoBody.length - 1 && totals.totalProvisoes > 0) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 11;
+          data.cell.styles.fillColor = totals.resultadoAposProvisoes >= 0 ? [220, 255, 220] : [255, 220, 220];
+        }
+      },
     });
-    y = (doc as any).lastAutoTable.finalY + 6;
-
-    // Provisões no PDF
-    if (Object.keys(grouped.provisoes).length > 0) {
-      const provisoesResumo = Object.entries(grouped.provisoes)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([custo, items]) => [custo, `-${fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}`]);
-      provisoesResumo.push(['TOTAL PROVISÕES', `-${fmt(totals.totalProvisoes)}`]);
-
-      autoTable(doc, {
-        startY: y,
-        head: [['PROVISÕES (não afetam o caixa)', 'Valor']],
-        body: provisoesResumo,
-        theme: 'grid', styles: { fontSize: 9 },
-        headStyles: { fillColor: [200, 150, 50], fontStyle: 'bold' },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-        didParseCell: (data: any) => {
-          if (data.section === 'body' && data.row.index === provisoesResumo.length - 1) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [255, 245, 220];
-          }
-        },
-      });
-      y = (doc as any).lastAutoTable.finalY + 6;
-
-      // Resultado após provisões
-      autoTable(doc, {
-        startY: y,
-        body: [['RESULTADO APÓS PROVISÕES', fmt(totals.resultadoAposProvisoes)]],
-        theme: 'grid', styles: { fontSize: 11, fontStyle: 'bold' },
-        columnStyles: { 1: { halign: 'right' } },
-        bodyStyles: { fillColor: totals.resultadoAposProvisoes >= 0 ? [220, 255, 220] : [255, 220, 220] },
-      });
-      y = (doc as any).lastAutoTable.finalY + 10;
-    }
+    y = (doc as any).lastAutoTable.finalY + 10;
 
     // ========== PAGE 2: FLUXO DE CAIXA ==========
     doc.addPage();
@@ -729,7 +721,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       </div>
 
       {/* RESULTADO DRE */}
-      <Card className={`border-2 ${totals.resultadoMes >= 0 ? 'border-primary' : 'border-destructive'}`}>
+      <Card className={`border-2 ${(totals.totalProvisoes > 0 ? totals.resultadoAposProvisoes : totals.resultadoMes) >= 0 ? 'border-primary' : 'border-destructive'}`}>
         <CardContent className="p-4">
           <div className="space-y-1 text-sm">
             <div className="flex justify-between"><span>Receita Líquida Final</span><span className="font-bold">{fmt(totals.totalResultadoReceitas)}</span></div>
@@ -741,48 +733,38 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                 {fmt(totals.resultadoMes)}
               </span>
             </div>
+
+            {/* Provisões dentro do card de resultado */}
+            {totals.totalProvisoes > 0 && (
+              <>
+                <div className="border-t my-2 border-dashed" />
+                <div className="text-xs text-muted-foreground font-semibold mt-2">PROVISÕES (não afetam o fluxo de caixa)</div>
+                {Object.entries(grouped.provisoes).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => (
+                  <div key={custo}>
+                    {items.map(r => (
+                      <div key={r.id} className="flex justify-between text-xs pl-2">
+                        <span>{r.date} - {r.descricao} {r.detalhamento ? `(${r.detalhamento})` : ''}</span>
+                        <span style={{ color: 'hsl(var(--destructive))' }}>-{fmt(Math.abs(r.valorLiquido))}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                <div className="flex justify-between text-xs font-bold">
+                  <span>(-) Total Provisões</span>
+                  <span style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalProvisoes)}</span>
+                </div>
+                <div className="border-t my-2" />
+                <div className="flex justify-between text-lg font-bold">
+                  <span>= RESULTADO COM PROVISÕES</span>
+                  <span className={totals.resultadoAposProvisoes >= 0 ? 'text-primary' : ''} style={totals.resultadoAposProvisoes < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
+                    {fmt(totals.resultadoAposProvisoes)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
-
-      {/* PROVISÕES (custoNum 31, banco=PROVISÃO) */}
-      {Object.keys(grouped.provisoes).length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <TrendingDown className="h-5 w-5 text-warning" />
-            <h3 className="text-lg font-bold">PROVISÕES</h3>
-            <span className="text-xs text-muted-foreground">(não afetam o fluxo de caixa)</span>
-          </div>
-          {Object.entries(grouped.provisoes)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([custo, items]) => renderDespesaSection(custo, items, 'despesa'))}
-          <div className="flex justify-end px-4">
-            <div className="flex items-center gap-3 p-2 rounded bg-warning/10">
-              <span className="text-sm font-bold">SUBTOTAL PROVISÕES</span>
-              <span className="text-sm font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalProvisoes)}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* RESULTADO APÓS PROVISÕES */}
-      {totals.totalProvisoes > 0 && (
-        <Card className={`border-2 ${totals.resultadoAposProvisoes >= 0 ? 'border-primary' : 'border-destructive'}`}>
-          <CardContent className="p-4">
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between"><span>Resultado do Mês</span><span className="font-bold">{fmt(totals.resultadoMes)}</span></div>
-              <div className="flex justify-between"><span>(-) Provisões</span><span className="font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalProvisoes)}</span></div>
-              <div className="border-t my-2" />
-              <div className="flex justify-between text-lg font-bold">
-                <span>= RESULTADO APÓS PROVISÕES</span>
-                <span className={totals.resultadoAposProvisoes >= 0 ? 'text-primary' : ''} style={totals.resultadoAposProvisoes < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
-                  {fmt(totals.resultadoAposProvisoes)}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ═══════ FLUXO DE CAIXA ═══════ */}
       <div className="space-y-4">
