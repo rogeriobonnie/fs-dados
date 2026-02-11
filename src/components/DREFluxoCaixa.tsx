@@ -125,25 +125,30 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     // Saídas de caixa (21-30) - valores absolutos
     let totalSaidasCaixa = 0;
     Object.values(grouped.saidasCaixa).forEach(items => {
-      items.forEach(r => { totalSaidasCaixa += Math.abs(r.valorBruto); });
+      items.forEach(r => { totalSaidasCaixa += Math.abs(r.valorLiquido); });
     });
 
     // Entradas de caixa (97, 98) - valores positivos
     let totalEntradasCaixa = 0;
     Object.values(grouped.entradasCaixa).forEach(items => {
-      items.forEach(r => { totalEntradasCaixa += Math.abs(r.valorBruto); });
+      items.forEach(r => { totalEntradasCaixa += Math.abs(r.valorLiquido); });
     });
+
+    // Transferências (custoNum 99) - excluindo PROVISAO
+    const totalTransferencias = grouped.transferencias
+      .filter(r => (r.banco || '').toUpperCase() !== 'PROVISAO')
+      .reduce((sum, r) => sum + r.valorLiquido, 0);
 
     const resultadoCaixa = totalLiquidoReceitas - totalDespesas;
     const disponivelAntes = totalSaldoInicial + resultadoCaixa;
-    const saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa;
+    const saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa + totalTransferencias;
 
     return {
       totalSaldoInicial,
       totalBrutoReceitas, totalTaxasReceitas, totalLiquidoReceitas,
       totalImpostosReceitas, totalComVendedor, totalResultadoReceitas,
       totalDespesas, resultadoMes, totalProvisoes, resultadoAposProvisoes,
-      resultadoCaixa, totalSaidasCaixa, totalEntradasCaixa, disponivelAntes, saldoFinalLivre,
+      resultadoCaixa, totalSaidasCaixa, totalEntradasCaixa, totalTransferencias, disponivelAntes, saldoFinalLivre,
     };
   }, [grouped, receitasPorCurso]);
 
@@ -374,7 +379,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     if (Object.keys(grouped.saidasCaixa).length > 0) {
       const saidasResumo = Object.entries(grouped.saidasCaixa)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([custo, items]) => [custo, `-${fmt(items.reduce((s, r) => s + Math.abs(r.valorBruto), 0))}`]);
+        .map(([custo, items]) => [custo, `-${fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}`]);
       saidasResumo.push(['TOTAL SAÍDAS DE CAIXA', `-${fmt(totals.totalSaidasCaixa)}`]);
 
       autoTable(doc, {
@@ -398,7 +403,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     if (Object.keys(grouped.entradasCaixa).length > 0) {
       const entradasResumo = Object.entries(grouped.entradasCaixa)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([custo, items]) => [custo, `+${fmt(items.reduce((s, r) => s + Math.abs(r.valorBruto), 0))}`]);
+        .map(([custo, items]) => [custo, `+${fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}`]);
       entradasResumo.push(['TOTAL ENTRADAS DE CAIXA', `+${fmt(totals.totalEntradasCaixa)}`]);
 
       autoTable(doc, {
@@ -427,13 +432,15 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         ['(+) Resultado de Caixa', fmt(totals.resultadoCaixa)],
         ['(-) Saídas de Caixa', `-${fmt(totals.totalSaidasCaixa)}`],
         ['(+) Entradas de Caixa', `+${fmt(totals.totalEntradasCaixa)}`],
+        ...(totals.totalTransferencias !== 0 ? [['(+/-) Transferências', fmt(totals.totalTransferencias)]] : []),
         ['= SALDO FINAL LIVRE', fmt(totals.saldoFinalLivre)],
       ],
       theme: 'grid', styles: { fontSize: 10 },
       headStyles: { fillColor: [0, 51, 102], fontStyle: 'bold' },
       columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data: any) => {
-        if (data.section === 'body' && data.row.index === 4) {
+        const lastIdx = totals.totalTransferencias !== 0 ? 5 : 4;
+        if (data.section === 'body' && data.row.index === lastIdx) {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.fontSize = 12;
           data.cell.styles.fillColor = totals.saldoFinalLivre >= 0 ? [220, 255, 220] : [255, 220, 220];
@@ -859,6 +866,14 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
               <span>(+) Entradas de Caixa</span>
               <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totals.totalEntradasCaixa)}</span>
             </div>
+            {totals.totalTransferencias !== 0 && (
+              <div className="flex justify-between text-sm">
+                <span>(+/-) Transferências</span>
+                <span className="font-semibold" style={{ color: totals.totalTransferencias >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                  {totals.totalTransferencias >= 0 ? '+' : ''}{fmt(totals.totalTransferencias)}
+                </span>
+              </div>
+            )}
             <div className="border-t-2 border-primary my-2" />
             <div className="flex justify-between text-lg font-bold">
               <span>= SALDO FINAL LIVRE</span>
