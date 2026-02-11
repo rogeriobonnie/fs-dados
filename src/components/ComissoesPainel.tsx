@@ -51,11 +51,21 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
     );
   }, [data]);
 
-  const totalReceitaLiquida = useMemo(() => {
-    return receitasLAD.reduce((s, r) =>
-      s + (r.valorBruto - r.taxas + r.acrescimos - r.vrImposto - r.vrVendedor), 0
-    );
+  const receitasLADSorted = useMemo(() => {
+    return [...receitasLAD].sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
   }, [receitasLAD]);
+
+  const totaisReceitaLAD = useMemo(() => {
+    const bruto = receitasLAD.reduce((s, r) => s + r.valorBruto, 0);
+    const taxas = receitasLAD.reduce((s, r) => s + r.taxas, 0);
+    const acrescimos = receitasLAD.reduce((s, r) => s + r.acrescimos, 0);
+    const impostos = receitasLAD.reduce((s, r) => s + r.vrImposto, 0);
+    const comVend = receitasLAD.reduce((s, r) => s + r.vrVendedor, 0);
+    const liquido = bruto - taxas + acrescimos - impostos - comVend;
+    return { bruto, taxas, acrescimos, impostos, comVend, liquido };
+  }, [receitasLAD]);
+
+  const totalReceitaLiquida = totaisReceitaLAD.liquido;
 
   const totalDespesasLAD = useMemo(() => {
     return despesasLAD.reduce((s, r) => s + r.valorLiquido, 0);
@@ -277,7 +287,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {receitasLAD.map((r, i) => {
+                {receitasLADSorted.map((r, i) => {
                   const liq = r.valorBruto - r.taxas + r.acrescimos - r.vrImposto - r.vrVendedor;
                   return (
                     <TableRow key={i}>
@@ -295,8 +305,13 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
               </TableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell className="text-xs font-bold" colSpan={7}>SUBTOTAL RECEITAS</TableCell>
-                  <TableCell className="text-xs text-right font-bold">{fmt(totalReceitaLiquida)}</TableCell>
+                  <TableCell className="text-xs font-bold" colSpan={2}>SUBTOTAL RECEITAS</TableCell>
+                  <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.bruto)}</TableCell>
+                  <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.taxas)}</TableCell>
+                  <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.acrescimos)}</TableCell>
+                  <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.impostos)}</TableCell>
+                  <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.comVend)}</TableCell>
+                  <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.liquido)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
