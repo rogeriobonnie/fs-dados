@@ -164,13 +164,13 @@ const PainelFinanceiro = () => {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="dre-fluxo">
-          <DREFluxoCaixa data={filteredData} />
+          <DREFluxoCaixa data={filteredData} selectedMonth={selectedMonth} selectedYear={selectedYear} />
         </TabsContent>
         <TabsContent value="comissoes">
-          <ComissoesPainel data={filteredData} />
+          <ComissoesPainel data={filteredData} selectedMonth={selectedMonth} selectedYear={selectedYear} />
         </TabsContent>
         <TabsContent value="cursos-terceiros">
-          <CursosTerceiros data={filteredData} />
+          <CursosTerceiros data={filteredData} selectedMonth={selectedMonth} selectedYear={selectedYear} />
         </TabsContent>
       </Tabs>
     </div>

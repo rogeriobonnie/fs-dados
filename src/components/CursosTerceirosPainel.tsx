@@ -1,25 +1,30 @@
 import { useMemo, useState } from 'react';
 import { Pagina5Record } from '@/types/pagina5';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronRight, BookOpen, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Props {
   data: Pagina5Record[];
+  selectedMonth?: string;
+  selectedYear?: string;
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-const CursosTerceirosPainel = ({ data }: Props) => {
+const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => {
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
   const toggleCourse = (key: string) => setOpenCourses(prev => ({ ...prev, [key]: !prev[key] }));
 
   const terceiros = useMemo(() => {
-    const items = data.filter(r => r.custo.toUpperCase().includes('08-TERCEIROS') || r.custoNum === 8);
+    const items = data.filter(r => r.custoNum === 97 || r.custo.toUpperCase().includes('97-TERCEIROS'));
     
-    // Group by course name
     const map = new Map<string, {
       nome: string;
       valorBruto: number;
@@ -64,6 +69,73 @@ const CursosTerceirosPainel = ({ data }: Props) => {
   const totalLiquido = terceiros.reduce((s, c) => s + c.valorLiquido, 0);
   const totalFinal = terceiros.reduce((s, c) => s + c.valorFinal, 0);
 
+  const generatePDF = () => {
+    const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
+    const year = selectedYear || '';
+    const doc = new jsPDF();
+    let y = 15;
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Cursos de Terceiros - ${monthName} ${year}`, 14, y);
+    y += 10;
+
+    // Totais
+    autoTable(doc, {
+      startY: y,
+      head: [['', 'Valor']],
+      body: [
+        ['Total Bruto', fmt(totalBruto)],
+        ['Total Líquido', fmt(totalLiquido)],
+        ['Valor Final', fmt(totalFinal)],
+      ],
+      theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [66, 66, 66] },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    terceiros.forEach(curso => {
+      if (y > 220) { doc.addPage(); y = 15; }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(curso.nome, 14, y);
+      y += 6;
+
+      // Demonstrativo
+      autoTable(doc, {
+        startY: y,
+        body: [
+          ['RECEITA', ''],
+          [`  Valor Bruto (${curso.vendas.length} vendas)`, fmt(curso.valorBruto)],
+          ['  (-) Taxas de Plataforma', `-${fmt(curso.taxas)}`],
+          ['  (+) Acréscimos', fmt(curso.acrescimos)],
+          ['  = Valor Líquido', fmt(curso.valorLiquido)],
+          ['', ''],
+          ['DEDUÇÕES', ''],
+          ['  (-) Impostos', `-${fmt(curso.vrImposto)}`],
+          ['  (-) Comissão Vendedor', `-${fmt(curso.vrVendedor)}`],
+          ['  (-) Comissão MKT', `-${fmt(curso.vrMkt)}`],
+          ['  = VALOR FINAL', fmt(curso.valorFinal)],
+        ],
+        theme: 'plain', styles: { fontSize: 8 },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      });
+      y = (doc as any).lastAutoTable.finalY + 4;
+
+      // Vendas individuais
+      const rows = curso.vendas.map(v => [v.date, v.detalhamento, fmt(v.valorBruto), fmt(v.valorLiquido), v.vendedor, v.banco]);
+      autoTable(doc, {
+        startY: y,
+        head: [['Data', 'Aluno', 'Bruto', 'Líquido', 'Vendedor', 'Banco']],
+        body: rows,
+        theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [100, 100, 100] },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    });
+
+    doc.save(`CursosTerceiros_${monthName}_${year}.pdf`);
+  };
+
   if (terceiros.length === 0) {
     return (
       <Card className="mt-4">
@@ -76,6 +148,14 @@ const CursosTerceirosPainel = ({ data }: Props) => {
 
   return (
     <div className="space-y-6 mt-4">
+      {/* PDF Button */}
+      <div className="flex justify-end">
+        <Button onClick={generatePDF} variant="outline" size="sm" className="gap-2">
+          <FileText className="h-4 w-4" />
+          Gerar PDF
+        </Button>
+      </div>
+
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -119,36 +199,22 @@ const CursosTerceirosPainel = ({ data }: Props) => {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <CardContent className="pt-0 px-4 pb-4">
-                  {/* Financial breakdown */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 text-xs">
-                    <div className="p-2 rounded bg-muted/50">
-                      <span className="text-muted-foreground">Bruto</span>
-                      <p className="font-bold">{fmt(curso.valorBruto)}</p>
-                    </div>
-                    <div className="p-2 rounded bg-muted/50">
-                      <span className="text-muted-foreground">Taxas</span>
-                      <p className="font-bold">-{fmt(curso.taxas)}</p>
-                    </div>
-                    <div className="p-2 rounded bg-muted/50">
-                      <span className="text-muted-foreground">Líquido</span>
-                      <p className="font-bold">{fmt(curso.valorLiquido)}</p>
-                    </div>
-                    <div className="p-2 rounded bg-muted/50">
-                      <span className="text-muted-foreground">Imposto</span>
-                      <p className="font-bold">-{fmt(curso.vrImposto)}</p>
-                    </div>
-                    <div className="p-2 rounded bg-muted/50">
-                      <span className="text-muted-foreground">Comissão Vendedor</span>
-                      <p className="font-bold">-{fmt(curso.vrVendedor)}</p>
-                    </div>
-                    <div className="p-2 rounded bg-muted/50">
-                      <span className="text-muted-foreground">Comissão MKT</span>
-                      <p className="font-bold">-{fmt(curso.vrMkt)}</p>
-                    </div>
-                    <div className="p-2 rounded bg-primary/10 col-span-2">
-                      <span className="text-muted-foreground font-semibold">Valor Final</span>
-                      <p className="font-bold text-primary">{fmt(curso.valorFinal)}</p>
-                    </div>
+                  {/* Demonstrativo vertical */}
+                  <div className="rounded-lg border bg-muted/30 p-4 mb-4 space-y-1 text-sm">
+                    <p className="text-xs font-bold text-muted-foreground mb-2">RECEITA</p>
+                    <div className="flex justify-between"><span className="text-xs">Valor Bruto ({curso.vendas.length} vendas)</span><span className="text-xs font-semibold">{fmt(curso.valorBruto)}</span></div>
+                    <div className="flex justify-between"><span className="text-xs">(-) Taxas de Plataforma</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(curso.taxas)}</span></div>
+                    <div className="flex justify-between"><span className="text-xs">(+) Acréscimos</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--success))' }}>{fmt(curso.acrescimos)}</span></div>
+                    <div className="border-t my-2" />
+                    <div className="flex justify-between font-bold"><span className="text-xs">= Valor Líquido</span><span className="text-xs">{fmt(curso.valorLiquido)}</span></div>
+
+                    <div className="mt-3" />
+                    <p className="text-xs font-bold text-muted-foreground mb-2">DEDUÇÕES</p>
+                    <div className="flex justify-between"><span className="text-xs">(-) Impostos</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(curso.vrImposto)}</span></div>
+                    <div className="flex justify-between"><span className="text-xs">(-) Comissão Vendedor</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(curso.vrVendedor)}</span></div>
+                    <div className="flex justify-between"><span className="text-xs">(-) Comissão MKT</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(curso.vrMkt)}</span></div>
+                    <div className="border-t my-2" />
+                    <div className="flex justify-between font-bold text-sm"><span>= VALOR FINAL</span><span className="text-primary">{fmt(curso.valorFinal)}</span></div>
                   </div>
 
                   {/* Individual sales */}
