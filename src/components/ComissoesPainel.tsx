@@ -61,21 +61,8 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
     return despesasLAD.reduce((s, r) => s + r.valorLiquido, 0);
   }, [despesasLAD]);
 
-  // Provisões (19-PROVISÕES com banco PROVISÃO)
-  const provisoesLAD = useMemo(() => {
-    return data.filter(r =>
-      r.custoNum === 19 &&
-      (r.banco || '').toUpperCase().includes('PROVIS')
-    );
-  }, [data]);
-
-  const totalProvisoes = useMemo(() => {
-    return provisoesLAD.reduce((s, r) => s + r.valorLiquido, 0);
-  }, [provisoesLAD]);
-
   const resultadoLiquido = totalReceitaLiquida + totalDespesasLAD;
-  const resultadoAposProvisoes = resultadoLiquido + totalProvisoes;
-  const comissaoLAD = resultadoAposProvisoes * 0.10;
+  const comissaoLAD = resultadoLiquido * 0.10;
 
   const totalVendedor = Array.from(porVendedor.values()).reduce((s, v) => s + v.total, 0);
 
@@ -182,31 +169,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
     autoTable(doc, {
       startY: y,
       body: [
-        ['RESULTADO DO MÊS', fmt(resultadoLiquido)],
-      ],
-      theme: 'grid', styles: { fontSize: 10, fontStyle: 'bold' },
-      columnStyles: { 1: { halign: 'right' } },
-    });
-    y = (doc as any).lastAutoTable.finalY + 4;
-
-    // Provisões
-    if (provisoesLAD.length > 0) {
-      const provRows = provisoesLAD.map(r => [r.descricao || '19-Provisão', fmt(r.valorLiquido)]);
-      autoTable(doc, {
-        startY: y,
-        head: [['Provisão', 'Valor']],
-        body: provRows,
-        theme: 'striped', styles: { fontSize: 8 },
-        headStyles: { fillColor: [100, 100, 100] },
-        columnStyles: { 1: { halign: 'right' } },
-      });
-      y = (doc as any).lastAutoTable.finalY + 4;
-    }
-
-    autoTable(doc, {
-      startY: y,
-      body: [
-        ['RESULTADO APÓS PROVISÕES', fmt(resultadoAposProvisoes)],
+        ['RESULTADO LÍQUIDO', fmt(resultadoLiquido)],
         ['COMISSÃO 10%', fmt(comissaoLAD)],
       ],
       theme: 'grid', styles: { fontSize: 11, fontStyle: 'bold' },
@@ -369,28 +332,12 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
           </div>
 
           {/* Resultado */}
-          <div className="border-t pt-3 space-y-2">
+          <div className="border-t pt-3 space-y-1">
             <div className="flex justify-between text-sm">
-              <span className="font-semibold">Resultado do Mês</span>
+              <span className="font-semibold">Resultado Líquido</span>
               <span className="font-bold">{fmt(resultadoLiquido)}</span>
             </div>
-            {provisoesLAD.length > 0 && (
-              <div className="pl-2 space-y-1 border-l-2 border-muted">
-                {provisoesLAD.map((r, i) => (
-                  <div key={i} className="flex justify-between text-xs text-muted-foreground">
-                    <span>{r.descricao || '19-Provisão'}</span>
-                    <span>{fmt(r.valorLiquido)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
             <div className="flex justify-between text-sm">
-              <span className="font-semibold">Resultado após Provisões</span>
-              <span className={`font-bold ${resultadoAposProvisoes >= 0 ? '' : ''}`} style={resultadoAposProvisoes < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
-                {fmt(resultadoAposProvisoes)}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm border-t pt-2">
               <span className="font-semibold text-primary">Comissão 10%</span>
               <span className="font-bold text-primary">{fmt(comissaoLAD)}</span>
             </div>
