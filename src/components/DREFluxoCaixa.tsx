@@ -33,6 +33,8 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     const entradasCaixa: Record<string, Pagina5Record[]> = {};
     const transferencias = data.filter(r => r.custoNum === 99);
 
+    const provisoes: Record<string, Pagina5Record[]> = {};
+
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
         if (!receitas[r.custo]) receitas[r.custo] = [];
@@ -41,17 +43,19 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         if (!despesas[r.custo]) despesas[r.custo] = [];
         despesas[r.custo].push(r);
       } else if (r.custoNum >= 21 && r.custoNum <= 30) {
-        // Saídas de caixa: distribuições, pagamentos externos, despesas anteriores
         if (!saidasCaixa[r.custo]) saidasCaixa[r.custo] = [];
         saidasCaixa[r.custo].push(r);
+      } else if (r.custoNum === 31 && (r.banco || '').toUpperCase() === 'PROVISAO') {
+        // Provisões: apenas banco=PROVISAO (banco=PAGO ou outro = já foi pago, ignora)
+        if (!provisoes[r.custo]) provisoes[r.custo] = [];
+        provisoes[r.custo].push(r);
       } else if (r.custoNum === 97 || r.custoNum === 98) {
-        // Entradas de caixa: terceiros e resgates
         if (!entradasCaixa[r.custo]) entradasCaixa[r.custo] = [];
         entradasCaixa[r.custo].push(r);
       }
     });
 
-    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, transferencias };
+    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias };
   }, [data]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
@@ -110,6 +114,13 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
 
     const resultadoMes = totalResultadoReceitas - totalDespesas;
 
+    // Provisões (custoNum 31, banco=PROVISAO) - diminui resultado mas NÃO afeta fluxo de caixa
+    let totalProvisoes = 0;
+    Object.values(grouped.provisoes).forEach(items => {
+      items.forEach(r => { totalProvisoes += Math.abs(r.valorLiquido); });
+    });
+    const resultadoAposProvisoes = resultadoMes - totalProvisoes;
+
     // Saídas de caixa (21-30) - valores absolutos
     let totalSaidasCaixa = 0;
     Object.values(grouped.saidasCaixa).forEach(items => {
@@ -129,7 +140,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       totalSaldoInicial,
       totalBrutoReceitas, totalTaxasReceitas, totalLiquidoReceitas,
       totalImpostosReceitas, totalComVendedor, totalResultadoReceitas,
-      totalDespesas, resultadoMes,
+      totalDespesas, resultadoMes, totalProvisoes, resultadoAposProvisoes,
       totalSaidasCaixa, totalEntradasCaixa, disponivelAntes, saldoFinalLivre,
     };
   }, [grouped, receitasPorCurso]);
@@ -301,10 +312,45 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       columnStyles: { 1: { halign: 'right' } },
       bodyStyles: { fillColor: totals.resultadoMes >= 0 ? [220, 255, 220] : [255, 220, 220] },
     });
-    y = (doc as any).lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 6;
 
-    // ========== FLUXO DE CAIXA NO PDF ==========
-    checkPage(80);
+    // Provisões no PDF
+    if (Object.keys(grouped.provisoes).length > 0) {
+      const provisoesResumo = Object.entries(grouped.provisoes)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([custo, items]) => [custo, `-${fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}`]);
+      provisoesResumo.push(['TOTAL PROVISÕES', `-${fmt(totals.totalProvisoes)}`]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['PROVISÕES (não afetam o caixa)', 'Valor']],
+        body: provisoesResumo,
+        theme: 'grid', styles: { fontSize: 9 },
+        headStyles: { fillColor: [200, 150, 50], fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === provisoesResumo.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [255, 245, 220];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+
+      // Resultado após provisões
+      autoTable(doc, {
+        startY: y,
+        body: [['RESULTADO APÓS PROVISÕES', fmt(totals.resultadoAposProvisoes)]],
+        theme: 'grid', styles: { fontSize: 11, fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'right' } },
+        bodyStyles: { fillColor: totals.resultadoAposProvisoes >= 0 ? [220, 255, 220] : [255, 220, 220] },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // ========== PAGE 2: FLUXO DE CAIXA ==========
+    doc.addPage();
+    y = 15;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(`Fluxo de Caixa - ${monthName} ${year}`, 14, y);
@@ -698,6 +744,45 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* PROVISÕES (custoNum 31, banco=PROVISÃO) */}
+      {Object.keys(grouped.provisoes).length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-warning" />
+            <h3 className="text-lg font-bold">PROVISÕES</h3>
+            <span className="text-xs text-muted-foreground">(não afetam o fluxo de caixa)</span>
+          </div>
+          {Object.entries(grouped.provisoes)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([custo, items]) => renderDespesaSection(custo, items, 'despesa'))}
+          <div className="flex justify-end px-4">
+            <div className="flex items-center gap-3 p-2 rounded bg-warning/10">
+              <span className="text-sm font-bold">SUBTOTAL PROVISÕES</span>
+              <span className="text-sm font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalProvisoes)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESULTADO APÓS PROVISÕES */}
+      {totals.totalProvisoes > 0 && (
+        <Card className={`border-2 ${totals.resultadoAposProvisoes >= 0 ? 'border-primary' : 'border-destructive'}`}>
+          <CardContent className="p-4">
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between"><span>Resultado do Mês</span><span className="font-bold">{fmt(totals.resultadoMes)}</span></div>
+              <div className="flex justify-between"><span>(-) Provisões</span><span className="font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalProvisoes)}</span></div>
+              <div className="border-t my-2" />
+              <div className="flex justify-between text-lg font-bold">
+                <span>= RESULTADO APÓS PROVISÕES</span>
+                <span className={totals.resultadoAposProvisoes >= 0 ? 'text-primary' : ''} style={totals.resultadoAposProvisoes < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
+                  {fmt(totals.resultadoAposProvisoes)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ═══════ FLUXO DE CAIXA ═══════ */}
       <div className="space-y-4">
