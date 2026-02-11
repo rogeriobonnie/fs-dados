@@ -87,7 +87,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       c.acrescimos += r.acrescimos;
       c.liquido += r.valorLiquido;
       c.impostos += r.vrImposto;
-      c.comVendedor += r.vrVendedor;
+      c.comVendedor += r.vendedor ? r.vrVendedor : 0;
       c.vendas.push(r);
     });
 
