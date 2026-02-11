@@ -103,6 +103,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
 
     const totalBrutoReceitas = receitasPorCurso.reduce((s, c) => s + c.bruto, 0);
     const totalTaxasReceitas = receitasPorCurso.reduce((s, c) => s + c.taxas, 0);
+    const totalAcrescimosReceitas = receitasPorCurso.reduce((s, c) => s + c.acrescimos, 0);
     const totalLiquidoReceitas = receitasPorCurso.reduce((s, c) => s + c.liquido, 0);
     const totalImpostosReceitas = receitasPorCurso.reduce((s, c) => s + c.impostos, 0);
     const totalComVendedor = receitasPorCurso.reduce((s, c) => s + c.comVendedor, 0);
@@ -145,7 +146,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
 
     return {
       totalSaldoInicial,
-      totalBrutoReceitas, totalTaxasReceitas, totalLiquidoReceitas,
+      totalBrutoReceitas, totalTaxasReceitas, totalAcrescimosReceitas, totalLiquidoReceitas,
       totalImpostosReceitas, totalComVendedor, totalResultadoReceitas,
       totalDespesas, resultadoMes, totalProvisoes, resultadoAposProvisoes,
       resultadoCaixa, totalSaidasCaixa, totalEntradasCaixa, totalTransferencias, disponivelAntes, saldoFinalLivre,
@@ -252,87 +253,173 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     let y = 15;
 
     const checkPage = (needed: number) => { if (y + needed > 275) { doc.addPage(); y = 15; } };
-    const addSectionTitle = (text: string) => { checkPage(15); doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(text, 14, y); y += 7; };
+    const addSectionTitle = (text: string, color?: number[]) => {
+      checkPage(15);
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text(text, 14, y);
+      y += 8;
+    };
+    const addSubtitle = (text: string) => {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text(text, 14, y);
+      doc.setTextColor(0, 0, 0);
+      y += 5;
+    };
 
-    // ========== PAGE 1: DRE RESUMIDA ==========
-    doc.setFontSize(16);
+    // ══════════════════════════════════════════════
+    // PÁGINA 1: DRE (Demonstrativo de Resultado)
+    // ══════════════════════════════════════════════
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(`DRE - ${monthName} ${year}`, 14, y);
-    y += 10;
-
-    doc.setFontSize(9);
+    doc.text(`DRE + Fluxo de Caixa`, 14, y);
+    y += 7;
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text('Demonstrativo de Resultado do Exercício', 14, y);
+    doc.text(`${monthName} ${year}`, 14, y);
+    y += 3;
+    doc.setDrawColor(0, 100, 180);
+    doc.setLineWidth(0.5);
+    doc.line(14, y, 196, y);
     y += 8;
 
-    // Receitas resumo
+    // ── SALDO INICIAL ──
+    if (grouped.saldoInicial.length > 0) {
+      const saldoRows = grouped.saldoInicial.map(r => [r.banco || r.descricao, fmt(r.valorBruto)]);
+      saldoRows.push(['TOTAL SALDO INICIAL', fmt(totals.totalSaldoInicial)]);
+      autoTable(doc, {
+        startY: y,
+        head: [['SALDO INICIAL', 'Valor']],
+        body: saldoRows,
+        theme: 'grid', styles: { fontSize: 9 },
+        headStyles: { fillColor: [0, 100, 180], fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === saldoRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [230, 240, 255];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    }
+
+    // ── RECEITAS ──
+    // Tabela consolidada por curso (igual à tela)
+    const cursoRows = receitasPorCurso.map(c => [
+      c.nome, String(c.qtd), fmt(c.bruto), `-${fmt(c.taxas)}`,
+      c.acrescimos > 0 ? `+${fmt(c.acrescimos)}` : '-',
+      fmt(c.liquido), `-${fmt(c.impostos)}`, `-${fmt(c.comVendedor)}`, fmt(c.resultado),
+    ]);
+    cursoRows.push([
+      'TOTAL', '', fmt(totals.totalBrutoReceitas), `-${fmt(totals.totalTaxasReceitas)}`,
+      totals.totalAcrescimosReceitas > 0 ? `+${fmt(totals.totalAcrescimosReceitas)}` : '-',
+      fmt(totals.totalLiquidoReceitas), `-${fmt(totals.totalImpostosReceitas)}`,
+      `-${fmt(totals.totalComVendedor)}`, fmt(totals.totalResultadoReceitas),
+    ]);
+
     autoTable(doc, {
       startY: y,
-      head: [['RECEITAS', 'Valor']],
-      body: [
-        ['Receita Bruta (vendas)', fmt(totals.totalBrutoReceitas)],
-        ['(-) Taxas de Plataforma', `-${fmt(totals.totalTaxasReceitas)}`],
-        ['= Receita Líquida', fmt(totals.totalLiquidoReceitas)],
-        ['(-) Impostos', `-${fmt(totals.totalImpostosReceitas)}`],
-        ['(-) Comissões de Vendedores', `-${fmt(totals.totalComVendedor)}`],
-        ['= RECEITA LÍQUIDA FINAL', fmt(totals.totalResultadoReceitas)],
-      ],
-      theme: 'grid', styles: { fontSize: 9 },
+      head: [['Curso / Receita', 'Qtd', 'Bruto', 'Taxas', 'Acrésc.', 'Líquido', 'Impostos', 'Com.Vend', 'Resultado']],
+      body: cursoRows,
+      theme: 'grid', styles: { fontSize: 7 },
       headStyles: { fillColor: [34, 139, 34], fontStyle: 'bold' },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: {
+        1: { halign: 'center' },
+        2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' },
+        5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
+        8: { halign: 'right', fontStyle: 'bold' },
+      },
       didParseCell: (data: any) => {
-        if (data.section === 'body' && (data.row.index === 2 || data.row.index === 5)) {
+        if (data.section === 'body' && data.row.index === cursoRows.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
+          data.cell.styles.fillColor = [220, 255, 220];
         }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = (doc as any).lastAutoTable.finalY + 4;
 
-    // Despesas resumo
+    // Resumo vertical das receitas (igual ao card na tela)
+    const receitaResumo: string[][] = [
+      ['Receita Bruta (vendas)', fmt(totals.totalBrutoReceitas)],
+      ['(-) Taxas de Plataforma', `-${fmt(totals.totalTaxasReceitas)}`],
+    ];
+    if (totals.totalAcrescimosReceitas > 0) {
+      receitaResumo.push(['(+) Acréscimos', `+${fmt(totals.totalAcrescimosReceitas)}`]);
+    }
+    receitaResumo.push(['= Receita Líquida', fmt(totals.totalLiquidoReceitas)]);
+    receitaResumo.push(['(-) Impostos', `-${fmt(totals.totalImpostosReceitas)}`]);
+    receitaResumo.push(['(-) Comissões Vendedores', `-${fmt(totals.totalComVendedor)}`]);
+    receitaResumo.push(['= RECEITA LÍQUIDA FINAL', fmt(totals.totalResultadoReceitas)]);
+
+    autoTable(doc, {
+      startY: y,
+      body: receitaResumo,
+      theme: 'plain', styles: { fontSize: 9 },
+      columnStyles: { 0: { cellWidth: 130 }, 1: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        const lastIdx = receitaResumo.length - 1;
+        const liqIdx = totals.totalAcrescimosReceitas > 0 ? 3 : 2;
+        if (data.section === 'body' && (data.row.index === liqIdx || data.row.index === lastIdx)) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = data.row.index === lastIdx ? [220, 255, 220] : [240, 240, 240];
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    // ── DESPESAS OPERACIONAIS ──
+    checkPage(30);
     const despesasResumo = Object.entries(grouped.despesas)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([custo, items]) => [custo, fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))]);
-    despesasResumo.push(['TOTAL DESPESAS', fmt(totals.totalDespesas)]);
+    despesasResumo.push(['TOTAL DESPESAS OPERACIONAIS', fmt(totals.totalDespesas)]);
 
     autoTable(doc, {
       startY: y,
       head: [['DESPESAS OPERACIONAIS', 'Valor']],
       body: despesasResumo,
       theme: 'grid', styles: { fontSize: 9 },
-      headStyles: { fillColor: [200, 50, 50], fontStyle: 'bold' },
+      headStyles: { fillColor: [200, 50, 50], fontStyle: 'bold', textColor: [255, 255, 255] },
       columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data: any) => {
         if (data.section === 'body' && data.row.index === despesasResumo.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
+          data.cell.styles.fillColor = [255, 230, 230];
         }
       },
     });
     y = (doc as any).lastAutoTable.finalY + 6;
 
-    // Resultado do mês
+    // ── RESULTADO DO MÊS ──
+    checkPage(30);
     const resultadoBody: string[][] = [
-      ['RESULTADO DO MÊS (Receita Líquida - Despesas)', fmt(totals.resultadoMes)],
+      ['Receita Líquida Final', fmt(totals.totalResultadoReceitas)],
+      ['(-) Despesas Operacionais', `-${fmt(totals.totalDespesas)}`],
+      ['= RESULTADO DO MÊS', fmt(totals.resultadoMes)],
     ];
-    // Provisões dentro do resultado
     if (totals.totalProvisoes > 0) {
+      resultadoBody.push(['', '']);
       Object.entries(grouped.provisoes).sort(([a], [b]) => a.localeCompare(b)).forEach(([, items]) => {
         items.forEach(r => {
-          resultadoBody.push([`  ${r.date} - ${r.descricao} ${r.detalhamento || ''}`, `-${fmt(Math.abs(r.valorLiquido))}`]);
+          resultadoBody.push([`   ${r.date} - ${r.descricao} ${r.detalhamento || ''}`, `-${fmt(Math.abs(r.valorLiquido))}`]);
         });
       });
       resultadoBody.push(['(-) Total Provisões', `-${fmt(totals.totalProvisoes)}`]);
-      resultadoBody.push(['RESULTADO COM PROVISÕES', fmt(totals.resultadoAposProvisoes)]);
+      resultadoBody.push(['= RESULTADO COM PROVISÕES', fmt(totals.resultadoAposProvisoes)]);
     }
 
     autoTable(doc, {
       startY: y,
+      head: [['RESULTADO', 'Valor']],
       body: resultadoBody,
       theme: 'grid', styles: { fontSize: 9 },
+      headStyles: { fillColor: [66, 66, 66], fontStyle: 'bold' },
       columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data: any) => {
-        if (data.section === 'body' && data.row.index === 0) {
+        if (data.section === 'body' && data.row.index === 2) {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.fontSize = 11;
           data.cell.styles.fillColor = totals.resultadoMes >= 0 ? [220, 255, 220] : [255, 220, 220];
@@ -346,34 +433,43 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     });
     y = (doc as any).lastAutoTable.finalY + 10;
 
-    // ========== PAGE 2: FLUXO DE CAIXA ==========
+    // ══════════════════════════════════════════════
+    // PÁGINA 2: FLUXO DE CAIXA
+    // ══════════════════════════════════════════════
     doc.addPage();
     y = 15;
-    doc.setFontSize(14);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Fluxo de Caixa - ${monthName} ${year}`, 14, y);
-    y += 10;
+    doc.text('Fluxo de Caixa', 14, y);
+    y += 7;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${monthName} ${year}`, 14, y);
+    y += 3;
+    doc.setDrawColor(0, 100, 180);
+    doc.setLineWidth(0.5);
+    doc.line(14, y, 196, y);
+    y += 8;
 
-    // Saldo Inicial + Resultado
+    // Disponível
     autoTable(doc, {
       startY: y,
-      head: [['COMPOSIÇÃO DO FLUXO', 'Valor']],
       body: [
         ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
-        ['(+) Resultado de Caixa', fmt(totals.resultadoCaixa)],
-        ['= Disponível antes de movimentações', fmt(totals.disponivelAntes)],
+        ['(+) Resultado de Caixa (Receitas Líq. - Despesas)', fmt(totals.resultadoCaixa)],
+        ['= DISPONÍVEL ANTES DE MOVIMENTAÇÕES', fmt(totals.disponivelAntes)],
       ],
-      theme: 'grid', styles: { fontSize: 9 },
-      headStyles: { fillColor: [66, 66, 66] },
+      theme: 'grid', styles: { fontSize: 10 },
       columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data: any) => {
         if (data.section === 'body' && data.row.index === 2) {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.fillColor = [230, 240, 255];
+          data.cell.styles.fontSize = 11;
         }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = (doc as any).lastAutoTable.finalY + 8;
 
     // Saídas de Caixa
     if (Object.keys(grouped.saidasCaixa).length > 0) {
@@ -384,10 +480,10 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
 
       autoTable(doc, {
         startY: y,
-        head: [['SAÍDAS DE CAIXA (não são despesas do mês)', 'Valor']],
+        head: [['SAÍDAS DE CAIXA', 'Valor']],
         body: saidasResumo,
         theme: 'grid', styles: { fontSize: 9 },
-        headStyles: { fillColor: [200, 50, 50], fontStyle: 'bold' },
+        headStyles: { fillColor: [200, 50, 50], fontStyle: 'bold', textColor: [255, 255, 255] },
         columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.row.index === saidasResumo.length - 1) {
@@ -397,6 +493,8 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         },
       });
       y = (doc as any).lastAutoTable.finalY + 6;
+      addSubtitle('Distribuições, pagamentos externos e outras saídas que não são despesas do mês.');
+      y += 3;
     }
 
     // Entradas de Caixa
@@ -408,10 +506,10 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
 
       autoTable(doc, {
         startY: y,
-        head: [['ENTRADAS DE CAIXA (não são receitas do mês)', 'Valor']],
+        head: [['ENTRADAS DE CAIXA', 'Valor']],
         body: entradasResumo,
         theme: 'grid', styles: { fontSize: 9 },
-        headStyles: { fillColor: [34, 139, 34], fontStyle: 'bold' },
+        headStyles: { fillColor: [34, 139, 34], fontStyle: 'bold', textColor: [255, 255, 255] },
         columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.row.index === entradasResumo.length - 1) {
@@ -421,25 +519,32 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         },
       });
       y = (doc as any).lastAutoTable.finalY + 6;
+      addSubtitle('Resgates, repasses de terceiros e outras entradas que não são receitas do mês.');
+      y += 3;
     }
 
-    // Resumo do Fluxo
+    // ── RESUMO DO FLUXO DE CAIXA ──
+    checkPage(50);
+    const fluxoResumo: string[][] = [
+      ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
+      ['(+) Resultado de Caixa', fmt(totals.resultadoCaixa)],
+      ['(-) Saídas de Caixa', `-${fmt(totals.totalSaidasCaixa)}`],
+      ['(+) Entradas de Caixa', `+${fmt(totals.totalEntradasCaixa)}`],
+    ];
+    if (totals.totalTransferencias !== 0) {
+      fluxoResumo.push(['(+/-) Transferências', fmt(totals.totalTransferencias)]);
+    }
+    fluxoResumo.push(['= SALDO FINAL LIVRE', fmt(totals.saldoFinalLivre)]);
+
     autoTable(doc, {
       startY: y,
       head: [['RESUMO DO FLUXO DE CAIXA', 'Valor']],
-      body: [
-        ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
-        ['(+) Resultado de Caixa', fmt(totals.resultadoCaixa)],
-        ['(-) Saídas de Caixa', `-${fmt(totals.totalSaidasCaixa)}`],
-        ['(+) Entradas de Caixa', `+${fmt(totals.totalEntradasCaixa)}`],
-        ...(totals.totalTransferencias !== 0 ? [['(+/-) Transferências', fmt(totals.totalTransferencias)]] : []),
-        ['= SALDO FINAL LIVRE', fmt(totals.saldoFinalLivre)],
-      ],
+      body: fluxoResumo,
       theme: 'grid', styles: { fontSize: 10 },
-      headStyles: { fillColor: [0, 51, 102], fontStyle: 'bold' },
+      headStyles: { fillColor: [0, 51, 102], fontStyle: 'bold', textColor: [255, 255, 255] },
       columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data: any) => {
-        const lastIdx = totals.totalTransferencias !== 0 ? 5 : 4;
+        const lastIdx = fluxoResumo.length - 1;
         if (data.section === 'body' && data.row.index === lastIdx) {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.fontSize = 12;
@@ -447,9 +552,10 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = (doc as any).lastAutoTable.finalY + 8;
 
-    // Saldo por Banco - Simplificado
+    // ── SALDO POR BANCO ──
+    checkPage(40);
     const bancoRows = fluxoBancos.map(b => {
       const entradas = b.receitas + b.resgates + Math.max(0, b.transferencias);
       const saidas = b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias));
@@ -460,67 +566,91 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     const totSaidas = fluxoBancos.reduce((s, b) => s + b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias)), 0);
     const totSaldoFinal = fluxoTotal.saldoInicial + totEntradas - totSaidas;
     bancoRows.push(['TOTAL', fmt(fluxoTotal.saldoInicial), `+${fmt(totEntradas)}`, `-${fmt(totSaidas)}`, fmt(totSaldoFinal)]);
+
     autoTable(doc, {
-      startY: y, head: [['Banco', 'Saldo Inicial', '+ Entradas', '- Saídas', 'Saldo Final']], body: bancoRows,
-      theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [66, 66, 66] },
+      startY: y,
+      head: [['SALDO POR BANCO', 'Saldo Inicial', '+ Entradas', '- Saídas', 'Saldo Final']],
+      body: bancoRows,
+      theme: 'grid', styles: { fontSize: 9 },
+      headStyles: { fillColor: [0, 100, 180], fontStyle: 'bold', textColor: [255, 255, 255] },
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data: any) => {
         if (data.section === 'body' && data.row.index === bancoRows.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
+          data.cell.styles.fillColor = [230, 240, 255];
         }
       },
     });
     y = (doc as any).lastAutoTable.finalY + 10;
 
-    // ========== DETALHAMENTO ==========
+    // ══════════════════════════════════════════════
+    // PÁGINAS SEGUINTES: DETALHAMENTO
+    // ══════════════════════════════════════════════
     doc.addPage();
     y = 15;
-    doc.setFontSize(14);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('DETALHAMENTO DAS RECEITAS', 14, y);
+    doc.text('Detalhamento', 14, y);
+    y += 7;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${monthName} ${year}`, 14, y);
+    y += 3;
+    doc.setDrawColor(0, 100, 180);
+    doc.setLineWidth(0.5);
+    doc.line(14, y, 196, y);
     y += 8;
 
-    const cursoRows = receitasPorCurso.map(c => [
-      c.nome, String(c.qtd), fmt(c.bruto), `-${fmt(c.taxas)}`, fmt(c.liquido), `-${fmt(c.impostos)}`, `-${fmt(c.comVendedor)}`, fmt(c.resultado),
-    ]);
-    cursoRows.push([
-      'TOTAL', '', fmt(totals.totalBrutoReceitas), `-${fmt(totals.totalTaxasReceitas)}`,
-      fmt(totals.totalLiquidoReceitas), `-${fmt(totals.totalImpostosReceitas)}`,
-      `-${fmt(totals.totalComVendedor)}`, fmt(totals.totalResultadoReceitas),
-    ]);
-
-    autoTable(doc, {
-      startY: y,
-      head: [['Curso/Receita', 'Qtd', 'Bruto', 'Taxas', 'Líquido', 'Impostos', 'Com.Vend', 'Resultado']],
-      body: cursoRows,
-      theme: 'grid', styles: { fontSize: 7 },
-      headStyles: { fillColor: [34, 139, 34] },
-      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right', fontStyle: 'bold' } },
-      didParseCell: (data: any) => {
-        if (data.section === 'body' && data.row.index === cursoRows.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
-        }
-      },
+    // ── Detalhamento Receitas por Curso ──
+    addSectionTitle('RECEITAS POR CURSO');
+    receitasPorCurso.forEach(c => {
+      checkPage(25);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${c.nome} (${c.qtd} vendas)`, 14, y);
+      y += 5;
+      const rows = c.vendas.map(v => [
+        v.date, v.detalhamento || '-',
+        fmt(v.valorBruto), v.taxas > 0 ? `-${fmt(v.taxas)}` : '-',
+        v.acrescimos > 0 ? `+${fmt(v.acrescimos)}` : '-',
+        fmt(v.valorLiquido), v.vendedor || '-', v.banco,
+      ]);
+      rows.push(['', 'TOTAL', fmt(c.bruto), `-${fmt(c.taxas)}`, c.acrescimos > 0 ? `+${fmt(c.acrescimos)}` : '-', fmt(c.liquido), '', '']);
+      autoTable(doc, {
+        startY: y,
+        head: [['Data', 'Aluno', 'Bruto', 'Taxas', 'Acrésc.', 'Líquido', 'Vendedor', 'Banco']],
+        body: rows,
+        theme: 'striped', styles: { fontSize: 7 },
+        headStyles: { fillColor: [34, 139, 34], textColor: [255, 255, 255] },
+        columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === rows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [240, 240, 240];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
     });
-    y = (doc as any).lastAutoTable.finalY + 8;
 
-    // Detalhamento despesas
+    // ── Detalhamento Despesas ──
     checkPage(15);
-    addSectionTitle('DETALHAMENTO DAS DESPESAS');
+    addSectionTitle('DESPESAS OPERACIONAIS');
     Object.entries(grouped.despesas).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
       checkPage(20);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.text(custo, 14, y);
       y += 5;
-      const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorBruto)), r.banco]);
+      const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]);
       const total = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
       rows.push(['', '', 'TOTAL', fmt(total), '']);
       autoTable(doc, {
-        startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
-        theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [200, 50, 50] },
+        startY: y,
+        head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']],
+        body: rows,
+        theme: 'striped', styles: { fontSize: 7 },
+        headStyles: { fillColor: [200, 50, 50], textColor: [255, 255, 255] },
         columnStyles: { 3: { halign: 'right' } },
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.row.index === rows.length - 1) {
@@ -531,40 +661,46 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       y = (doc as any).lastAutoTable.finalY + 6;
     });
 
-    // Detalhamento saídas de caixa
+    // ── Detalhamento Saídas de Caixa ──
     if (Object.keys(grouped.saidasCaixa).length > 0) {
       checkPage(15);
-      addSectionTitle('DETALHAMENTO DAS SAÍDAS DE CAIXA');
+      addSectionTitle('SAÍDAS DE CAIXA');
       Object.entries(grouped.saidasCaixa).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
         checkPage(20);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text(custo, 14, y);
         y += 5;
-        const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorBruto)), r.banco]);
+        const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]);
         autoTable(doc, {
-          startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
-          theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [180, 80, 80] },
+          startY: y,
+          head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']],
+          body: rows,
+          theme: 'striped', styles: { fontSize: 7 },
+          headStyles: { fillColor: [180, 80, 80], textColor: [255, 255, 255] },
           columnStyles: { 3: { halign: 'right' } },
         });
         y = (doc as any).lastAutoTable.finalY + 6;
       });
     }
 
-    // Detalhamento entradas de caixa
+    // ── Detalhamento Entradas de Caixa ──
     if (Object.keys(grouped.entradasCaixa).length > 0) {
       checkPage(15);
-      addSectionTitle('DETALHAMENTO DAS ENTRADAS DE CAIXA');
+      addSectionTitle('ENTRADAS DE CAIXA');
       Object.entries(grouped.entradasCaixa).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
         checkPage(20);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text(custo, 14, y);
         y += 5;
-        const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorBruto)), r.banco]);
+        const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]);
         autoTable(doc, {
-          startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
-          theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [34, 120, 34] },
+          startY: y,
+          head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']],
+          body: rows,
+          theme: 'striped', styles: { fontSize: 7 },
+          headStyles: { fillColor: [34, 120, 34], textColor: [255, 255, 255] },
           columnStyles: { 3: { halign: 'right' } },
         });
         y = (doc as any).lastAutoTable.finalY + 6;
@@ -637,6 +773,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                     <TableHead className="text-xs text-center">Qtd</TableHead>
                     <TableHead className="text-xs text-right">Bruto</TableHead>
                     <TableHead className="text-xs text-right">Taxas</TableHead>
+                    <TableHead className="text-xs text-right">Acrésc.</TableHead>
                     <TableHead className="text-xs text-right">Líquido</TableHead>
                     <TableHead className="text-xs text-right">Impostos</TableHead>
                     <TableHead className="text-xs text-right">Com. Vend.</TableHead>
@@ -664,6 +801,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                           </TableCell>
                           <TableCell className="text-xs text-right">{fmt(c.bruto)}</TableCell>
                           <TableCell className="text-xs text-right" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(c.taxas)}</TableCell>
+                          <TableCell className="text-xs text-right" style={{ color: c.acrescimos > 0 ? 'hsl(142 70% 35%)' : undefined }}>{c.acrescimos > 0 ? `+${fmt(c.acrescimos)}` : '-'}</TableCell>
                           <TableCell className="text-xs text-right font-semibold">{fmt(c.liquido)}</TableCell>
                           <TableCell className="text-xs text-right" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(c.impostos)}</TableCell>
                           <TableCell className="text-xs text-right" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(c.comVendedor)}</TableCell>
@@ -675,6 +813,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                             <TableCell className="text-xs text-center">{v.vendedor || '-'}</TableCell>
                             <TableCell className="text-xs text-right">{fmt(v.valorBruto)}</TableCell>
                             <TableCell className="text-xs text-right">{v.taxas > 0 ? `-${fmt(v.taxas)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{v.acrescimos > 0 ? `+${fmt(v.acrescimos)}` : '-'}</TableCell>
                             <TableCell className="text-xs text-right">{fmt(v.valorLiquido)}</TableCell>
                             <TableCell className="text-xs text-right">{v.vrImposto > 0 ? `-${fmt(v.vrImposto)}` : '-'}</TableCell>
                             <TableCell className="text-xs text-right">{v.vrVendedor > 0 ? `-${fmt(v.vrVendedor)}` : '-'}</TableCell>
@@ -690,6 +829,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                     <TableCell className="text-xs font-bold" colSpan={2}>TOTAL RECEITAS</TableCell>
                     <TableCell className="text-xs text-right font-bold">{fmt(totals.totalBrutoReceitas)}</TableCell>
                     <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalTaxasReceitas)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold" style={{ color: totals.totalAcrescimosReceitas > 0 ? 'hsl(142 70% 35%)' : undefined }}>{totals.totalAcrescimosReceitas > 0 ? `+${fmt(totals.totalAcrescimosReceitas)}` : '-'}</TableCell>
                     <TableCell className="text-xs text-right font-bold">{fmt(totals.totalLiquidoReceitas)}</TableCell>
                     <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalImpostosReceitas)}</TableCell>
                     <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalComVendedor)}</TableCell>
@@ -706,6 +846,9 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
           <CardContent className="p-4 space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-xs">Receita Bruta (vendas)</span><span className="text-xs font-semibold">{fmt(totals.totalBrutoReceitas)}</span></div>
             <div className="flex justify-between"><span className="text-xs">(-) Taxas de Plataforma</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalTaxasReceitas)}</span></div>
+            {totals.totalAcrescimosReceitas > 0 && (
+              <div className="flex justify-between"><span className="text-xs">(+) Acréscimos</span><span className="text-xs font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totals.totalAcrescimosReceitas)}</span></div>
+            )}
             <div className="border-t my-1" />
             <div className="flex justify-between font-bold"><span className="text-xs">= Receita Líquida</span><span className="text-xs">{fmt(totals.totalLiquidoReceitas)}</span></div>
             <div className="flex justify-between"><span className="text-xs">(-) Impostos</span><span className="text-xs font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalImpostosReceitas)}</span></div>
