@@ -31,7 +31,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     const despesas: Record<string, Pagina5Record[]> = {};
     const saidasCaixa: Record<string, Pagina5Record[]> = {};
     const entradasCaixa: Record<string, Pagina5Record[]> = {};
-    const transferencias = data.filter(r => r.custo.toUpperCase().includes('99-TRANSFER'));
+    const transferencias = data.filter(r => r.custoNum === 99 || r.custo.toUpperCase().includes('99-TRANSFER') || r.custo.toUpperCase().includes('99 - TRANSFER'));
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
