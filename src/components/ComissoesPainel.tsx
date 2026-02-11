@@ -35,21 +35,36 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
     return map;
   }, [receitasComComissao]);
 
-  const porMkt = useMemo(() => {
-    const map = new Map<string, { total: number; vendas: Pagina5Record[] }>();
-    receitasComComissao.forEach(r => {
-      if (!r.mkt || r.vrMkt <= 0) return;
-      const key = r.mkt.toUpperCase();
-      if (!map.has(key)) map.set(key, { total: 0, vendas: [] });
-      const entry = map.get(key)!;
-      entry.total += r.vrMkt;
-      entry.vendas.push(r);
-    });
-    return map;
-  }, [receitasComComissao]);
+  // Lance a Dois - Receitas
+  const receitasLAD = useMemo(() => {
+    return data.filter(r =>
+      r.custoNum >= 1 && r.custoNum <= 10 &&
+      r.mkt.toUpperCase().includes('LANCE')
+    );
+  }, [data]);
+
+  // Lance a Dois - Despesas
+  const despesasLAD = useMemo(() => {
+    return data.filter(r =>
+      r.custoNum >= 11 && r.custoNum <= 20 &&
+      r.mkt.toUpperCase().includes('LANCE')
+    );
+  }, [data]);
+
+  const totalReceitaLiquida = useMemo(() => {
+    return receitasLAD.reduce((s, r) =>
+      s + (r.valorBruto - r.taxas + r.acrescimos - r.vrImposto - r.vrVendedor), 0
+    );
+  }, [receitasLAD]);
+
+  const totalDespesasLAD = useMemo(() => {
+    return despesasLAD.reduce((s, r) => s + r.valorLiquido, 0);
+  }, [despesasLAD]);
+
+  const resultadoLiquido = totalReceitaLiquida + totalDespesasLAD;
+  const comissaoLAD = resultadoLiquido * 0.10;
 
   const totalVendedor = Array.from(porVendedor.values()).reduce((s, v) => s + v.total, 0);
-  const totalMkt = Array.from(porMkt.values()).reduce((s, v) => s + v.total, 0);
 
   const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
   const year = selectedYear || '';
@@ -104,51 +119,65 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
     doc.save(`Comissao_${nome.replace(/\s+/g, '_')}_${monthName}_${year}.pdf`);
   };
 
-  // Generate individual PDF for MKT
-  const generateMktPDF = (nome: string, entry: { total: number; vendas: Pagina5Record[] }) => {
+  // Generate PDF for Lance a Dois
+  const generateLADPDF = () => {
     const doc = new jsPDF();
     let y = 15;
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Comissões MKT - ${nome}`, 14, y);
+    doc.text('Comissão Lance a Dois', 14, y);
     y += 7;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`${monthName} ${year}`, 14, y);
     y += 10;
 
+    // Receitas
+    const receitaRows = receitasLAD.map(r => [
+      r.date, r.descricao, fmt(r.valorBruto), fmt(r.taxas), fmt(r.acrescimos),
+      fmt(r.vrImposto), fmt(r.vrVendedor),
+      fmt(r.valorBruto - r.taxas + r.acrescimos - r.vrImposto - r.vrVendedor),
+    ]);
     autoTable(doc, {
       startY: y,
-      body: [
-        ['Quantidade de Vendas', String(entry.vendas.length)],
-        ['Total Comissão MKT', fmt(entry.total)],
-      ],
-      theme: 'grid', styles: { fontSize: 10 },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-    });
-    y = (doc as any).lastAutoTable.finalY + 8;
-
-    const rows = entry.vendas.map(v => [v.date, v.descricao, v.detalhamento, fmt(v.valorBruto), fmt(v.vrMkt)]);
-    autoTable(doc, {
-      startY: y,
-      head: [['Data', 'Curso', 'Aluno', 'Valor Venda', 'Com. MKT']],
-      body: rows,
-      theme: 'striped', styles: { fontSize: 8 },
+      head: [['Data', 'Curso', 'Bruto', 'Taxas', 'Acrésc.', 'Impostos', 'Com.Vend.', 'Líquido']],
+      body: receitaRows,
+      theme: 'striped', styles: { fontSize: 7 },
       headStyles: { fillColor: [66, 66, 66] },
-      columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
     });
     y = (doc as any).lastAutoTable.finalY + 4;
 
+    autoTable(doc, { startY: y, body: [['SUBTOTAL RECEITAS', fmt(totalReceitaLiquida)]], theme: 'grid', styles: { fontSize: 9, fontStyle: 'bold' }, columnStyles: { 1: { halign: 'right' } } });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // Despesas
+    const despesaRows = despesasLAD.map(r => [r.date, r.descricao, fmt(r.valorLiquido)]);
     autoTable(doc, {
       startY: y,
-      body: [['TOTAL COMISSÃO MKT', fmt(entry.total)]],
+      head: [['Data', 'Descrição', 'Valor']],
+      body: despesaRows,
+      theme: 'striped', styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 66, 66] },
+    });
+    y = (doc as any).lastAutoTable.finalY + 4;
+
+    autoTable(doc, { startY: y, body: [['SUBTOTAL DESPESAS', fmt(totalDespesasLAD)]], theme: 'grid', styles: { fontSize: 9, fontStyle: 'bold' }, columnStyles: { 1: { halign: 'right' } } });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // Resultado
+    autoTable(doc, {
+      startY: y,
+      body: [
+        ['RESULTADO LÍQUIDO', fmt(resultadoLiquido)],
+        ['COMISSÃO 10%', fmt(comissaoLAD)],
+      ],
       theme: 'grid', styles: { fontSize: 11, fontStyle: 'bold' },
       columnStyles: { 1: { halign: 'right' } },
       bodyStyles: { fillColor: [220, 255, 220] },
     });
 
-    doc.save(`Comissao_MKT_${nome.replace(/\s+/g, '_')}_${monthName}_${year}.pdf`);
+    doc.save(`Comissao_Lance_a_Dois_${monthName}_${year}.pdf`);
   };
 
   return (
@@ -163,8 +192,9 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Comissões MKT</p>
-            <p className="text-lg font-bold text-primary">{fmt(totalMkt)}</p>
+            <p className="text-xs text-muted-foreground">Comissão Lance a Dois (10%)</p>
+            <p className="text-lg font-bold text-primary">{fmt(comissaoLAD)}</p>
+            <p className="text-[10px] text-muted-foreground">Resultado Líquido: {fmt(resultadoLiquido)}</p>
           </CardContent>
         </Card>
       </div>
@@ -216,50 +246,102 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
         </CardContent>
       </Card>
 
-      {/* Por MKT */}
+      {/* Lance a Dois */}
       <Card>
         <CardHeader className="py-3 px-4">
-          <div className="flex items-center gap-2">
-            <Megaphone className="h-4 w-4 text-primary" />
-            <CardTitle className="text-sm font-semibold">Comissões por MKT</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Megaphone className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">Comissão Lance a Dois</CardTitle>
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => generateLADPDF()}>
+              <FileText className="h-3 w-3 mr-1" /> PDF
+            </Button>
           </div>
         </CardHeader>
-        <CardContent className="px-4 pb-4 pt-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-xs">MKT</TableHead>
-                <TableHead className="text-xs">Qtd</TableHead>
-                <TableHead className="text-xs text-right">Total Comissão</TableHead>
-                <TableHead className="text-xs text-right">PDF</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from(porMkt.entries())
-                .sort(([, a], [, b]) => b.total - a.total)
-                .map(([nome, entry]) => (
-                  <TableRow key={nome}>
-                    <TableCell className="text-xs font-medium">{nome}</TableCell>
-                    <TableCell className="text-xs">
-                      <Badge variant="secondary">{entry.vendas.length}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-right font-bold">{fmt(entry.total)}</TableCell>
-                    <TableCell className="text-xs text-right">
-                      <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => generateMktPDF(nome, entry)}>
-                        <FileText className="h-3 w-3" />
-                      </Button>
-                    </TableCell>
+        <CardContent className="px-4 pb-4 pt-0 space-y-4">
+          {/* Receitas */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-1">RECEITAS (Lance a Dois)</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Data</TableHead>
+                  <TableHead className="text-xs">Curso</TableHead>
+                  <TableHead className="text-xs text-right">Bruto</TableHead>
+                  <TableHead className="text-xs text-right">Taxas</TableHead>
+                  <TableHead className="text-xs text-right">Acrésc.</TableHead>
+                  <TableHead className="text-xs text-right">Impostos</TableHead>
+                  <TableHead className="text-xs text-right">Com.Vend.</TableHead>
+                  <TableHead className="text-xs text-right">Líquido</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {receitasLAD.map((r, i) => {
+                  const liq = r.valorBruto - r.taxas + r.acrescimos - r.vrImposto - r.vrVendedor;
+                  return (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{r.date}</TableCell>
+                      <TableCell className="text-xs">{r.descricao}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(r.valorBruto)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(r.taxas)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(r.acrescimos)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(r.vrImposto)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(r.vrVendedor)}</TableCell>
+                      <TableCell className="text-xs text-right font-bold">{fmt(liq)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell className="text-xs font-bold" colSpan={7}>SUBTOTAL RECEITAS</TableCell>
+                  <TableCell className="text-xs text-right font-bold">{fmt(totalReceitaLiquida)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          </div>
+
+          {/* Despesas */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-1">DESPESAS (Lance a Dois)</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Data</TableHead>
+                  <TableHead className="text-xs">Descrição</TableHead>
+                  <TableHead className="text-xs text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {despesasLAD.map((r, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-xs">{r.date}</TableCell>
+                    <TableCell className="text-xs">{r.descricao}</TableCell>
+                    <TableCell className="text-xs text-right">{fmt(r.valorLiquido)}</TableCell>
                   </TableRow>
                 ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell className="text-xs font-bold" colSpan={2}>TOTAL</TableCell>
-                <TableCell className="text-xs text-right font-bold">{fmt(totalMkt)}</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableFooter>
-          </Table>
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell className="text-xs font-bold" colSpan={2}>SUBTOTAL DESPESAS</TableCell>
+                  <TableCell className="text-xs text-right font-bold">{fmt(totalDespesasLAD)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          </div>
+
+          {/* Resultado */}
+          <div className="border-t pt-3 space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="font-semibold">Resultado Líquido</span>
+              <span className="font-bold">{fmt(resultadoLiquido)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="font-semibold text-primary">Comissão 10%</span>
+              <span className="font-bold text-primary">{fmt(comissaoLAD)}</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
