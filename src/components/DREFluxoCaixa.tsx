@@ -134,7 +134,8 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       items.forEach(r => { totalEntradasCaixa += Math.abs(r.valorBruto); });
     });
 
-    const disponivelAntes = totalSaldoInicial + resultadoMes;
+    const resultadoCaixa = totalLiquidoReceitas - totalDespesas;
+    const disponivelAntes = totalSaldoInicial + resultadoCaixa;
     const saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa;
 
     return {
@@ -142,7 +143,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       totalBrutoReceitas, totalTaxasReceitas, totalLiquidoReceitas,
       totalImpostosReceitas, totalComVendedor, totalResultadoReceitas,
       totalDespesas, resultadoMes, totalProvisoes, resultadoAposProvisoes,
-      totalSaidasCaixa, totalEntradasCaixa, disponivelAntes, saldoFinalLivre,
+      resultadoCaixa, totalSaidasCaixa, totalEntradasCaixa, disponivelAntes, saldoFinalLivre,
     };
   }, [grouped, receitasPorCurso]);
 
@@ -354,7 +355,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       head: [['COMPOSIÇÃO DO FLUXO', 'Valor']],
       body: [
         ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
-        ['(+) Resultado do Mês', fmt(totals.resultadoMes)],
+        ['(+) Resultado de Caixa', fmt(totals.resultadoCaixa)],
         ['= Disponível antes de movimentações', fmt(totals.disponivelAntes)],
       ],
       theme: 'grid', styles: { fontSize: 9 },
@@ -423,7 +424,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       head: [['RESUMO DO FLUXO DE CAIXA', 'Valor']],
       body: [
         ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
-        ['(+) Resultado do Mês', fmt(totals.resultadoMes)],
+        ['(+) Resultado de Caixa', fmt(totals.resultadoCaixa)],
         ['(-) Saídas de Caixa', `-${fmt(totals.totalSaidasCaixa)}`],
         ['(+) Entradas de Caixa', `+${fmt(totals.totalEntradasCaixa)}`],
         ['= SALDO FINAL LIVRE', fmt(totals.saldoFinalLivre)],
@@ -781,9 +782,9 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
               <span className="font-bold">{fmt(totals.totalSaldoInicial)}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
-              <span>(+) Resultado do Mês</span>
-              <span className="font-bold" style={{ color: totals.resultadoMes >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                {totals.resultadoMes >= 0 ? '+' : ''}{fmt(totals.resultadoMes)}
+            <span>(+) Resultado de Caixa</span>
+              <span className="font-bold" style={{ color: totals.resultadoCaixa >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                {totals.resultadoCaixa >= 0 ? '+' : ''}{fmt(totals.resultadoCaixa)}
               </span>
             </div>
             <div className="border-t-2 border-dashed my-1" />
@@ -845,9 +846,9 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
               <span className="font-semibold">{fmt(totals.totalSaldoInicial)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span>(+) Resultado do Mês</span>
-              <span className="font-semibold" style={{ color: totals.resultadoMes >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                {totals.resultadoMes >= 0 ? '+' : ''}{fmt(totals.resultadoMes)}
+              <span>(+) Resultado de Caixa</span>
+              <span className="font-semibold" style={{ color: totals.resultadoCaixa >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                {totals.resultadoCaixa >= 0 ? '+' : ''}{fmt(totals.resultadoCaixa)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
