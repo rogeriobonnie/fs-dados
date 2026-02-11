@@ -1,59 +1,71 @@
 
 
-## Plano: Simplificar Saldo por Banco
+## Plano: Comissão MKT "Lance a Dois" com Calculo sobre Resultado Liquido
 
-### Problema
-A tabela atual de "Saldo por Banco" tem 6 colunas intermediárias (Receitas, Despesas, Saídas Cx, Entradas Cx, Transferências) que confundem. O raciocínio correto é simples: para cada banco, somar tudo que entrou e subtrair tudo que saiu.
+### Logica Atual (errada)
+O painel soma os valores da coluna `vrMkt` diretamente. Isso nao reflete o calculo correto.
 
-### Lógica por Banco
+### Logica Nova
+Para o MKT "LANCE A DOIS" na coluna N:
+
+1. **Filtrar receitas** (custoNum 1-10) onde coluna N (mkt) = "LANCE A DOIS"
+2. **Calcular receita liquida** por registro: `valorBruto - taxas + acrescimos - vrImposto - vrVendedor`
+3. **Filtrar despesas** (custoNum 11-20) onde coluna N (mkt) = "LANCE A DOIS"
+4. **Resultado liquido** = soma receitas liquidas + soma despesas (que ja sao negativas)
+5. **Comissao** = resultado liquido * 10%
+
+### Tabela na UI
+
+A secao "Comissoes por MKT" sera substituida por uma tabela especifica "Lance a Dois" mostrando:
 
 ```text
-EDUZZ:
-  Saldo Inicial         R$ 11.355,99
-  (+) Entradas          R$ 16.976,30   <-- receitas + resgates + entradas caixa + transferências positivas
-  (-) Saídas            R$ 28.332,29   <-- despesas + destinações + transferências negativas
-  = Saldo Final         R$      0,00
+RECEITAS (mkt = LANCE A DOIS, custoNum 1-10)
+  Curso/Receita | Bruto | Taxas | Acrescimos | Impostos | Com.Vendedor | Liquido
+  ...
+  SUBTOTAL RECEITAS                                                      R$ X
+
+DESPESAS (mkt = LANCE A DOIS, custoNum 11-20)
+  Despesa | Valor
+  ...
+  SUBTOTAL DESPESAS                                                      R$ Y
+
+RESULTADO LIQUIDO (receitas - despesas)                                  R$ Z
+COMISSAO 10%                                                             R$ Z * 0.10
 ```
 
-### Mudanca no Codigo
+### Alteracoes
 
-**Arquivo:** `src/components/DREFluxoCaixa.tsx`
-
-1. No `fluxoBancos` (linhas 137-155), manter a coleta individual mas calcular dois totais por banco:
-   - `entradas` = receitas + resgates + transferências positivas
-   - `saidas` = despesas + destinações + transferências negativas (valor absoluto)
-   - `saldoFinal` = saldoInicial + entradas - saidas
-
-2. Na UI (linhas 790-844), simplificar a tabela para 4 colunas:
-   - **Banco | Saldo Inicial | + Entradas | - Saídas | Saldo Final**
-
-3. No PDF (linhas 406-414), atualizar para mesma estrutura simplificada.
+| Arquivo | O que muda |
+|---------|-----------|
+| `src/components/ComissoesPainel.tsx` | Substituir a secao "Comissoes por MKT" pela logica Lance a Dois: filtrar receitas e despesas com mkt="LANCE A DOIS", calcular resultado liquido (bruto - taxas + acrescimos - impostos - comissoes vendedor + despesas), aplicar 10%. Atualizar card de resumo e PDF. |
 
 ### Detalhes Tecnicos
 
-No `fluxoBancos` useMemo, o tipo `FluxoCaixaBanco` será mantido internamente para coleta, mas na hora de renderizar, calcular:
+No `ComissoesPainel.tsx`:
 
 ```typescript
-const entradas = b.receitas + b.resgates + Math.max(0, b.transferencias);
-const saidas = b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias));
-const saldoFinal = b.saldoInicial + entradas - saidas;
+// Receitas Lance a Dois
+const receitasLAD = data.filter(r => 
+  r.custoNum >= 1 && r.custoNum <= 10 && 
+  r.mkt.toUpperCase().includes('LANCE')
+);
+
+// Receita liquida por item
+const totalReceitaLiquida = receitasLAD.reduce((s, r) => 
+  s + (r.valorBruto - r.taxas + r.acrescimos - r.vrImposto - r.vrVendedor), 0
+);
+
+// Despesas Lance a Dois
+const despesasLAD = data.filter(r => 
+  r.custoNum >= 11 && r.custoNum <= 20 && 
+  r.mkt.toUpperCase().includes('LANCE')
+);
+const totalDespesas = despesasLAD.reduce((s, r) => s + r.valorLiquido, 0); // negativo
+
+// Resultado e comissao
+const resultadoLiquido = totalReceitaLiquida + totalDespesas;
+const comissaoLAD = resultadoLiquido * 0.10;
 ```
 
-A tabela fica:
-
-```text
-┌──────────┬───────────────┬──────────────┬──────────────┬──────────────┐
-│ Banco    │ Saldo Inicial │ + Entradas   │ - Saídas     │ Saldo Final  │
-├──────────┼───────────────┼──────────────┼──────────────┼──────────────┤
-│ AZUL     │ R$ 0,00       │ R$ 0,00      │ R$ 0,00      │ R$ 0,00      │
-│ EDUZZ    │ R$ 11.355,99  │ R$ 16.976,30 │ R$ 28.332,29 │ R$ 0,00      │
-│ INTER    │ R$ 46.174,32  │ R$ XX.XXX    │ R$ XX.XXX    │ R$ XX.XXX    │
-├──────────┼───────────────┼──────────────┼──────────────┼──────────────┤
-│ TOTAL    │ R$ 57.530,31  │ R$ XX.XXX    │ R$ XX.XXX    │ R$ XX.XXX    │
-└──────────┴───────────────┴──────────────┴──────────────┴──────────────┘
-```
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/components/DREFluxoCaixa.tsx` | Simplificar tabela de banco para 4 colunas (Saldo Inicial, Entradas, Saídas, Saldo Final) na UI e no PDF |
+A secao de vendedores permanece inalterada. Apenas a secao MKT muda para este calculo especifico do Lance a Dois.
 
