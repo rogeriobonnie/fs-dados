@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight, Wallet, TrendingUp, TrendingDown, ArrowRightLeft, Landmark, FileText } from 'lucide-react';
+import { ChevronDown, ChevronRight, Wallet, TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle, Landmark, FileText, BarChart3 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -29,8 +29,8 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     const saldoInicial = data.filter(r => r.custo.toUpperCase().includes('0-SALDO'));
     const receitas: Record<string, Pagina5Record[]> = {};
     const despesas: Record<string, Pagina5Record[]> = {};
-    const destinacoes: Record<string, Pagina5Record[]> = {};
-    const resgates = data.filter(r => r.custo.toUpperCase().includes('98-RESGATE'));
+    const saidasCaixa: Record<string, Pagina5Record[]> = {};
+    const entradasCaixa: Record<string, Pagina5Record[]> = {};
     const transferencias = data.filter(r => r.custo.toUpperCase().includes('99-TRANSFER'));
 
     data.forEach(r => {
@@ -40,13 +40,18 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       } else if (r.custoNum >= 11 && r.custoNum <= 20) {
         if (!despesas[r.custo]) despesas[r.custo] = [];
         despesas[r.custo].push(r);
-      } else if ((r.custoNum >= 21 && r.custoNum <= 30) || r.custoNum === 97) {
-        if (!destinacoes[r.custo]) destinacoes[r.custo] = [];
-        destinacoes[r.custo].push(r);
+      } else if (r.custoNum >= 21 && r.custoNum <= 30) {
+        // Saídas de caixa: distribuições, pagamentos externos, despesas anteriores
+        if (!saidasCaixa[r.custo]) saidasCaixa[r.custo] = [];
+        saidasCaixa[r.custo].push(r);
+      } else if (r.custoNum === 97 || r.custoNum === 98) {
+        // Entradas de caixa: terceiros e resgates
+        if (!entradasCaixa[r.custo]) entradasCaixa[r.custo] = [];
+        entradasCaixa[r.custo].push(r);
       }
     });
 
-    return { saldoInicial, receitas, despesas, destinacoes, resgates, transferencias };
+    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, transferencias };
   }, [data]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
@@ -103,19 +108,29 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       items.forEach(r => { totalDespesas += Math.abs(r.valorLiquido); });
     });
 
-    let totalDestinacoes = 0;
-    Object.values(grouped.destinacoes).forEach(items => {
-      items.forEach(r => { totalDestinacoes += Math.abs(r.valorBruto); });
+    const resultadoMes = totalResultadoReceitas - totalDespesas;
+
+    // Saídas de caixa (21-30) - valores absolutos
+    let totalSaidasCaixa = 0;
+    Object.values(grouped.saidasCaixa).forEach(items => {
+      items.forEach(r => { totalSaidasCaixa += Math.abs(r.valorBruto); });
     });
 
-    const totalResgates = grouped.resgates.reduce((s, r) => s + r.valorBruto, 0);
-    const resultadoMes = totalResultadoReceitas - totalDespesas;
+    // Entradas de caixa (97, 98) - valores positivos
+    let totalEntradasCaixa = 0;
+    Object.values(grouped.entradasCaixa).forEach(items => {
+      items.forEach(r => { totalEntradasCaixa += Math.abs(r.valorBruto); });
+    });
+
+    const disponivelAntes = totalSaldoInicial + resultadoMes;
+    const saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa;
 
     return {
       totalSaldoInicial,
       totalBrutoReceitas, totalTaxasReceitas, totalLiquidoReceitas,
       totalImpostosReceitas, totalComVendedor, totalResultadoReceitas,
-      totalDespesas, totalDestinacoes, totalResgates, resultadoMes,
+      totalDespesas, resultadoMes,
+      totalSaidasCaixa, totalEntradasCaixa, disponivelAntes, saldoFinalLivre,
     };
   }, [grouped, receitasPorCurso]);
 
@@ -131,8 +146,8 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     grouped.saldoInicial.forEach(r => { ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.saldoInicial += r.valorBruto; });
     Object.values(grouped.receitas).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.receitas += r.valorLiquido; });
     Object.values(grouped.despesas).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.despesas += Math.abs(r.valorLiquido); });
-    Object.values(grouped.destinacoes).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorBruto); });
-    grouped.resgates.forEach(r => { ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.resgates += r.valorBruto; });
+    Object.values(grouped.saidasCaixa).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorBruto); });
+    Object.values(grouped.entradasCaixa).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.resgates += Math.abs(r.valorBruto); });
     grouped.transferencias.forEach(r => { ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.transferencias += r.valorBruto; });
 
     bancos.forEach(b => { b.saldoFinal = b.saldoInicial + b.receitas - b.despesas - b.destinacoes + b.resgates + b.transferencias; });
@@ -173,13 +188,18 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     </Table>
   );
 
-  const renderDespesaSection = (custo: string, items: Pagina5Record[], type: 'despesa' | 'destinacao') => {
+  const renderDespesaSection = (custo: string, items: Pagina5Record[], type: 'despesa' | 'saida' | 'entrada') => {
     const isOpen = openSections[custo] ?? false;
     const total = items.reduce((s, r) => s + Math.abs(r.valorBruto), 0);
     const provisionItems = items.filter(r => r.banco === 'PROVISAO');
+    const borderColor = type === 'despesa'
+      ? 'hsl(var(--destructive))'
+      : type === 'saida'
+        ? 'hsl(0 70% 50%)'
+        : 'hsl(142 70% 35%)';
 
     return (
-      <Card key={custo} className="border-l-4" style={{ borderLeftColor: type === 'despesa' ? 'hsl(var(--destructive))' : 'hsl(var(--warning))' }}>
+      <Card key={custo} className="border-l-4" style={{ borderLeftColor: borderColor }}>
         <Collapsible open={isOpen} onOpenChange={() => toggleSection(custo)}>
           <CollapsibleTrigger className="w-full">
             <CardHeader className="py-3 px-4">
@@ -192,7 +212,9 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                     <Badge variant="outline" className="text-xs border-warning text-warning">{provisionItems.length} provisão</Badge>
                   )}
                 </div>
-                <span className="font-bold text-sm">{fmt(total)}</span>
+                <span className="font-bold text-sm" style={{ color: type === 'entrada' ? 'hsl(142 70% 35%)' : undefined }}>
+                  {type === 'entrada' ? '+' : '-'}{fmt(total)}
+                </span>
               </div>
             </CardHeader>
           </CollapsibleTrigger>
@@ -204,7 +226,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     );
   };
 
-  // PDF Generation - Resumido primeiro, detalhamento depois
+  // PDF Generation
   const generatePDF = () => {
     const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
     const year = selectedYear || '';
@@ -249,7 +271,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     });
     y = (doc as any).lastAutoTable.finalY + 6;
 
-    // Despesas resumo por centro de custo
+    // Despesas resumo
     const despesasResumo = Object.entries(grouped.despesas)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([custo, items]) => [custo, fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))]);
@@ -279,70 +301,119 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       columnStyles: { 1: { halign: 'right' } },
       bodyStyles: { fillColor: totals.resultadoMes >= 0 ? [220, 255, 220] : [255, 220, 220] },
     });
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 10;
 
-    // Destinações resumo
-    if (Object.keys(grouped.destinacoes).length > 0) {
-      const destResumo = Object.entries(grouped.destinacoes)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([custo, items]) => [custo, fmt(items.reduce((s, r) => s + Math.abs(r.valorBruto), 0))]);
-      destResumo.push(['TOTAL DESTINAÇÕES', fmt(totals.totalDestinacoes)]);
-
-      autoTable(doc, {
-        startY: y,
-        head: [['DESTINAÇÕES E UTILIZAÇÕES', 'Valor']],
-        body: destResumo,
-        theme: 'grid', styles: { fontSize: 9 },
-        headStyles: { fillColor: [180, 130, 30], fontStyle: 'bold' },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-      });
-      y = (doc as any).lastAutoTable.finalY + 8;
-    }
-
-    // ========== PAGE 2: FLUXO DE CAIXA ==========
-    doc.addPage();
-    y = 15;
-    doc.setFontSize(16);
+    // ========== FLUXO DE CAIXA NO PDF ==========
+    checkPage(80);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(`Fluxo de Caixa - ${monthName} ${year}`, 14, y);
     y += 10;
 
-    // Saldo Inicial
-    const saldoRows = grouped.saldoInicial.map(r => [r.banco || r.descricao, fmt(r.valorBruto)]);
-    saldoRows.push(['TOTAL', fmt(totals.totalSaldoInicial)]);
-    autoTable(doc, {
-      startY: y, head: [['SALDO INICIAL', 'Valor']], body: saldoRows,
-      theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [66, 66, 66] },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-    });
-    y = (doc as any).lastAutoTable.finalY + 6;
-
-    // Movimentação
+    // Saldo Inicial + Resultado
     autoTable(doc, {
       startY: y,
-      head: [['MOVIMENTAÇÃO', 'Valor']],
+      head: [['COMPOSIÇÃO DO FLUXO', 'Valor']],
       body: [
-        ['(+) Receitas Líquidas', fmt(totals.totalLiquidoReceitas)],
-        ['(-) Despesas Operacionais', `-${fmt(totals.totalDespesas)}`],
-        ['(-) Destinações e Utilizações', `-${fmt(totals.totalDestinacoes)}`],
-        ['(+) Resgates', fmt(totals.totalResgates)],
+        ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
+        ['(+) Resultado do Mês', fmt(totals.resultadoMes)],
+        ['= Disponível antes de movimentações', fmt(totals.disponivelAntes)],
       ],
-      theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [66, 66, 66] },
+      theme: 'grid', styles: { fontSize: 9 },
+      headStyles: { fillColor: [66, 66, 66] },
       columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.row.index === 2) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [230, 240, 255];
+        }
+      },
     });
     y = (doc as any).lastAutoTable.finalY + 6;
 
-    // Saldo Final
+    // Saídas de Caixa
+    if (Object.keys(grouped.saidasCaixa).length > 0) {
+      const saidasResumo = Object.entries(grouped.saidasCaixa)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([custo, items]) => [custo, `-${fmt(items.reduce((s, r) => s + Math.abs(r.valorBruto), 0))}`]);
+      saidasResumo.push(['TOTAL SAÍDAS DE CAIXA', `-${fmt(totals.totalSaidasCaixa)}`]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['SAÍDAS DE CAIXA (não são despesas do mês)', 'Valor']],
+        body: saidasResumo,
+        theme: 'grid', styles: { fontSize: 9 },
+        headStyles: { fillColor: [200, 50, 50], fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === saidasResumo.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [255, 230, 230];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // Entradas de Caixa
+    if (Object.keys(grouped.entradasCaixa).length > 0) {
+      const entradasResumo = Object.entries(grouped.entradasCaixa)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([custo, items]) => [custo, `+${fmt(items.reduce((s, r) => s + Math.abs(r.valorBruto), 0))}`]);
+      entradasResumo.push(['TOTAL ENTRADAS DE CAIXA', `+${fmt(totals.totalEntradasCaixa)}`]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['ENTRADAS DE CAIXA (não são receitas do mês)', 'Valor']],
+        body: entradasResumo,
+        theme: 'grid', styles: { fontSize: 9 },
+        headStyles: { fillColor: [34, 139, 34], fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === entradasResumo.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [220, 255, 220];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // Resumo do Fluxo
+    autoTable(doc, {
+      startY: y,
+      head: [['RESUMO DO FLUXO DE CAIXA', 'Valor']],
+      body: [
+        ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
+        ['(+) Resultado do Mês', fmt(totals.resultadoMes)],
+        ['(-) Saídas de Caixa', `-${fmt(totals.totalSaidasCaixa)}`],
+        ['(+) Entradas de Caixa', `+${fmt(totals.totalEntradasCaixa)}`],
+        ['= SALDO FINAL LIVRE', fmt(totals.saldoFinalLivre)],
+      ],
+      theme: 'grid', styles: { fontSize: 10 },
+      headStyles: { fillColor: [0, 51, 102], fontStyle: 'bold' },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.row.index === 4) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 12;
+          data.cell.styles.fillColor = totals.saldoFinalLivre >= 0 ? [220, 255, 220] : [255, 220, 220];
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // Saldo por Banco
     const finalRows = fluxoBancos.map(b => [b.banco, fmt(b.saldoFinal)]);
     finalRows.push(['TOTAL', fmt(fluxoTotal.saldoFinal)]);
     autoTable(doc, {
-      startY: y, head: [['SALDO FINAL', 'Valor']], body: finalRows,
+      startY: y, head: [['SALDO POR BANCO', 'Valor']], body: finalRows,
       theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [66, 66, 66] },
       columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
     });
     y = (doc as any).lastAutoTable.finalY + 10;
 
-    // ========== PAGES 3+: DETALHAMENTO ==========
+    // ========== DETALHAMENTO ==========
     doc.addPage();
     y = 15;
     doc.setFontSize(14);
@@ -350,7 +421,6 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     doc.text('DETALHAMENTO DAS RECEITAS', 14, y);
     y += 8;
 
-    // Tabela consolidada de receitas por curso
     const cursoRows = receitasPorCurso.map(c => [
       c.nome, String(c.qtd), fmt(c.bruto), `-${fmt(c.taxas)}`, fmt(c.liquido), `-${fmt(c.impostos)}`, `-${fmt(c.comVendedor)}`, fmt(c.resultado),
     ]);
@@ -376,7 +446,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     });
     y = (doc as any).lastAutoTable.finalY + 8;
 
-    // Detalhamento por centro de custo de despesas
+    // Detalhamento despesas
     checkPage(15);
     addSectionTitle('DETALHAMENTO DAS DESPESAS');
     Object.entries(grouped.despesas).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
@@ -401,11 +471,11 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
       y = (doc as any).lastAutoTable.finalY + 6;
     });
 
-    // Detalhamento destinações
-    if (Object.keys(grouped.destinacoes).length > 0) {
+    // Detalhamento saídas de caixa
+    if (Object.keys(grouped.saidasCaixa).length > 0) {
       checkPage(15);
-      addSectionTitle('DETALHAMENTO DAS DESTINAÇÕES');
-      Object.entries(grouped.destinacoes).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
+      addSectionTitle('DETALHAMENTO DAS SAÍDAS DE CAIXA');
+      Object.entries(grouped.saidasCaixa).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
         checkPage(20);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
@@ -414,7 +484,27 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorBruto)), r.banco]);
         autoTable(doc, {
           startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
-          theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [180, 130, 30] },
+          theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [180, 80, 80] },
+          columnStyles: { 3: { halign: 'right' } },
+        });
+        y = (doc as any).lastAutoTable.finalY + 6;
+      });
+    }
+
+    // Detalhamento entradas de caixa
+    if (Object.keys(grouped.entradasCaixa).length > 0) {
+      checkPage(15);
+      addSectionTitle('DETALHAMENTO DAS ENTRADAS DE CAIXA');
+      Object.entries(grouped.entradasCaixa).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
+        checkPage(20);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(custo, 14, y);
+        y += 5;
+        const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorBruto)), r.banco]);
+        autoTable(doc, {
+          startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
+          theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [34, 120, 34] },
           columnStyles: { 3: { halign: 'right' } },
         });
         y = (doc as any).lastAutoTable.finalY + 6;
@@ -595,68 +685,134 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         </CardContent>
       </Card>
 
-      {/* DESTINAÇÕES */}
-      {Object.keys(grouped.destinacoes).length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5" style={{ color: 'hsl(var(--warning))' }} />
-            <h3 className="text-lg font-bold">DESTINAÇÕES E UTILIZAÇÕES</h3>
-            <span className="font-bold" style={{ color: 'hsl(var(--warning))' }}>{fmt(totals.totalDestinacoes)}</span>
-          </div>
-          {Object.entries(grouped.destinacoes)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([custo, items]) => renderDespesaSection(custo, items, 'destinacao'))}
+      {/* ═══════ FLUXO DE CAIXA ═══════ */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 border-t-2 border-b-2 border-primary/30 py-3">
+          <BarChart3 className="h-6 w-6 text-primary" />
+          <h2 className="text-xl font-bold">FLUXO DE CAIXA</h2>
         </div>
-      )}
 
-      {/* RESGATES */}
-      {grouped.resgates.length > 0 && (
-        <Card className="border-l-4 border-l-primary">
-          <Collapsible open={openSections['98-RESGATE']} onOpenChange={() => toggleSection('98-RESGATE')}>
-            <CollapsibleTrigger className="w-full">
-              <CardHeader className="py-3 px-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {openSections['98-RESGATE'] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    <CardTitle className="text-sm font-semibold">98-RESGATE</CardTitle>
-                    <Badge variant="secondary" className="text-xs">{grouped.resgates.length}</Badge>
-                  </div>
-                  <span className="font-bold text-sm">{fmt(totals.totalResgates)}</span>
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="pt-0 px-4 pb-4">{renderItemList(grouped.resgates)}</CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
-
-      {/* SALDO FINAL */}
-      {fluxoBancos.length > 0 && (
-        <Card className="border-l-4 border-l-primary">
-          <CardHeader className="py-3 px-4">
-            <div className="flex items-center gap-2">
-              <Landmark className="h-4 w-4 text-primary" />
-              <CardTitle className="text-sm font-semibold">SALDO FINAL</CardTitle>
+        {/* Saldo Inicial + Resultado = Disponível */}
+        <Card className="border-l-4 border-l-primary bg-muted/30">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span>Saldo Inicial</span>
+              <span className="font-bold">{fmt(totals.totalSaldoInicial)}</span>
             </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 pt-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {fluxoBancos.map(b => (
-                <div key={b.banco} className="flex justify-between items-center p-2 rounded bg-muted/50">
-                  <span className="text-xs font-medium">{b.banco}</span>
-                  <span className="text-sm font-bold">{fmt(b.saldoFinal)}</span>
-                </div>
-              ))}
-              <div className="flex justify-between items-center p-2 rounded bg-primary/10 col-span-full md:col-span-1">
-                <span className="text-xs font-bold">TOTAL</span>
-                <span className="text-sm font-bold text-primary">{fmt(fluxoTotal.saldoFinal)}</span>
-              </div>
+            <div className="flex justify-between items-center text-sm">
+              <span>(+) Resultado do Mês</span>
+              <span className="font-bold" style={{ color: totals.resultadoMes >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                {totals.resultadoMes >= 0 ? '+' : ''}{fmt(totals.resultadoMes)}
+              </span>
+            </div>
+            <div className="border-t-2 border-dashed my-1" />
+            <div className="flex justify-between items-center text-base font-bold">
+              <span>= Disponível antes de movimentações</span>
+              <span className="text-primary">{fmt(totals.disponivelAntes)}</span>
             </div>
           </CardContent>
         </Card>
-      )}
+
+        {/* SAÍDAS DE CAIXA */}
+        {Object.keys(grouped.saidasCaixa).length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <ArrowDownCircle className="h-5 w-5" style={{ color: 'hsl(0 70% 50%)' }} />
+              <h3 className="text-base font-bold">SAÍDAS DE CAIXA</h3>
+              <span className="text-xs text-muted-foreground">(não são despesas do mês — distribuições, pagamentos externos, etc.)</span>
+            </div>
+            {Object.entries(grouped.saidasCaixa)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([custo, items]) => renderDespesaSection(custo, items, 'saida'))}
+            <div className="flex justify-end px-4">
+              <div className="flex items-center gap-3 p-2 rounded bg-destructive/10">
+                <span className="text-sm font-bold">TOTAL SAÍDAS</span>
+                <span className="text-sm font-bold" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(totals.totalSaidasCaixa)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ENTRADAS DE CAIXA */}
+        {Object.keys(grouped.entradasCaixa).length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <ArrowUpCircle className="h-5 w-5" style={{ color: 'hsl(142 70% 35%)' }} />
+              <h3 className="text-base font-bold">ENTRADAS DE CAIXA</h3>
+              <span className="text-xs text-muted-foreground">(não são receitas do mês — resgates, repasses de terceiros, etc.)</span>
+            </div>
+            {Object.entries(grouped.entradasCaixa)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([custo, items]) => renderDespesaSection(custo, items, 'entrada'))}
+            <div className="flex justify-end px-4">
+              <div className="flex items-center gap-3 p-2 rounded" style={{ backgroundColor: 'hsla(142, 70%, 35%, 0.1)' }}>
+                <span className="text-sm font-bold">TOTAL ENTRADAS</span>
+                <span className="text-sm font-bold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totals.totalEntradasCaixa)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* RESUMO DO FLUXO */}
+        <Card className="border-2 border-primary">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm font-bold">RESUMO DO FLUXO DE CAIXA</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 pt-0 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Saldo Inicial</span>
+              <span className="font-semibold">{fmt(totals.totalSaldoInicial)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>(+) Resultado do Mês</span>
+              <span className="font-semibold" style={{ color: totals.resultadoMes >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                {totals.resultadoMes >= 0 ? '+' : ''}{fmt(totals.resultadoMes)}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>(-) Saídas de Caixa</span>
+              <span className="font-semibold" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(totals.totalSaidasCaixa)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>(+) Entradas de Caixa</span>
+              <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totals.totalEntradasCaixa)}</span>
+            </div>
+            <div className="border-t-2 border-primary my-2" />
+            <div className="flex justify-between text-lg font-bold">
+              <span>= SALDO FINAL LIVRE</span>
+              <span className={totals.saldoFinalLivre >= 0 ? 'text-primary' : ''} style={totals.saldoFinalLivre < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
+                {fmt(totals.saldoFinalLivre)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SALDO POR BANCO */}
+        {fluxoBancos.length > 0 && (
+          <Card className="border-l-4 border-l-primary">
+            <CardHeader className="py-3 px-4">
+              <div className="flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-primary" />
+                <CardTitle className="text-sm font-semibold">SALDO POR BANCO</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {fluxoBancos.map(b => (
+                  <div key={b.banco} className="flex justify-between items-center p-2 rounded bg-muted/50">
+                    <span className="text-xs font-medium">{b.banco}</span>
+                    <span className="text-sm font-bold">{fmt(b.saldoFinal)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center p-2 rounded bg-primary/10 col-span-full md:col-span-1">
+                  <span className="text-xs font-bold">TOTAL</span>
+                  <span className="text-sm font-bold text-primary">{fmt(fluxoTotal.saldoFinal)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };
