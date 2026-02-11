@@ -26,12 +26,12 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
   const toggleCourse = (key: string) => setOpenCourses(prev => ({ ...prev, [key]: !prev[key] }));
 
   const grouped = useMemo(() => {
-    const saldoInicial = data.filter(r => r.custo.toUpperCase().includes('0-SALDO'));
+    const saldoInicial = data.filter(r => r.custoNum === 0);
     const receitas: Record<string, Pagina5Record[]> = {};
     const despesas: Record<string, Pagina5Record[]> = {};
     const saidasCaixa: Record<string, Pagina5Record[]> = {};
     const entradasCaixa: Record<string, Pagina5Record[]> = {};
-    const transferencias = data.filter(r => r.custoNum === 99 || r.custo.toUpperCase().includes('99-TRANSFER') || r.custo.toUpperCase().includes('99 - TRANSFER'));
+    const transferencias = data.filter(r => r.custoNum === 99);
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {

@@ -39,7 +39,7 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
   const year = selectedYear || '';
 
   const terceiros = useMemo(() => {
-    const items = data.filter(r => r.custoNum === 97 || r.custo.toUpperCase().includes('97-TERCEIROS'));
+    const items = data.filter(r => r.custoNum === 97);
 
     const map = new Map<string, CursoTerceiro>();
 
