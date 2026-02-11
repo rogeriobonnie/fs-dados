@@ -854,6 +854,11 @@ export class GoogleSheetsService {
       // Determine cost code number
       const custoNum = parseInt(custo.split('-')[0]) || 0;
       
+      // Debug: log despesas com mkt preenchido
+      if (mkt && custoNum >= 11 && custoNum <= 20) {
+        console.log(`P5 despesa com mkt: custoNum=${custoNum}, mkt="${mkt}", valorLiquido=${valorLiquido}, rowLen=${row.length}`);
+      }
+      
       records.push({
         id: `p5_${i}`,
         date: dateFormatted,
