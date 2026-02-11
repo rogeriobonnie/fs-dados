@@ -787,27 +787,57 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
           </CardContent>
         </Card>
 
-        {/* SALDO POR BANCO */}
+        {/* SALDO POR BANCO - Detalhado */}
         {fluxoBancos.length > 0 && (
           <Card className="border-l-4 border-l-primary">
             <CardHeader className="py-3 px-4">
               <div className="flex items-center gap-2">
                 <Landmark className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-semibold">SALDO POR BANCO</CardTitle>
+                <CardTitle className="text-sm font-semibold">SALDO POR BANCO — Detalhamento</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {fluxoBancos.map(b => (
-                  <div key={b.banco} className="flex justify-between items-center p-2 rounded bg-muted/50">
-                    <span className="text-xs font-medium">{b.banco}</span>
-                    <span className="text-sm font-bold">{fmt(b.saldoFinal)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between items-center p-2 rounded bg-primary/10 col-span-full md:col-span-1">
-                  <span className="text-xs font-bold">TOTAL</span>
-                  <span className="text-sm font-bold text-primary">{fmt(fluxoTotal.saldoFinal)}</span>
-                </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Banco</TableHead>
+                      <TableHead className="text-xs text-right">Saldo Inicial</TableHead>
+                      <TableHead className="text-xs text-right">+ Receitas</TableHead>
+                      <TableHead className="text-xs text-right">- Despesas</TableHead>
+                      <TableHead className="text-xs text-right">- Saídas Cx</TableHead>
+                      <TableHead className="text-xs text-right">+ Entradas Cx</TableHead>
+                      <TableHead className="text-xs text-right">± Transferências</TableHead>
+                      <TableHead className="text-xs text-right font-bold">Saldo Final</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fluxoBancos.map(b => (
+                      <TableRow key={b.banco}>
+                        <TableCell className="text-xs font-medium">{b.banco}</TableCell>
+                        <TableCell className="text-xs text-right">{fmt(b.saldoInicial)}</TableCell>
+                        <TableCell className="text-xs text-right" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(b.receitas)}</TableCell>
+                        <TableCell className="text-xs text-right" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(b.despesas)}</TableCell>
+                        <TableCell className="text-xs text-right" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(b.destinacoes)}</TableCell>
+                        <TableCell className="text-xs text-right" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(b.resgates)}</TableCell>
+                        <TableCell className="text-xs text-right">{b.transferencias >= 0 ? '+' : ''}{fmt(b.transferencias)}</TableCell>
+                        <TableCell className="text-xs text-right font-bold">{fmt(b.saldoFinal)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow className="bg-primary/10">
+                      <TableCell className="text-xs font-bold">TOTAL</TableCell>
+                      <TableCell className="text-xs text-right font-bold">{fmt(fluxoTotal.saldoInicial)}</TableCell>
+                      <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(fluxoTotal.receitas)}</TableCell>
+                      <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(fluxoTotal.despesas)}</TableCell>
+                      <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(fluxoTotal.destinacoes)}</TableCell>
+                      <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(fluxoTotal.resgates)}</TableCell>
+                      <TableCell className="text-xs text-right font-bold">{fluxoTotal.transferencias >= 0 ? '+' : ''}{fmt(fluxoTotal.transferencias)}</TableCell>
+                      <TableCell className="text-xs text-right font-bold text-primary">{fmt(fluxoTotal.saldoFinal)}</TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
               </div>
             </CardContent>
           </Card>
