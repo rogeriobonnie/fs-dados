@@ -1,87 +1,59 @@
 
 
-## Plano: Provisoes (custoNum 31) e Melhoria do PDF
+## Plano: Corrigir Saldo Final Livre no Fluxo de Caixa
 
-### Resumo das Mudancas
+### Problema
 
-Tres alteracoes principais no `DREFluxoCaixa.tsx`:
+O calculo do "Saldo Final Livre" usa `resultadoMes`, que ja desconta impostos e comissoes de vendedor. Porem, esses valores sao itens da DRE (provisoes contabeis) e nao saidas reais de caixa. O dinheiro ainda esta no banco.
 
-### 1. Provisoes (custoNum 31) apos Resultado do Mes
+Isso causa a diferenca entre:
+- **Saldo Final Livre**: R$ 27.254,36 (incorreto, desconta impostos/comissoes que nao sairam do caixa)
+- **Saldo Final Real (soma bancos)**: R$ 31.385,88 (correto, reflete o caixa real)
 
-Novo grupo `provisoes` para custoNum=31. As provisoes com banco="PROVISAO" aparecem **apos** o card de "= RESULTADO DO MES", diminuindo o resultado mas **sem afetar** o Fluxo de Caixa.
+### Solucao
 
-Quando o banco de uma provisao estiver preenchido como "PAGO" (ou qualquer valor diferente de "PROVISAO"), ela nao aparece no resultado -- significa que ja foi paga.
-
-Layout na tela:
+No Fluxo de Caixa, substituir `resultadoMes` por `resultadoCaixa`, que usa apenas valores que realmente movimentaram o caixa:
 
 ```text
-= RESULTADO DO MES                          R$ X
-
-PROVISOES (custoNum 31, banco = PROVISAO)
-  31-Provisoes
-    Data | Descricao | Detalhe | Valor | Banco
-  SUBTOTAL PROVISOES                        -R$ P
-
-= RESULTADO APOS PROVISOES                  R$ X - R$ P
-
---- separador ---
-
-FLUXO DE CAIXA (sem incluir provisoes)
+resultadoCaixa = totalLiquidoReceitas - totalDespesas
 ```
 
-### 2. Banco "PAGO" nao aparece no resultado
-
-Itens com banco diferente de "PROVISAO" no custoNum 31 sao ignorados no calculo de provisoes (ja foram pagos e ja afetaram o caixa por outra via).
-
-### 3. PDF melhorado - Estrutura completa
-
-O PDF tera a seguinte estrutura:
+Em vez de:
 
 ```text
-PAGINA 1 - DRE
-  Receitas resumo (bruto, taxas, liquido, impostos, comissoes, resultado)
-  Despesas resumo por centro de custo
-  = RESULTADO DO MES
-  Provisoes (custoNum 31)
-  = RESULTADO APOS PROVISOES
+resultadoMes = (totalLiquidoReceitas - impostos - comVendedor) - totalDespesas
+```
 
-PAGINA 2 - FLUXO DE CAIXA
-  Saldo Inicial
-  (+) Resultado do Mes
-  = Disponivel
-  (-) Saidas de Caixa (21-30)
-  (+) Entradas de Caixa (97, 98)
-  = SALDO FINAL LIVRE
-  Saldo por Banco
+### O que muda na tela
 
-PAGINAS SEGUINTES - DETALHAMENTO
-  Detalhamento receitas por curso
-  Detalhamento despesas por centro de custo
-  Detalhamento saidas/entradas de caixa
+```text
+FLUXO DE CAIXA
+  Saldo Inicial                              R$ X
+  (+) Resultado de Caixa do Mes              R$ Y  (receitas liquidas - despesas, SEM descontar impostos/comissoes)
+  = Disponivel                               R$ X + Y
+  (-) Saidas de Caixa                        R$ Z
+  (+) Entradas de Caixa                      R$ W
+  = SALDO FINAL LIVRE                        R$ X + Y - Z + W  (vai bater com soma dos bancos)
 ```
 
 ### Detalhes Tecnicos
 
 | Arquivo | O que muda |
 |---------|-----------|
-| `src/components/DREFluxoCaixa.tsx` | Adicionar grupo `provisoes` (custoNum=31, banco=PROVISAO) no `grouped`. Calcular `totalProvisoes` e `resultadoAposProvisoes`. Renderizar secao de provisoes entre o card Resultado e o Fluxo de Caixa. Reestruturar PDF com DRE completa (incluindo provisoes) na pagina 1, Fluxo de Caixa na pagina 2, e detalhamento nas paginas seguintes. |
+| `src/components/DREFluxoCaixa.tsx` | Criar `resultadoCaixa = totalLiquidoReceitas - totalDespesas`. Usar `resultadoCaixa` em vez de `resultadoMes` nos calculos de `disponivelAntes` e `saldoFinalLivre`. Atualizar o label na UI e no PDF de "Resultado do Mes" para "Resultado de Caixa" na secao de fluxo. A DRE continua mostrando `resultadoMes` com impostos e comissoes normalmente. |
 
-Codigo de filtragem:
-
+Linha 137-138 muda de:
 ```typescript
-// No grouped useMemo
-const provisoes: Record<string, Pagina5Record[]> = {};
-// ...dentro do forEach:
-} else if (r.custoNum === 31 && r.banco === 'PROVISAO') {
-  if (!provisoes[r.custo]) provisoes[r.custo] = [];
-  provisoes[r.custo].push(r);
-}
-
-// No totals
-let totalProvisoes = 0;
-Object.values(grouped.provisoes).forEach(items => {
-  items.forEach(r => { totalProvisoes += Math.abs(r.valorLiquido); });
-});
-const resultadoAposProvisoes = resultadoMes - totalProvisoes;
+const disponivelAntes = totalSaldoInicial + resultadoMes;
+const saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa;
 ```
+
+Para:
+```typescript
+const resultadoCaixa = totalLiquidoReceitas - totalDespesas;
+const disponivelAntes = totalSaldoInicial + resultadoCaixa;
+const saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa;
+```
+
+Isso fara o Saldo Final Livre bater com a soma dos saldos finais dos bancos.
 
