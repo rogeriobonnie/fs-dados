@@ -145,13 +145,13 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
 
     // Receitas
     const receitaRows = receitasLAD.map(r => [
-      r.date, r.descricao, fmt(r.valorBruto), fmt(r.taxas), fmt(r.acrescimos),
+      r.date, r.descricao, r.detalhamento, fmt(r.valorBruto), fmt(r.taxas), fmt(r.acrescimos),
       fmt(r.vrImposto), fmt(r.vrVendedor),
       fmt(r.valorBruto - r.taxas + r.acrescimos - r.vrImposto - r.vrVendedor),
     ]);
     autoTable(doc, {
       startY: y,
-      head: [['Data', 'Curso', 'Bruto', 'Taxas', 'Acrésc.', 'Impostos', 'Com.Vend.', 'Líquido']],
+      head: [['Data', 'Curso', 'Nome', 'Bruto', 'Taxas', 'Acrésc.', 'Impostos', 'Com.Vend.', 'Líquido']],
       body: receitaRows,
       theme: 'striped', styles: { fontSize: 7 },
       headStyles: { fillColor: [66, 66, 66] },
@@ -278,6 +278,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
                 <TableRow>
                   <TableHead className="text-xs">Data</TableHead>
                   <TableHead className="text-xs">Curso</TableHead>
+                  <TableHead className="text-xs">Nome</TableHead>
                   <TableHead className="text-xs text-right">Bruto</TableHead>
                   <TableHead className="text-xs text-right">Taxas</TableHead>
                   <TableHead className="text-xs text-right">Acrésc.</TableHead>
@@ -293,6 +294,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
                     <TableRow key={i}>
                       <TableCell className="text-xs">{r.date}</TableCell>
                       <TableCell className="text-xs">{r.descricao}</TableCell>
+                      <TableCell className="text-xs">{r.detalhamento}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(r.valorBruto)}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(r.taxas)}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(r.acrescimos)}</TableCell>
@@ -305,7 +307,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
               </TableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell className="text-xs font-bold" colSpan={2}>SUBTOTAL RECEITAS</TableCell>
+                  <TableCell className="text-xs font-bold" colSpan={3}>SUBTOTAL RECEITAS</TableCell>
                   <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.bruto)}</TableCell>
                   <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.taxas)}</TableCell>
                   <TableCell className="text-xs text-right font-bold">{fmt(totaisReceitaLAD.acrescimos)}</TableCell>
