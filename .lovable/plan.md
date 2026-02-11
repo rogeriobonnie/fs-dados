@@ -1,59 +1,64 @@
 
 
-## Plano: Corrigir Saldo Final Livre no Fluxo de Caixa
+## Plano: Corrigir Fluxo de Caixa para bater com Saldo dos Bancos
 
-### Problema
+### Problema Identificado
 
-O calculo do "Saldo Final Livre" usa `resultadoMes`, que ja desconta impostos e comissoes de vendedor. Porem, esses valores sao itens da DRE (provisoes contabeis) e nao saidas reais de caixa. O dinheiro ainda esta no banco.
+O Fluxo de Caixa e a Tabela de Bancos calculam valores de formas diferentes, por isso nunca batem:
 
-Isso causa a diferenca entre:
-- **Saldo Final Livre**: R$ 27.254,36 (incorreto, desconta impostos/comissoes que nao sairam do caixa)
-- **Saldo Final Real (soma bancos)**: R$ 31.385,88 (correto, reflete o caixa real)
+| Item | Fluxo de Caixa (errado) | Tabela de Bancos (correto) |
+|------|------------------------|---------------------------|
+| Saidas (21-30) | usa `valorBruto` | usa `valorLiquido` |
+| Entradas (97-98) | usa `valorBruto` | usa `valorLiquido` |
+| Transferencias (99) | IGNORA | Inclui no calculo |
+| Resultado de Caixa | formula propria | receitas - despesas real |
 
 ### Solucao
 
-No Fluxo de Caixa, substituir `resultadoMes` por `resultadoCaixa`, que usa apenas valores que realmente movimentaram o caixa:
-
-```text
-resultadoCaixa = totalLiquidoReceitas - totalDespesas
-```
-
-Em vez de:
-
-```text
-resultadoMes = (totalLiquidoReceitas - impostos - comVendedor) - totalDespesas
-```
+Alinhar o Fluxo de Caixa com a mesma logica da tabela de bancos. Usar `valorLiquido` consistentemente e incluir transferencias.
 
 ### O que muda na tela
 
 ```text
 FLUXO DE CAIXA
   Saldo Inicial                              R$ X
-  (+) Resultado de Caixa do Mes              R$ Y  (receitas liquidas - despesas, SEM descontar impostos/comissoes)
+  (+) Resultado de Caixa                     R$ Y  (receitas valorLiquido - despesas valorLiquido)
   = Disponivel                               R$ X + Y
-  (-) Saidas de Caixa                        R$ Z
-  (+) Entradas de Caixa                      R$ W
-  = SALDO FINAL LIVRE                        R$ X + Y - Z + W  (vai bater com soma dos bancos)
+  (-) Saidas de Caixa                        R$ Z  (valorLiquido, nao valorBruto)
+  (+) Entradas de Caixa                      R$ W  (valorLiquido, nao valorBruto)
+  (+/-) Transferencias                       R$ T  (custoNum 99, soma liquida)
+  = SALDO FINAL LIVRE                        R$ X + Y - Z + W + T  (= soma saldos finais bancos)
 ```
 
 ### Detalhes Tecnicos
 
-| Arquivo | O que muda |
-|---------|-----------|
-| `src/components/DREFluxoCaixa.tsx` | Criar `resultadoCaixa = totalLiquidoReceitas - totalDespesas`. Usar `resultadoCaixa` em vez de `resultadoMes` nos calculos de `disponivelAntes` e `saldoFinalLivre`. Atualizar o label na UI e no PDF de "Resultado do Mes" para "Resultado de Caixa" na secao de fluxo. A DRE continua mostrando `resultadoMes` com impostos e comissoes normalmente. |
+Arquivo: `src/components/DREFluxoCaixa.tsx`
 
-Linha 137-138 muda de:
-```typescript
-const disponivelAntes = totalSaldoInicial + resultadoMes;
-const saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa;
+**1. Saidas de caixa (linha 128)**: trocar `valorBruto` por `valorLiquido`
+
+```text
+ANTES: totalSaidasCaixa += Math.abs(r.valorBruto)
+DEPOIS: totalSaidasCaixa += Math.abs(r.valorLiquido)
 ```
 
-Para:
-```typescript
-const resultadoCaixa = totalLiquidoReceitas - totalDespesas;
-const disponivelAntes = totalSaldoInicial + resultadoCaixa;
-const saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa;
+**2. Entradas de caixa (linha 134)**: trocar `valorBruto` por `valorLiquido`
+
+```text
+ANTES: totalEntradasCaixa += Math.abs(r.valorBruto)
+DEPOIS: totalEntradasCaixa += Math.abs(r.valorLiquido)
 ```
 
-Isso fara o Saldo Final Livre bater com a soma dos saldos finais dos bancos.
+**3. Adicionar transferencias no calculo do fluxo (apos linha 135)**:
 
+```text
+totalTransferencias = soma de valorLiquido das transferencias (custoNum 99), ignorando banco PROVISAO
+saldoFinalLivre = disponivelAntes - totalSaidasCaixa + totalEntradasCaixa + totalTransferencias
+```
+
+Obs: transferencias somam zero no total (saem de um banco e entram em outro), mas sao necessarias para a conta fechar corretamente caso haja arredondamentos.
+
+**4. Exibir transferencias no resumo do fluxo (UI e PDF)** se o valor for diferente de zero.
+
+**5. Manter `resultadoCaixa = totalLiquidoReceitas - totalDespesas`** -- isso ja esta alinhado com a tabela de bancos (ambos usam `valorLiquido` para receitas e despesas).
+
+Resultado: o Saldo Final Livre vai bater exatamente com a soma dos saldos finais dos bancos.
