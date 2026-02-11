@@ -68,7 +68,7 @@ const PainelFinanceiro = () => {
   const summary = useMemo(() => {
     const receitas = filteredData.filter(r => r.custoNum >= 1 && r.custoNum <= 10);
     const despesas = filteredData.filter(r => r.custoNum >= 11 && r.custoNum <= 20);
-    const saldoInicial = filteredData.filter(r => r.custo.includes('0-SALDO'));
+    const saldoInicial = filteredData.filter(r => r.custoNum === 0);
     
     const totalReceitas = receitas.reduce((s, r) => s + r.valorLiquido, 0);
     const totalDespesas = despesas.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
