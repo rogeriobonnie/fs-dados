@@ -70,7 +70,9 @@ const PainelFinanceiro = () => {
     const despesas = filteredData.filter(r => r.custoNum >= 11 && r.custoNum <= 20);
     const saldoInicial = filteredData.filter(r => r.custoNum === 0);
     
-    const totalReceitas = receitas.reduce((s, r) => s + r.valorLiquido, 0);
+    const totalImpostos = receitas.reduce((s, r) => s + r.vrImposto, 0);
+    const totalComVend = receitas.reduce((s, r) => s + (r.vendedor ? r.vrVendedor : 0), 0);
+    const totalReceitas = receitas.reduce((s, r) => s + r.valorLiquido, 0) - totalImpostos - totalComVend;
     const totalDespesas = despesas.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
     const totalSaldoInicial = saldoInicial.reduce((s, r) => s + r.valorBruto, 0);
     const resultado = totalReceitas - totalDespesas;
