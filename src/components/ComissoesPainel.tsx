@@ -51,62 +51,108 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
   const totalVendedor = Array.from(porVendedor.values()).reduce((s, v) => s + v.total, 0);
   const totalMkt = Array.from(porMkt.values()).reduce((s, v) => s + v.total, 0);
 
-  const generatePDF = () => {
-    const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
-    const year = selectedYear || '';
+  const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
+  const year = selectedYear || '';
+
+  // Generate individual PDF per vendedor
+  const generateVendedorPDF = (nome: string, entry: { total: number; vendas: Pagina5Record[] }) => {
     const doc = new jsPDF();
     let y = 15;
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Relatório de Comissões - ${monthName} ${year}`, 14, y);
+    doc.text(`Comissões - ${nome}`, 14, y);
+    y += 7;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${monthName} ${year}`, 14, y);
     y += 10;
 
-    // Vendedores
-    doc.setFontSize(12);
-    doc.text('Comissões por Vendedor', 14, y);
-    y += 6;
-
-    const vendedorRows = Array.from(porVendedor.entries())
-      .sort(([, a], [, b]) => b.total - a.total)
-      .map(([nome, { total, vendas }]) => [nome, String(vendas.length), fmt(total)]);
-    vendedorRows.push(['TOTAL', '', fmt(totalVendedor)]);
-
+    // Summary
     autoTable(doc, {
-      startY: y, head: [['Vendedor', 'Qtd Vendas', 'Total Comissão']], body: vendedorRows,
-      theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [66, 66, 66] },
+      startY: y,
+      body: [
+        ['Quantidade de Vendas', String(entry.vendas.length)],
+        ['Total Comissão', fmt(entry.total)],
+      ],
+      theme: 'grid', styles: { fontSize: 10 },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
     });
-    y = (doc as any).lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 8;
 
-    // MKT
-    doc.setFontSize(12);
+    // Detail table
+    const rows = entry.vendas.map(v => [v.date, v.descricao, v.detalhamento, fmt(v.valorBruto), fmt(v.vrVendedor)]);
+    autoTable(doc, {
+      startY: y,
+      head: [['Data', 'Curso', 'Aluno', 'Valor Venda', 'Comissão']],
+      body: rows,
+      theme: 'striped', styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 66, 66] },
+      columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
+    });
+    y = (doc as any).lastAutoTable.finalY + 4;
+
+    // Total footer
+    autoTable(doc, {
+      startY: y,
+      body: [['TOTAL COMISSÃO', fmt(entry.total)]],
+      theme: 'grid', styles: { fontSize: 11, fontStyle: 'bold' },
+      columnStyles: { 1: { halign: 'right' } },
+      bodyStyles: { fillColor: [220, 255, 220] },
+    });
+
+    doc.save(`Comissao_${nome.replace(/\s+/g, '_')}_${monthName}_${year}.pdf`);
+  };
+
+  // Generate individual PDF for MKT
+  const generateMktPDF = (nome: string, entry: { total: number; vendas: Pagina5Record[] }) => {
+    const doc = new jsPDF();
+    let y = 15;
+
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Comissões por MKT', 14, y);
-    y += 6;
-
-    const mktRows = Array.from(porMkt.entries())
-      .sort(([, a], [, b]) => b.total - a.total)
-      .map(([nome, { total, vendas }]) => [nome, String(vendas.length), fmt(total)]);
-    mktRows.push(['TOTAL', '', fmt(totalMkt)]);
+    doc.text(`Comissões MKT - ${nome}`, 14, y);
+    y += 7;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${monthName} ${year}`, 14, y);
+    y += 10;
 
     autoTable(doc, {
-      startY: y, head: [['MKT', 'Qtd', 'Total Comissão']], body: mktRows,
-      theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [66, 66, 66] },
+      startY: y,
+      body: [
+        ['Quantidade de Vendas', String(entry.vendas.length)],
+        ['Total Comissão MKT', fmt(entry.total)],
+      ],
+      theme: 'grid', styles: { fontSize: 10 },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    const rows = entry.vendas.map(v => [v.date, v.descricao, v.detalhamento, fmt(v.valorBruto), fmt(v.vrMkt)]);
+    autoTable(doc, {
+      startY: y,
+      head: [['Data', 'Curso', 'Aluno', 'Valor Venda', 'Com. MKT']],
+      body: rows,
+      theme: 'striped', styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 66, 66] },
+      columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
+    });
+    y = (doc as any).lastAutoTable.finalY + 4;
+
+    autoTable(doc, {
+      startY: y,
+      body: [['TOTAL COMISSÃO MKT', fmt(entry.total)]],
+      theme: 'grid', styles: { fontSize: 11, fontStyle: 'bold' },
+      columnStyles: { 1: { halign: 'right' } },
+      bodyStyles: { fillColor: [220, 255, 220] },
     });
 
-    doc.save(`Comissoes_${monthName}_${year}.pdf`);
+    doc.save(`Comissao_MKT_${nome.replace(/\s+/g, '_')}_${monthName}_${year}.pdf`);
   };
 
   return (
     <div className="space-y-6 mt-4">
-      {/* PDF Button */}
-      <div className="flex justify-end">
-        <Button onClick={generatePDF} variant="outline" size="sm" className="gap-2">
-          <FileText className="h-4 w-4" />
-          Gerar PDF
-        </Button>
-      </div>
-
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
@@ -138,18 +184,24 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
                 <TableHead className="text-xs">Vendedor</TableHead>
                 <TableHead className="text-xs">Qtd Vendas</TableHead>
                 <TableHead className="text-xs text-right">Total Comissão</TableHead>
+                <TableHead className="text-xs text-right">PDF</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {Array.from(porVendedor.entries())
                 .sort(([, a], [, b]) => b.total - a.total)
-                .map(([nome, { total, vendas }]) => (
+                .map(([nome, entry]) => (
                   <TableRow key={nome}>
                     <TableCell className="text-xs font-medium">{nome}</TableCell>
                     <TableCell className="text-xs">
-                      <Badge variant="secondary">{vendas.length}</Badge>
+                      <Badge variant="secondary">{entry.vendas.length}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-right font-bold">{fmt(total)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(entry.total)}</TableCell>
+                    <TableCell className="text-xs text-right">
+                      <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => generateVendedorPDF(nome, entry)}>
+                        <FileText className="h-3 w-3" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>
@@ -157,6 +209,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
               <TableRow>
                 <TableCell className="text-xs font-bold" colSpan={2}>TOTAL</TableCell>
                 <TableCell className="text-xs text-right font-bold">{fmt(totalVendedor)}</TableCell>
+                <TableCell />
               </TableRow>
             </TableFooter>
           </Table>
@@ -178,18 +231,24 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
                 <TableHead className="text-xs">MKT</TableHead>
                 <TableHead className="text-xs">Qtd</TableHead>
                 <TableHead className="text-xs text-right">Total Comissão</TableHead>
+                <TableHead className="text-xs text-right">PDF</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {Array.from(porMkt.entries())
                 .sort(([, a], [, b]) => b.total - a.total)
-                .map(([nome, { total, vendas }]) => (
+                .map(([nome, entry]) => (
                   <TableRow key={nome}>
                     <TableCell className="text-xs font-medium">{nome}</TableCell>
                     <TableCell className="text-xs">
-                      <Badge variant="secondary">{vendas.length}</Badge>
+                      <Badge variant="secondary">{entry.vendas.length}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-right font-bold">{fmt(total)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(entry.total)}</TableCell>
+                    <TableCell className="text-xs text-right">
+                      <Button variant="ghost" size="sm" className="h-6 px-2" onClick={() => generateMktPDF(nome, entry)}>
+                        <FileText className="h-3 w-3" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>
@@ -197,6 +256,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
               <TableRow>
                 <TableCell className="text-xs font-bold" colSpan={2}>TOTAL</TableCell>
                 <TableCell className="text-xs text-right font-bold">{fmt(totalMkt)}</TableCell>
+                <TableCell />
               </TableRow>
             </TableFooter>
           </Table>

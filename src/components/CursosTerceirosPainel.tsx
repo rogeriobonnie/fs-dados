@@ -18,32 +18,36 @@ interface Props {
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
+interface CursoTerceiro {
+  nome: string;
+  valorBruto: number;
+  taxas: number;
+  acrescimos: number;
+  valorLiquido: number;
+  vrImposto: number;
+  vrVendedor: number;
+  vrMkt: number;
+  valorFinal: number;
+  vendas: Pagina5Record[];
+}
+
 const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => {
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
   const toggleCourse = (key: string) => setOpenCourses(prev => ({ ...prev, [key]: !prev[key] }));
 
+  const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
+  const year = selectedYear || '';
+
   const terceiros = useMemo(() => {
     const items = data.filter(r => r.custoNum === 97 || r.custo.toUpperCase().includes('97-TERCEIROS'));
-    
-    const map = new Map<string, {
-      nome: string;
-      valorBruto: number;
-      taxas: number;
-      acrescimos: number;
-      valorLiquido: number;
-      vrImposto: number;
-      vrVendedor: number;
-      vrMkt: number;
-      valorFinal: number;
-      vendas: Pagina5Record[];
-    }>();
+
+    const map = new Map<string, CursoTerceiro>();
 
     items.forEach(r => {
       const key = r.descricao || 'Sem descrição';
       if (!map.has(key)) {
         map.set(key, {
-          nome: key,
-          valorBruto: 0, taxas: 0, acrescimos: 0, valorLiquido: 0,
+          nome: key, valorBruto: 0, taxas: 0, acrescimos: 0, valorLiquido: 0,
           vrImposto: 0, vrVendedor: 0, vrMkt: 0, valorFinal: 0, vendas: [],
         });
       }
@@ -58,10 +62,7 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
       c.vendas.push(r);
     });
 
-    map.forEach(c => {
-      c.valorFinal = c.valorLiquido - c.vrImposto - c.vrVendedor - c.vrMkt;
-    });
-
+    map.forEach(c => { c.valorFinal = c.valorLiquido - c.vrImposto - c.vrVendedor - c.vrMkt; });
     return Array.from(map.values()).sort((a, b) => b.valorBruto - a.valorBruto);
   }, [data]);
 
@@ -69,71 +70,66 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
   const totalLiquido = terceiros.reduce((s, c) => s + c.valorLiquido, 0);
   const totalFinal = terceiros.reduce((s, c) => s + c.valorFinal, 0);
 
-  const generatePDF = () => {
-    const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
-    const year = selectedYear || '';
+  // Generate individual PDF per curso
+  const generateCursoPDF = (curso: CursoTerceiro) => {
     const doc = new jsPDF();
     let y = 15;
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Cursos de Terceiros - ${monthName} ${year}`, 14, y);
+    doc.text(`Curso de Terceiro - ${curso.nome}`, 14, y);
+    y += 7;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${monthName} ${year}`, 14, y);
     y += 10;
 
-    // Totais
+    // Demonstrativo
     autoTable(doc, {
       startY: y,
-      head: [['', 'Valor']],
+      head: [['DEMONSTRATIVO', 'Valor']],
       body: [
-        ['Total Bruto', fmt(totalBruto)],
-        ['Total Líquido', fmt(totalLiquido)],
-        ['Valor Final', fmt(totalFinal)],
+        ['Receita Bruta (' + curso.vendas.length + ' vendas)', fmt(curso.valorBruto)],
+        ['(-) Taxas de Plataforma', `-${fmt(curso.taxas)}`],
+        ['(+) Acréscimos', fmt(curso.acrescimos)],
+        ['= Valor Líquido', fmt(curso.valorLiquido)],
+        ['', ''],
+        ['(-) Impostos', `-${fmt(curso.vrImposto)}`],
+        ['(-) Comissão Vendedor', `-${fmt(curso.vrVendedor)}`],
+        ['(-) Comissão MKT', `-${fmt(curso.vrMkt)}`],
+        ['= VALOR FINAL', fmt(curso.valorFinal)],
       ],
-      theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [66, 66, 66] },
+      theme: 'grid', styles: { fontSize: 10 },
+      headStyles: { fillColor: [66, 66, 66] },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && (data.row.index === 3 || data.row.index === 8)) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = data.row.index === 8 ? [220, 255, 220] : [240, 240, 240];
+        }
+      },
     });
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 10;
 
-    terceiros.forEach(curso => {
-      if (y > 220) { doc.addPage(); y = 15; }
+    // Vendas individuais
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Vendas Individuais', 14, y);
+    y += 6;
 
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(curso.nome, 14, y);
-      y += 6;
-
-      // Demonstrativo
-      autoTable(doc, {
-        startY: y,
-        body: [
-          ['RECEITA', ''],
-          [`  Valor Bruto (${curso.vendas.length} vendas)`, fmt(curso.valorBruto)],
-          ['  (-) Taxas de Plataforma', `-${fmt(curso.taxas)}`],
-          ['  (+) Acréscimos', fmt(curso.acrescimos)],
-          ['  = Valor Líquido', fmt(curso.valorLiquido)],
-          ['', ''],
-          ['DEDUÇÕES', ''],
-          ['  (-) Impostos', `-${fmt(curso.vrImposto)}`],
-          ['  (-) Comissão Vendedor', `-${fmt(curso.vrVendedor)}`],
-          ['  (-) Comissão MKT', `-${fmt(curso.vrMkt)}`],
-          ['  = VALOR FINAL', fmt(curso.valorFinal)],
-        ],
-        theme: 'plain', styles: { fontSize: 8 },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-      });
-      y = (doc as any).lastAutoTable.finalY + 4;
-
-      // Vendas individuais
-      const rows = curso.vendas.map(v => [v.date, v.detalhamento, fmt(v.valorBruto), fmt(v.valorLiquido), v.vendedor, v.banco]);
-      autoTable(doc, {
-        startY: y,
-        head: [['Data', 'Aluno', 'Bruto', 'Líquido', 'Vendedor', 'Banco']],
-        body: rows,
-        theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [100, 100, 100] },
-      });
-      y = (doc as any).lastAutoTable.finalY + 10;
+    const rows = curso.vendas.map(v => [
+      v.date, v.detalhamento, fmt(v.valorBruto), fmt(v.taxas), fmt(v.valorLiquido),
+      v.vendedor || '-', v.vrVendedor > 0 ? fmt(v.vrVendedor) : '-', v.banco,
+    ]);
+    autoTable(doc, {
+      startY: y,
+      head: [['Data', 'Aluno', 'Bruto', 'Taxas', 'Líquido', 'Vendedor', 'Com.Vend', 'Banco']],
+      body: rows,
+      theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [100, 100, 100] },
+      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 6: { halign: 'right' } },
     });
 
-    doc.save(`CursosTerceiros_${monthName}_${year}.pdf`);
+    doc.save(`CursoTerceiro_${curso.nome.replace(/\s+/g, '_')}_${monthName}_${year}.pdf`);
   };
 
   if (terceiros.length === 0) {
@@ -148,14 +144,6 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
 
   return (
     <div className="space-y-6 mt-4">
-      {/* PDF Button */}
-      <div className="flex justify-end">
-        <Button onClick={generatePDF} variant="outline" size="sm" className="gap-2">
-          <FileText className="h-4 w-4" />
-          Gerar PDF
-        </Button>
-      </div>
-
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -193,7 +181,15 @@ const CursosTerceirosPainel = ({ data, selectedMonth, selectedYear }: Props) => 
                       <CardTitle className="text-sm font-semibold">{curso.nome}</CardTitle>
                       <Badge variant="secondary" className="text-xs">{curso.vendas.length} vendas</Badge>
                     </div>
-                    <span className="font-bold text-sm">{fmt(curso.valorFinal)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm">{fmt(curso.valorFinal)}</span>
+                      <Button
+                        variant="ghost" size="sm" className="h-6 px-2"
+                        onClick={(e) => { e.stopPropagation(); generateCursoPDF(curso); }}
+                      >
+                        <FileText className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
               </CollapsibleTrigger>
