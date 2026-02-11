@@ -39,7 +39,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
   const receitasLAD = useMemo(() => {
     return data.filter(r =>
       r.custoNum >= 1 && r.custoNum <= 10 &&
-      r.mkt.toUpperCase().includes('LANCE')
+      (r.mkt || '').toUpperCase().includes('LANCE')
     );
   }, [data]);
 
@@ -47,7 +47,7 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
   const despesasLAD = useMemo(() => {
     return data.filter(r =>
       r.custoNum >= 11 && r.custoNum <= 20 &&
-      r.mkt.toUpperCase().includes('LANCE')
+      (r.mkt || '').toUpperCase().includes('LANCE')
     );
   }, [data]);
 
