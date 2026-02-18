@@ -21,6 +21,9 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julh
 const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
+  const [expandedFluxoRow, setExpandedFluxoRow] = useState<string | null>(null);
+
+  const toggleFluxoRow = (key: string) => setExpandedFluxoRow(prev => prev === key ? null : key);
 
   const toggleSection = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   const toggleCourse = (key: string) => setOpenCourses(prev => ({ ...prev, [key]: !prev[key] }));
@@ -989,41 +992,208 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         <Card className="border-2 border-primary">
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm font-bold">RESUMO DO FLUXO DE CAIXA</CardTitle>
+            <p className="text-xs text-muted-foreground">Clique em cada linha para ver o detalhamento</p>
           </CardHeader>
-          <CardContent className="px-4 pb-4 pt-0 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Saldo Inicial</span>
-              <span className="font-semibold">{fmt(totals.totalSaldoInicial)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>(+) Resultado de Caixa</span>
-              <span className="font-semibold" style={{ color: totals.resultadoCaixa >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                {totals.resultadoCaixa >= 0 ? '+' : ''}{fmt(totals.resultadoCaixa)}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>(-) Saídas de Caixa</span>
-              <span className="font-semibold" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(totals.totalSaidasCaixa)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>(+) Entradas de Caixa</span>
-              <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totals.totalEntradasCaixa)}</span>
-            </div>
+          <CardContent className="px-4 pb-4 pt-0 space-y-0">
+            {/* Saldo Inicial */}
+            <Collapsible open={expandedFluxoRow === 'saldo'} onOpenChange={() => toggleFluxoRow('saldo')}>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex justify-between items-center text-sm py-2 px-2 rounded cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-1">
+                    {expandedFluxoRow === 'saldo' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    <span>Saldo Inicial</span>
+                  </div>
+                  <span className="font-semibold">{fmt(totals.totalSaldoInicial)}</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="bg-muted/50 rounded p-3 mb-2 ml-4 space-y-1">
+                  {grouped.saldoInicial.map(r => (
+                    <div key={r.id} className="flex justify-between text-xs">
+                      <span>{r.banco || r.descricao}</span>
+                      <span className="font-semibold">{fmt(r.valorBruto)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-1 mt-1 flex justify-between text-xs font-bold">
+                    <span>Total</span>
+                    <span>{fmt(totals.totalSaldoInicial)}</span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Resultado de Caixa */}
+            <Collapsible open={expandedFluxoRow === 'resultado'} onOpenChange={() => toggleFluxoRow('resultado')}>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex justify-between items-center text-sm py-2 px-2 rounded cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-1">
+                    {expandedFluxoRow === 'resultado' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    <span>(+) Resultado de Caixa</span>
+                  </div>
+                  <span className="font-semibold" style={{ color: totals.resultadoCaixa >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                    {totals.resultadoCaixa >= 0 ? '+' : ''}{fmt(totals.resultadoCaixa)}
+                  </span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="bg-muted/50 rounded p-3 mb-2 ml-4 space-y-1">
+                  <div className="text-xs font-semibold mb-1">Receitas Líquidas:</div>
+                  {Object.entries(grouped.receitas).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => (
+                    <div key={custo} className="flex justify-between text-xs pl-2">
+                      <span>{custo}</span>
+                      <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>{fmt(items.reduce((s, r) => s + r.valorLiquido, 0))}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-xs font-bold border-t pt-1">
+                    <span>Subtotal Receitas</span>
+                    <span style={{ color: 'hsl(142 70% 35%)' }}>{fmt(totals.totalLiquidoReceitas)}</span>
+                  </div>
+                  <div className="text-xs font-semibold mt-2 mb-1">Despesas:</div>
+                  {Object.entries(grouped.despesas).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => (
+                    <div key={custo} className="flex justify-between text-xs pl-2">
+                      <span>{custo}</span>
+                      <span className="font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-xs font-bold border-t pt-1">
+                    <span>Subtotal Despesas</span>
+                    <span style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totals.totalDespesas)}</span>
+                  </div>
+                  <div className="border-t-2 border-dashed pt-1 mt-2 flex justify-between text-xs font-bold">
+                    <span>= Resultado: {fmt(totals.totalLiquidoReceitas)} - {fmt(totals.totalDespesas)}</span>
+                    <span style={{ color: totals.resultadoCaixa >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>{fmt(totals.resultadoCaixa)}</span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Saídas de Caixa */}
+            <Collapsible open={expandedFluxoRow === 'saidas'} onOpenChange={() => toggleFluxoRow('saidas')}>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex justify-between items-center text-sm py-2 px-2 rounded cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-1">
+                    {expandedFluxoRow === 'saidas' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    <span>(-) Saídas de Caixa</span>
+                  </div>
+                  <span className="font-semibold" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(totals.totalSaidasCaixa)}</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="bg-muted/50 rounded p-3 mb-2 ml-4 space-y-1">
+                  {Object.entries(grouped.saidasCaixa).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => (
+                    <div key={custo} className="flex justify-between text-xs">
+                      <span>{custo}</span>
+                      <span className="font-semibold" style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}</span>
+                    </div>
+                  ))}
+                  {Object.keys(grouped.saidasCaixa).length === 0 && (
+                    <span className="text-xs text-muted-foreground">Nenhuma saída de caixa no período</span>
+                  )}
+                  <div className="border-t pt-1 mt-1 flex justify-between text-xs font-bold">
+                    <span>Total Saídas</span>
+                    <span style={{ color: 'hsl(0 70% 50%)' }}>-{fmt(totals.totalSaidasCaixa)}</span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Entradas de Caixa */}
+            <Collapsible open={expandedFluxoRow === 'entradas'} onOpenChange={() => toggleFluxoRow('entradas')}>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex justify-between items-center text-sm py-2 px-2 rounded cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-1">
+                    {expandedFluxoRow === 'entradas' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    <span>(+) Entradas de Caixa</span>
+                  </div>
+                  <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totals.totalEntradasCaixa)}</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="bg-muted/50 rounded p-3 mb-2 ml-4 space-y-1">
+                  {Object.entries(grouped.entradasCaixa).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => (
+                    <div key={custo} className="flex justify-between text-xs">
+                      <span>{custo}</span>
+                      <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}</span>
+                    </div>
+                  ))}
+                  {Object.keys(grouped.entradasCaixa).length === 0 && (
+                    <span className="text-xs text-muted-foreground">Nenhuma entrada de caixa no período</span>
+                  )}
+                  <div className="border-t pt-1 mt-1 flex justify-between text-xs font-bold">
+                    <span>Total Entradas</span>
+                    <span style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totals.totalEntradasCaixa)}</span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Transferências */}
             {totals.totalTransferencias !== 0 && (
-              <div className="flex justify-between text-sm">
-                <span>(+/-) Transferências</span>
-                <span className="font-semibold" style={{ color: totals.totalTransferencias >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                  {totals.totalTransferencias >= 0 ? '+' : ''}{fmt(totals.totalTransferencias)}
-                </span>
-              </div>
+              <Collapsible open={expandedFluxoRow === 'transferencias'} onOpenChange={() => toggleFluxoRow('transferencias')}>
+                <CollapsibleTrigger className="w-full">
+                  <div className="flex justify-between items-center text-sm py-2 px-2 rounded cursor-pointer hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-1">
+                      {expandedFluxoRow === 'transferencias' ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                      <span>(+/-) Transferências</span>
+                    </div>
+                    <span className="font-semibold" style={{ color: totals.totalTransferencias >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                      {totals.totalTransferencias >= 0 ? '+' : ''}{fmt(totals.totalTransferencias)}
+                    </span>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="bg-muted/50 rounded p-3 mb-2 ml-4 space-y-1">
+                    {grouped.transferencias.filter(r => (r.banco || '').toUpperCase() !== 'PROVISAO').map(r => (
+                      <div key={r.id} className="flex justify-between text-xs">
+                        <span>{r.date} - {r.descricao} {r.detalhamento ? `(${r.detalhamento})` : ''} — {r.banco}</span>
+                        <span className="font-semibold" style={{ color: r.valorLiquido >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                          {r.valorLiquido >= 0 ? '+' : ''}{fmt(r.valorLiquido)}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-1 mt-1 flex justify-between text-xs font-bold">
+                      <span>Total Transferências</span>
+                      <span style={{ color: totals.totalTransferencias >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                        {totals.totalTransferencias >= 0 ? '+' : ''}{fmt(totals.totalTransferencias)}
+                      </span>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
+
+            {/* Saldo Final */}
             <div className="border-t-2 border-primary my-2" />
-            <div className="flex justify-between text-lg font-bold">
-              <span>= SALDO FINAL LIVRE</span>
-              <span className={totals.saldoFinalLivre >= 0 ? 'text-primary' : ''} style={totals.saldoFinalLivre < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
-                {fmt(totals.saldoFinalLivre)}
-              </span>
-            </div>
+            <Collapsible open={expandedFluxoRow === 'saldofinal'} onOpenChange={() => toggleFluxoRow('saldofinal')}>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex justify-between items-center text-lg font-bold py-1 px-2 rounded cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-1">
+                    {expandedFluxoRow === 'saldofinal' ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <span>= SALDO FINAL LIVRE</span>
+                  </div>
+                  <span className={totals.saldoFinalLivre >= 0 ? 'text-primary' : ''} style={totals.saldoFinalLivre < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
+                    {fmt(totals.saldoFinalLivre)}
+                  </span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="bg-muted/50 rounded p-3 mb-2 ml-4 space-y-1 text-xs">
+                  <div className="flex justify-between"><span>Saldo Inicial</span><span className="font-semibold">{fmt(totals.totalSaldoInicial)}</span></div>
+                  <div className="flex justify-between"><span>(+) Resultado de Caixa</span><span className="font-semibold">{totals.resultadoCaixa >= 0 ? '+' : ''}{fmt(totals.resultadoCaixa)}</span></div>
+                  <div className="flex justify-between"><span>(-) Saídas de Caixa</span><span className="font-semibold">-{fmt(totals.totalSaidasCaixa)}</span></div>
+                  <div className="flex justify-between"><span>(+) Entradas de Caixa</span><span className="font-semibold">+{fmt(totals.totalEntradasCaixa)}</span></div>
+                  {totals.totalTransferencias !== 0 && (
+                    <div className="flex justify-between"><span>(+/-) Transferências</span><span className="font-semibold">{totals.totalTransferencias >= 0 ? '+' : ''}{fmt(totals.totalTransferencias)}</span></div>
+                  )}
+                  <div className="border-t-2 border-dashed pt-1 mt-1 flex justify-between font-bold text-sm">
+                    <span>= {fmt(totals.totalSaldoInicial)} {totals.resultadoCaixa >= 0 ? '+' : ''} {fmt(totals.resultadoCaixa)} - {fmt(totals.totalSaidasCaixa)} + {fmt(totals.totalEntradasCaixa)}{totals.totalTransferencias !== 0 ? ` ${totals.totalTransferencias >= 0 ? '+' : ''} ${fmt(totals.totalTransferencias)}` : ''}</span>
+                    <span className={totals.saldoFinalLivre >= 0 ? 'text-primary' : ''} style={totals.saldoFinalLivre < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
+                      {fmt(totals.saldoFinalLivre)}
+                    </span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
 
