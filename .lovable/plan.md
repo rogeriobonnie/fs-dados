@@ -1,49 +1,52 @@
 
+## Detalhamento interativo no Resumo do Fluxo de Caixa
 
-## Ajustes no Painel Financeiro
+Tornar cada linha do card "RESUMO DO FLUXO DE CAIXA" clicavel, mostrando um painel expansivel (ou dialog/popover) com o detalhamento do calculo.
 
-### 1. Cards do Painel Financeiro - Refletir dados reais da DRE
+### Como vai funcionar
 
-Os 4 cards atuais usam calculos simplificados que nao batem com a DRE. Vou atualizar para usar a mesma logica:
+Cada valor no resumo tera um botao/link clicavel. Ao clicar, expande uma area abaixo da linha mostrando de onde vem aquele numero:
 
-| Card | Hoje (simplificado) | Corrigido (real) |
-|------|---------------------|------------------|
-| Saldo Inicial | `valorBruto` dos registros custoNum 0 | Mantido (ja esta correto) |
-| Receitas | `valorLiquido` bruto | Resultado real: liquido - impostos - comissoes vendedores |
-| Despesas | `abs(valorLiquido)` despesas 11-20 | Mantido (ja esta correto) |
-| Resultado | Receitas - Despesas simples | Resultado real da DRE (receitas resultado - despesas) |
+| Linha clicavel | O que mostra ao expandir |
+|---|---|
+| Saldo Inicial | Lista de saldos por banco (banco + valor) |
+| (+) Resultado de Caixa | Formula: Receitas Liquidas (X) - Despesas (Y) = Resultado, com subtotais por centro de custo |
+| (-) Saidas de Caixa | Lista de itens custoNum 21-30, agrupados por centro de custo com subtotais |
+| (+) Entradas de Caixa | Lista de itens custoNum 97-98, agrupados por centro de custo com subtotais |
+| (+/-) Transferencias | Lista de transferencias custoNum 99 com banco e valor |
+| Saldo Final Livre | Formula completa: Saldo Inicial + Resultado - Saidas + Entradas + Transferencias |
 
-**Arquivo**: `src/components/PainelFinanceiro.tsx`
+### Comportamento
 
-- Atualizar o calculo do `summary` para considerar impostos e comissoes de vendedores no valor de receitas, alinhando com a DRE
-- Receitas no card mostrara o "Resultado Receitas" (liquido - impostos - comissoes vendedores com campo vendedor preenchido)
-- Resultado sera Receitas (resultado) - Despesas
-
-### 2. Lance a Dois - Incluir nome (detalhamento) ao lado do curso
-
-Na tabela de receitas do Lance a Dois, adicionar a coluna "Nome" (campo `detalhamento` do registro) logo apos a coluna "Curso".
-
-**Arquivo**: `src/components/ComissoesPainel.tsx`
-
-- Na tabela de receitas LAD, adicionar `<TableHead>Nome</TableHead>` apos "Curso"
-- Na linha de dados, adicionar `<TableCell>{r.detalhamento}</TableCell>` apos `r.descricao`
-- Atualizar o `colSpan` do footer de 2 para 3
-- Atualizar o PDF do LAD para incluir a coluna "Nome" tambem
+- Clicar na linha expande/colapsa o detalhamento (estilo accordion)
+- Apenas uma linha expandida por vez (ou varias, conforme preferencia)
+- Cursor pointer e leve destaque (hover) indicam que e clicavel
+- O detalhamento aparece dentro do proprio card, abaixo da linha clicada
 
 ### Detalhes Tecnicos
 
-**PainelFinanceiro.tsx - novo calculo summary:**
+**Arquivo**: `src/components/DREFluxoCaixa.tsx`
+
+- Adicionar um state `expandedFluxoRow` para controlar qual linha esta expandida
+- Cada linha do resumo vira um componente clicavel com `Collapsible` (ja disponivel no projeto)
+- Dentro do `CollapsibleContent`, renderizar uma mini-tabela ou lista com os itens que compoem aquele valor
+- Usar os dados ja calculados em `grouped` (saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, transferencias) para popular os detalhamentos
+- Adicionar icone de seta (ChevronDown/ChevronRight) ao lado de cada label para indicar expansibilidade
+- Estilizar com fundo levemente diferente (`bg-muted/50`) para o conteudo expandido
+
+**Estrutura de cada linha expandida**:
 ```text
-const receitas = filteredData.filter(r => r.custoNum >= 1 && r.custoNum <= 10);
-const totalBruto = soma valorBruto
-const totalImpostos = soma vrImposto
-const totalComVend = soma vrVendedor (apenas quando vendedor preenchido)
-const totalResultadoReceitas = soma valorLiquido - totalImpostos - totalComVend
-const resultado = totalResultadoReceitas - totalDespesas
+(+) Resultado de Caixa          +R$ 30.816,48   [v]
+  ┌─────────────────────────────────────────────┐
+  │ Receitas Liquidas:              R$ 42.000,00 │
+  │   01 - Cursos FS:              R$ 30.000,00 │
+  │   05 - Cursos Terceiros:       R$ 12.000,00 │
+  │ Despesas:                     -R$ 11.183,52 │
+  │   11 - Fixas:                  -R$ 5.000,00 │
+  │   12 - Variaveis:             -R$ 6.183,52 │
+  │                                              │
+  │ = Resultado: 42.000 - 11.183 = R$ 30.816,48 │
+  └─────────────────────────────────────────────┘
 ```
 
-**ComissoesPainel.tsx - nova coluna:**
-- Header: Data | Curso | Nome | Bruto | Taxas | ...
-- Body: r.date | r.descricao | r.detalhamento | ...
-- Footer colSpan: 2 -> 3
-- PDF head: adicionar 'Nome' apos 'Curso'
+Nenhum componente novo sera criado - tudo dentro do card existente usando Collapsible.
