@@ -782,6 +782,34 @@ export class GoogleSheetsService {
 
   // ============ Página5 - Painel Financeiro ============
 
+  static async fetchFluxoCaixaHistorico(): Promise<Pagina5Record[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+    
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      const range = 'FLUXO DE CAIXA!A:O';
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados do FLUXO DE CAIXA: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+      
+      return this.parsePagina5Data(rows);
+    } catch (error) {
+      console.error('Error fetching FLUXO DE CAIXA data:', error);
+      throw error;
+    }
+  }
+
   static async fetchPagina5Data(): Promise<Pagina5Record[]> {
     const apiKey = this.getApiKey();
     const sheetId = this.getSheetId();
