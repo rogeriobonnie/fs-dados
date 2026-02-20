@@ -11,6 +11,7 @@ import FinancialDRENovo from '@/components/FinancialDRENovo';
 import CursosParceiros from '@/components/CursosParceiros';
 import CashFlow from '@/components/CashFlow';
 import PainelFinanceiro from '@/components/PainelFinanceiro';
+import HistoricoAnual from '@/components/HistoricoAnual';
 import Comissoes from '@/components/Comissoes';
 import { PinAuth } from '@/components/PinAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -196,7 +197,7 @@ const Index = () => {
 
           {/* Main Tabs */}
           <Tabs defaultValue="fs-turma" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="fs-turma" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 FS Turma IV
@@ -208,6 +209,10 @@ const Index = () => {
               <TabsTrigger value="painel-financeiro" className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
                 Painel Financeiro
+              </TabsTrigger>
+              <TabsTrigger value="historico" className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Histórico
               </TabsTrigger>
             </TabsList>
 
@@ -304,6 +309,10 @@ const Index = () => {
 
             <TabsContent value="painel-financeiro" className="space-y-6">
               <PainelFinanceiro />
+            </TabsContent>
+
+            <TabsContent value="historico" className="space-y-6">
+              <HistoricoAnual />
             </TabsContent>
           </Tabs>
         </div>
