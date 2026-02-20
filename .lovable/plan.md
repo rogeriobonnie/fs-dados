@@ -1,52 +1,97 @@
 
-## Detalhamento interativo no Resumo do Fluxo de Caixa
 
-Tornar cada linha do card "RESUMO DO FLUXO DE CAIXA" clicavel, mostrando um painel expansivel (ou dialog/popover) com o detalhamento do calculo.
+## Painel Historico Anual - Nova Aba "Historico"
 
-### Como vai funcionar
+Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
 
-Cada valor no resumo tera um botao/link clicavel. Ao clicar, expande uma area abaixo da linha mostrando de onde vem aquele numero:
+---
 
-| Linha clicavel | O que mostra ao expandir |
-|---|---|
-| Saldo Inicial | Lista de saldos por banco (banco + valor) |
-| (+) Resultado de Caixa | Formula: Receitas Liquidas (X) - Despesas (Y) = Resultado, com subtotais por centro de custo |
-| (-) Saidas de Caixa | Lista de itens custoNum 21-30, agrupados por centro de custo com subtotais |
-| (+) Entradas de Caixa | Lista de itens custoNum 97-98, agrupados por centro de custo com subtotais |
-| (+/-) Transferencias | Lista de transferencias custoNum 99 com banco e valor |
-| Saldo Final Livre | Formula completa: Saldo Inicial + Resultado - Saidas + Entradas + Transferencias |
+### O que sera construido
 
-### Comportamento
+Uma pagina com 3 niveis de detalhe:
 
-- Clicar na linha expande/colapsa o detalhamento (estilo accordion)
-- Apenas uma linha expandida por vez (ou varias, conforme preferencia)
-- Cursor pointer e leve destaque (hover) indicam que e clicavel
-- O detalhamento aparece dentro do proprio card, abaixo da linha clicada
+**Nivel 1 - Visao Macro (cards anuais)**
+- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
+  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
+  - Margem operacional (%)
+  - Barra de progresso visual comparando receita vs despesa
 
-### Detalhes Tecnicos
+**Nivel 2 - Ao clicar no ano, expande:**
+- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
+- Grafico de barras empilhadas (Recharts) comparando todos os anos
+- Grafico de linha mostrando evolucao do resultado ao longo dos anos
 
-**Arquivo**: `src/components/DREFluxoCaixa.tsx`
+**Nivel 3 - Ao clicar em uma linha do ano, expande:**
+- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
+- Lista de itens individuais agrupados por categoria
 
-- Adicionar um state `expandedFluxoRow` para controlar qual linha esta expandida
-- Cada linha do resumo vira um componente clicavel com `Collapsible` (ja disponivel no projeto)
-- Dentro do `CollapsibleContent`, renderizar uma mini-tabela ou lista com os itens que compoem aquele valor
-- Usar os dados ja calculados em `grouped` (saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, transferencias) para popular os detalhamentos
-- Adicionar icone de seta (ChevronDown/ChevronRight) ao lado de cada label para indicar expansibilidade
-- Estilizar com fundo levemente diferente (`bg-muted/50`) para o conteudo expandido
+---
 
-**Estrutura de cada linha expandida**:
+### Estrutura tecnica
+
+**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
+- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
+- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
+
+**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
+- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
+- Agrupa por ano usando o campo `year` dos registros
+- Para cada ano calcula:
+  - Receitas: custoNum 1-10, soma de valorLiquido
+  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
+  - Resultado: Receitas - Despesas
+  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
+  - Margem: (Resultado / Receitas) * 100
+- Renderiza cards clicaveis por ano com Collapsible
+- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
+- Graficos comparativos usando Recharts (BarChart + LineChart)
+
+**3. Nova aba principal** (`src/pages/Index.tsx`)
+- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
+- Grid de 4 colunas no TabsList
+
+---
+
+### Layout visual da pagina
+
 ```text
-(+) Resultado de Caixa          +R$ 30.816,48   [v]
-  ┌─────────────────────────────────────────────┐
-  │ Receitas Liquidas:              R$ 42.000,00 │
-  │   01 - Cursos FS:              R$ 30.000,00 │
-  │   05 - Cursos Terceiros:       R$ 12.000,00 │
-  │ Despesas:                     -R$ 11.183,52 │
-  │   11 - Fixas:                  -R$ 5.000,00 │
-  │   12 - Variaveis:             -R$ 6.183,52 │
-  │                                              │
-  │ = Resultado: 42.000 - 11.183 = R$ 30.816,48 │
-  └─────────────────────────────────────────────┘
++--------------------------------------------------+
+|  HISTORICO FINANCEIRO           [Atualizar]       |
+|  Evolucao anual da empresa desde 2022             |
++--------------------------------------------------+
+
++----------+ +----------+ +----------+ +----------+
+| 2022     | | 2023     | | 2024     | | 2025     |
+| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
+| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
+| Res +40k | | Res +100k| | Res +160k| | Res +90k |
+| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
+| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
++----------+ +----------+ +----------+ +----------+
+
+[========= GRAFICO COMPARATIVO ANUAL =========]
+[  Barras: Receitas vs Despesas por ano        ]
+[  Linha: Evolucao do Resultado                ]
+[=============================================]
+
++--------------------------------------------------+
+| TABELA COMPARATIVA                                |
+| Ano | Receitas | Despesas | Result | Dist | Marg  |
+| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
+|  v  (clica para expandir por centro de custo)     |
+|     01-Cursos FS:        R$ 90.000               |
+|     05-Cursos Terceiros: R$ 30.000               |
+|     11-Fixas:           -R$ 50.000               |
+|     12-Variaveis:       -R$ 30.000               |
+|     21-Distribuicoes:   -R$ 20.000               |
++--------------------------------------------------+
 ```
 
-Nenhum componente novo sera criado - tudo dentro do card existente usando Collapsible.
+### Arquivos a criar/modificar
+
+| Arquivo | Acao |
+|---------|------|
+| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
+| `src/components/HistoricoAnual.tsx` | Criar componente completo |
+| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
+
