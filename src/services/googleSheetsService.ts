@@ -791,7 +791,7 @@ export class GoogleSheetsService {
     }
 
     try {
-      const range = 'FLUXO DE CAIXA!A:O';
+      const range = 'FLUXO DE CAIXA!A:G';
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
       );
@@ -803,11 +803,78 @@ export class GoogleSheetsService {
       const data = await response.json();
       const rows = data.values || [];
       
-      return this.parsePagina5Data(rows);
+      return this.parseFluxoCaixaHistoricoData(rows);
     } catch (error) {
       console.error('Error fetching FLUXO DE CAIXA data:', error);
       throw error;
     }
+  }
+
+  private static parseFluxoCaixaHistoricoData(rows: string[][]): Pagina5Record[] {
+    const records: Pagina5Record[] = [];
+    
+    // Columns: DATA(0), mês(1), ano(2), DESCRICAO(3), DETALHAMENTO(4), CUSTO(5), VALOR BRUTO(6)
+    // Skip rows 0 (empty) and 1 (totals) and 2 (header)
+    for (let i = 3; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      
+      const dateStr = (row[0] || '').toString().trim();
+      const monthCol = parseInt(row[1] || '0') || 0;
+      const yearCol = parseInt(row[2] || '0') || 0;
+      const descricao = (row[3] || '').toString().trim();
+      const detalhamento = (row[4] || '').toString().trim();
+      const custo = (row[5] || '').toString().trim();
+      const valorBrutoStr = (row[6] || '').toString().trim();
+      
+      // Parse valor with Brazilian format (dot as thousands, comma as decimal)
+      const valorBruto = this.parseAmount(valorBrutoStr);
+      
+      if (!custo && !descricao && valorBruto === 0) continue;
+      
+      const custoNum = parseInt(custo.split('-')[0]) || 0;
+      
+      // Format date
+      let dateFormatted = dateStr;
+      let month = monthCol;
+      let year = yearCol;
+      
+      // If month/year columns are empty, try to extract from date
+      if ((!month || !year) && dateStr) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          month = month || parseInt(parts[1]);
+          year = year || parseInt(parts[2]);
+          if (year < 100) year += 2000;
+        }
+      }
+      
+      records.push({
+        id: `fc_${i}`,
+        date: dateFormatted,
+        descricao,
+        detalhamento,
+        custo,
+        custoNum,
+        valorBruto,
+        taxas: 0,
+        acrescimos: 0,
+        valorLiquido: valorBruto, // In this sheet, valorBruto IS the net value
+        banco: '',
+        impAliq: 0,
+        vrImposto: 0,
+        vendedor: '',
+        vrVendedor: 0,
+        mkt: '',
+        vrMkt: 0,
+        month,
+        year,
+      });
+    }
+    
+    console.log('Parsed FLUXO DE CAIXA records:', records.length);
+    console.log('Years found:', [...new Set(records.map(r => r.year))].sort());
+    return records;
   }
 
   static async fetchPagina5Data(): Promise<Pagina5Record[]> {
