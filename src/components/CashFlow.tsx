@@ -281,13 +281,19 @@ const CashFlow: React.FC = () => {
 
       if (up.includes('SALDO INICIAL')) {
         monthsData[currentMonth].saldoInicial = amt;
+        currentSection = 'SALDO_INICIAL_DETALHES';
+      } else if (currentSection === 'SALDO_INICIAL_DETALHES' && up.includes('ENTRADAS:')) {
+        currentSection = 'ENTRADAS';
+      } else if (currentSection === 'SALDO_INICIAL_DETALHES' && cat && cat.trim() && amt !== 0) {
+        if (!monthsData[currentMonth].detalhesSaldoInicial) monthsData[currentMonth].detalhesSaldoInicial = {};
+        monthsData[currentMonth].detalhesSaldoInicial[cat] = amt;
       } else if (up.includes('ENTRADAS:')) {
         currentSection = 'ENTRADAS';
       } else if (up.includes('DESPESAS SOBRE VENDAS')) {
         currentSection = 'DESPESAS_VENDAS';
       } else if (up.includes('TOTAL ENTRADAS')) {
         monthsData[currentMonth].totalEntradas = Math.abs(amt);
-        currentSection = 'OUTRAS_ENTRADAS'; // Seção para capturar entradas informativas
+        currentSection = 'OUTRAS_ENTRADAS';
       } else if (up.includes('SAÍDAS:') || up.includes('SAIDAS:')) {
         currentSection = 'SAIDAS';
       } else if (up.includes('TOTAL SAÍDAS') || up.includes('TOTAL SAIDAS')) {
@@ -295,7 +301,14 @@ const CashFlow: React.FC = () => {
         currentSection = '';
       } else if (up.includes('SALDO FIM')) {
         monthsData[currentMonth].saldoFinal = amt;
-        currentSection = 'LUCRO_INICIAL'; // Após saldo final, começam as linhas de lucro inicial
+        currentSection = 'SALDO_FINAL_DETALHES';
+      } else if (currentSection === 'SALDO_FINAL_DETALHES' && up.includes('LUCRO INICIAL') && !up.includes('PROV')) {
+        monthsData[currentMonth].lucroInicial = amt;
+        currentSection = 'LUCRO_BRUTO';
+      } else if (currentSection === 'SALDO_FINAL_DETALHES' && cat && cat.trim() && amt !== 0) {
+        if (!monthsData[currentMonth].detalhesSaldoFinal) monthsData[currentMonth].detalhesSaldoFinal = {};
+        monthsData[currentMonth].detalhesSaldoFinal[cat] = amt;
+      } else if (currentSection === 'LUCRO_INICIAL' && up.includes('LUCRO INICIAL') && !up.includes('PROV')) {
       } else if (currentSection === 'LUCRO_INICIAL' && up.includes('LUCRO INICIAL') && !up.includes('PROV')) {
         // Este é o valor final do Lucro Inicial - fecha a seção
         monthsData[currentMonth].lucroInicial = amt;
