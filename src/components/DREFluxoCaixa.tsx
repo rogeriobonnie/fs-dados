@@ -1191,6 +1191,17 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                       {fmt(totals.saldoFinalLivre)}
                     </span>
                   </div>
+                  {fluxoBancos.length > 0 && (
+                    <div className="border-t border-dashed border-muted-foreground/30 pt-1.5 mt-1.5 space-y-0.5">
+                      <span className="text-[10px] text-muted-foreground font-medium">Composição por banco:</span>
+                      {fluxoBancos.map(b => (
+                        <div key={b.banco} className="flex justify-between text-[10px] text-muted-foreground pl-2">
+                          <span>{b.banco}</span>
+                          <span>{fmt(b.saldoFinal)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CollapsibleContent>
             </Collapsible>
