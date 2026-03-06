@@ -146,8 +146,14 @@ const CashFlow: React.FC = () => {
 
           const tituloUp = (titulo || '').toString().toUpperCase();
 
-          if (tituloUp.includes('SALDO INICIAL')) {
+           if (tituloUp.includes('SALDO INICIAL')) {
             monthData.saldoInicial = valor;
+            currentSection = 'SALDO_INICIAL_DETALHES';
+          } else if (currentSection === 'SALDO_INICIAL_DETALHES' && tituloUp.includes('ENTRADAS:')) {
+            currentSection = 'ENTRADAS';
+          } else if (currentSection === 'SALDO_INICIAL_DETALHES' && titulo && titulo.trim() && valor !== 0) {
+            if (!monthData.detalhesSaldoInicial) monthData.detalhesSaldoInicial = {};
+            monthData.detalhesSaldoInicial[titulo] = valor;
           } else if (tituloUp.includes('ENTRADAS:')) {
             currentSection = 'ENTRADAS';
           } else if (tituloUp.includes('DESPESAS SOBRE VENDAS')) {
