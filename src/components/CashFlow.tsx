@@ -166,9 +166,16 @@ const CashFlow: React.FC = () => {
           } else if (tituloUp.includes('TOTAL SAÍDAS') || tituloUp.includes('TOTAL SAIDAS')) {
             monthData.totalSaidas = Math.abs(valor);
             currentSection = '';
-          } else if (tituloUp.includes('SALDO FIM')) {
+           } else if (tituloUp.includes('SALDO FIM')) {
             monthData.saldoFinal = valor;
-            currentSection = 'LUCRO_INICIAL'; // Após saldo final, começam as linhas de lucro inicial
+            currentSection = 'SALDO_FINAL_DETALHES';
+          } else if (currentSection === 'SALDO_FINAL_DETALHES' && (tituloUp.includes('LUCRO INICIAL') && !tituloUp.includes('PROV'))) {
+            monthData.lucroInicial = valor;
+            currentSection = 'LUCRO_BRUTO';
+          } else if (currentSection === 'SALDO_FINAL_DETALHES' && titulo && titulo.trim() && valor !== 0) {
+            if (!monthData.detalhesSaldoFinal) monthData.detalhesSaldoFinal = {};
+            monthData.detalhesSaldoFinal[titulo] = valor;
+          } else if (currentSection === 'LUCRO_INICIAL' && tituloUp.includes('LUCRO INICIAL') && !tituloUp.includes('PROV')) {
           } else if (currentSection === 'LUCRO_INICIAL' && tituloUp.includes('LUCRO INICIAL') && !tituloUp.includes('PROV')) {
             // Este é o valor final do Lucro Inicial - fecha a seção
             monthData.lucroInicial = valor;
