@@ -26,12 +26,14 @@ import jsPDF from 'jspdf';
 
 interface CashFlowData {
   saldoInicial: number;
+  detalhesSaldoInicial?: { [key: string]: number };
   entradas: { [key: string]: number };
   totalEntradas: number;
   totalEntradasBrutas: number;
   saidas: { [key: string]: number };
   totalSaidas: number;
   saldoFinal: number;
+  detalhesSaldoFinal?: { [key: string]: number };
   despesasVendas: { [key: string]: number };
   totalDespesasVendas: number;
   // Outras Entradas (informativo) - capturadas dinamicamente entre TOTAL ENTRADAS e SAÍDAS
