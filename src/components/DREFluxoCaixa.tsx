@@ -733,29 +733,32 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         </Button>
       </div>
 
-      {/* SALDO INICIAL */}
+      {/* SALDO INICIAL - Colapsável */}
       {grouped.saldoInicial.length > 0 && (
         <Card className="border-l-4 border-l-primary">
-          <CardHeader className="py-3 px-4">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-primary" />
-              <CardTitle className="text-sm font-semibold">SALDO INICIAL</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 pt-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {grouped.saldoInicial.map(r => (
-                <div key={r.id} className="flex justify-between items-center p-2 rounded bg-muted/50">
-                  <span className="text-xs font-medium">{r.banco || r.descricao}</span>
-                  <span className="text-sm font-bold">{fmt(r.valorBruto)}</span>
+          <Collapsible>
+            <CollapsibleTrigger className="w-full">
+              <div className="flex justify-between items-center py-3 px-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">SALDO INICIAL</span>
                 </div>
-              ))}
-              <div className="flex justify-between items-center p-2 rounded bg-primary/10 col-span-full md:col-span-1">
-                <span className="text-xs font-bold">TOTAL</span>
                 <span className="text-sm font-bold text-primary">{fmt(totals.totalSaldoInicial)}</span>
               </div>
-            </div>
-          </CardContent>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="px-4 pb-4 pt-0">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {grouped.saldoInicial.map(r => (
+                    <div key={r.id} className="flex justify-between items-center p-2 rounded bg-muted/50">
+                      <span className="text-xs font-medium">{r.banco || r.descricao}</span>
+                      <span className="text-sm font-bold">{fmt(r.valorBruto)}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
       )}
 
@@ -1191,17 +1194,6 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                       {fmt(totals.saldoFinalLivre)}
                     </span>
                   </div>
-                  {fluxoBancos.length > 0 && (
-                    <div className="border-t border-dashed border-muted-foreground/30 pt-1.5 mt-1.5 space-y-0.5">
-                      <span className="text-[10px] text-muted-foreground font-medium">Composição por banco:</span>
-                      {fluxoBancos.map(b => (
-                        <div key={b.banco} className="flex justify-between text-[10px] text-muted-foreground pl-2">
-                          <span>{b.banco}</span>
-                          <span>{fmt(b.saldoFinal)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -1264,6 +1256,35 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                 </Table>
               </div>
             </CardContent>
+          </Card>
+        )}
+
+        {/* SALDO FINAL - Colapsável */}
+        {fluxoBancos.length > 0 && (
+          <Card className="border-l-4 border-l-primary">
+            <Collapsible>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex justify-between items-center py-3 px-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold">SALDO FINAL</span>
+                  </div>
+                  <span className="text-sm font-bold text-primary">{fmt(totals.saldoFinalLivre)}</span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="px-4 pb-4 pt-0">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {fluxoBancos.map(b => (
+                      <div key={b.banco} className="flex justify-between items-center p-2 rounded bg-muted/50">
+                        <span className="text-xs font-medium">{b.banco}</span>
+                        <span className="text-sm font-bold">{fmt(b.saldoFinal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
           </Card>
         )}
       </div>
