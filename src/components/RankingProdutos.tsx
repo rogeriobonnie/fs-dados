@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Pagina5Record } from '@/types/pagina5';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trophy, Medal, ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { Trophy, Medal, ArrowUpDown, TrendingUp, TrendingDown, LayoutGrid, Columns } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -234,14 +235,130 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
             </Button>
           ))}
         </div>
-
-        {isMultiPeriod && (
-          <Badge variant="secondary" className="text-xs">
-            Visão comparativa: {periods.map(p => p.label).join(' vs ')}
-          </Badge>
-        )}
       </div>
 
+      {/* When multi-period: show tabs to toggle between views */}
+      {isMultiPeriod ? (
+        <Tabs defaultValue="consolidado" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="consolidado" className="flex items-center gap-1.5">
+              <LayoutGrid className="h-4 w-4" />
+              Consolidado
+            </TabsTrigger>
+            <TabsTrigger value="comparativo" className="flex items-center gap-1.5">
+              <Columns className="h-4 w-4" />
+              Comparativo ({periods.map(p => p.label).join(' vs ')})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Consolidated view - original */}
+          <TabsContent value="consolidado" className="space-y-6 mt-4">
+            <ConsolidatedView
+              top3={top3} top10Chart={top10Chart} sorted={sorted} ranking={ranking}
+              totalBruto={totalBruto} medalColors={medalColors}
+              barData={barData} pieData={pieData}
+              sortKey={sortKey} sortAsc={sortAsc} handleSort={handleSort}
+            />
+          </TabsContent>
+
+          {/* Comparative view */}
+          <TabsContent value="comparativo" className="space-y-6 mt-4">
+            {comparisonData.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Comparativo por Período</CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-8">#</TableHead>
+                        <TableHead>Produto</TableHead>
+                        {periodRankings.map(pr => (
+                          <TableHead key={pr.label} colSpan={3} className="text-center border-l">
+                            {pr.label}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                      <TableRow>
+                        <TableHead />
+                        <TableHead />
+                        {periodRankings.map(pr => (
+                          <React.Fragment key={pr.label}>
+                            <TableHead className="text-xs border-l">Vendas</TableHead>
+                            <TableHead className="text-xs">Bruto</TableHead>
+                            <TableHead className="text-xs">Margem</TableHead>
+                          </React.Fragment>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {comparisonData.slice(0, 30).map((row, i) => (
+                        <TableRow key={row.nome}>
+                          <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
+                          <TableCell className="font-medium max-w-[180px] truncate" title={row.nome}>{row.nome}</TableCell>
+                          {row.byPeriod.map((p, pi) => (
+                            <React.Fragment key={pi}>
+                              <TableCell className="border-l">{p?.qtdVendas ?? '-'}</TableCell>
+                              <TableCell>{p ? fmtK(p.valorBruto) : '-'}</TableCell>
+                              <TableCell>
+                                {p ? (
+                                  <Badge variant={p.margem >= 50 ? 'default' : p.margem >= 30 ? 'secondary' : 'destructive'} className="text-xs">
+                                    {p.margem.toFixed(0)}%
+                                  </Badge>
+                                ) : '-'}
+                              </TableCell>
+                            </React.Fragment>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        /* Single period - show original view directly */
+        <ConsolidatedView
+          top3={top3} top10Chart={top10Chart} sorted={sorted} ranking={ranking}
+          totalBruto={totalBruto} medalColors={medalColors}
+          barData={barData} pieData={pieData}
+          sortKey={sortKey} sortAsc={sortAsc} handleSort={handleSort}
+        />
+      )}
+    </div>
+  );
+};
+
+/* Extracted consolidated view to avoid duplication */
+interface ConsolidatedViewProps {
+  top3: ProdutoRanking[];
+  top10Chart: ProdutoRanking[];
+  sorted: ProdutoRanking[];
+  ranking: ProdutoRanking[];
+  totalBruto: number;
+  medalColors: string[];
+  barData: { name: string; bruto: number; liquido: number }[];
+  pieData: { name: string; value: number }[];
+  sortKey: SortKey;
+  sortAsc: boolean;
+  handleSort: (key: SortKey) => void;
+}
+
+const ConsolidatedView = ({ top3, top10Chart, sorted, totalBruto, medalColors, barData, pieData, sortKey, sortAsc, handleSort }: ConsolidatedViewProps) => {
+  const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (
+    <TableHead className="cursor-pointer select-none" onClick={() => handleSort(field)}>
+      <div className="flex items-center gap-1">
+        {label}
+        <ArrowUpDown className={`h-3 w-3 ${sortKey === field ? 'text-primary' : 'text-muted-foreground/50'}`} />
+      </div>
+    </TableHead>
+  );
+
+  return (
+    <div className="space-y-6">
       {/* Top 3 Cards */}
       {top3.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -285,62 +402,6 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
             </Card>
           ))}
         </div>
-      )}
-
-      {/* Comparison Table - shown when multiple periods selected */}
-      {isMultiPeriod && comparisonData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Comparativo por Período</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">#</TableHead>
-                  <TableHead>Produto</TableHead>
-                  {periodRankings.map(pr => (
-                    <TableHead key={pr.label} colSpan={3} className="text-center border-l">
-                      {pr.label}
-                    </TableHead>
-                  ))}
-                </TableRow>
-                <TableRow>
-                  <TableHead />
-                  <TableHead />
-                  {periodRankings.map(pr => (
-                    <>
-                      <TableHead key={`${pr.label}-v`} className="text-xs border-l">Vendas</TableHead>
-                      <TableHead key={`${pr.label}-b`} className="text-xs">Bruto</TableHead>
-                      <TableHead key={`${pr.label}-m`} className="text-xs">Margem</TableHead>
-                    </>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {comparisonData.slice(0, 20).map((row, i) => (
-                  <TableRow key={row.nome}>
-                    <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
-                    <TableCell className="font-medium max-w-[180px] truncate" title={row.nome}>{row.nome}</TableCell>
-                    {row.byPeriod.map((p, pi) => (
-                      <>
-                        <TableCell key={`${pi}-v`} className="border-l">{p?.qtdVendas ?? '-'}</TableCell>
-                        <TableCell key={`${pi}-b`}>{p ? fmtK(p.valorBruto) : '-'}</TableCell>
-                        <TableCell key={`${pi}-m`}>
-                          {p ? (
-                            <Badge variant={p.margem >= 50 ? 'default' : p.margem >= 30 ? 'secondary' : 'destructive'} className="text-xs">
-                              {p.margem.toFixed(0)}%
-                            </Badge>
-                          ) : '-'}
-                        </TableCell>
-                      </>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
       )}
 
       {/* Charts */}
