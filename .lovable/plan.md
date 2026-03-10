@@ -1,68 +1,97 @@
 
 
-## Plano: Nova aba "Ranking de Produtos" no Painel Financeiro
+## Painel Historico Anual - Nova Aba "Historico"
 
-### Objetivo
-Criar uma 4a aba dentro do Painel Financeiro que analisa os cursos/produtos vendidos, mostrando ranking por faturamento, quantidade de vendas, margem líquida, e evolução acumulada ao longo dos meses.
+Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
 
-### Fonte de dados
-Os registros de receita (custoNum 1-10) da Página5 contêm o campo `descricao` que identifica o curso/produto. Usaremos `allData` (todos os meses) para comparações e acumulados, e `filteredData` para o mês selecionado.
+---
 
-### Layout da aba
+### O que sera construido
+
+Uma pagina com 3 niveis de detalhe:
+
+**Nivel 1 - Visao Macro (cards anuais)**
+- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
+  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
+  - Margem operacional (%)
+  - Barra de progresso visual comparando receita vs despesa
+
+**Nivel 2 - Ao clicar no ano, expande:**
+- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
+- Grafico de barras empilhadas (Recharts) comparando todos os anos
+- Grafico de linha mostrando evolucao do resultado ao longo dos anos
+
+**Nivel 3 - Ao clicar em uma linha do ano, expande:**
+- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
+- Lista de itens individuais agrupados por categoria
+
+---
+
+### Estrutura tecnica
+
+**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
+- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
+- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
+
+**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
+- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
+- Agrupa por ano usando o campo `year` dos registros
+- Para cada ano calcula:
+  - Receitas: custoNum 1-10, soma de valorLiquido
+  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
+  - Resultado: Receitas - Despesas
+  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
+  - Margem: (Resultado / Receitas) * 100
+- Renderiza cards clicaveis por ano com Collapsible
+- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
+- Graficos comparativos usando Recharts (BarChart + LineChart)
+
+**3. Nova aba principal** (`src/pages/Index.tsx`)
+- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
+- Grid de 4 colunas no TabsList
+
+---
+
+### Layout visual da pagina
 
 ```text
 +--------------------------------------------------+
-| RANKING DE PRODUTOS                               |
+|  HISTORICO FINANCEIRO           [Atualizar]       |
+|  Evolucao anual da empresa desde 2022             |
 +--------------------------------------------------+
 
-[Cards resumo - Top 3 produtos do mês]
-+------------+ +------------+ +------------+
-| #1 Curso X | | #2 Curso Y | | #3 Curso Z |
-| 15 vendas  | | 10 vendas  | | 8 vendas   |
-| R$ 45k bruto| R$ 30k     | | R$ 24k     |
-| Margem 62% | | Margem 55% | | Margem 48% |
-+------------+ +------------+ +------------+
++----------+ +----------+ +----------+ +----------+
+| 2022     | | 2023     | | 2024     | | 2025     |
+| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
+| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
+| Res +40k | | Res +100k| | Res +160k| | Res +90k |
+| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
+| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
++----------+ +----------+ +----------+ +----------+
 
-[Toggle: Mês atual / Acumulado ano]
+[========= GRAFICO COMPARATIVO ANUAL =========]
+[  Barras: Receitas vs Despesas por ano        ]
+[  Linha: Evolucao do Resultado                ]
+[=============================================]
 
-[Tabela ranking completa - ordenável]
-Produto | Qtd Vendas | Bruto | Taxas | Impostos | Líquido | Margem%
-
-[Gráfico barras horizontais - Top 10 por faturamento]
-[Gráfico pizza - Participação % no faturamento total]
++--------------------------------------------------+
+| TABELA COMPARATIVA                                |
+| Ano | Receitas | Despesas | Result | Dist | Marg  |
+| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
+|  v  (clica para expandir por centro de custo)     |
+|     01-Cursos FS:        R$ 90.000               |
+|     05-Cursos Terceiros: R$ 30.000               |
+|     11-Fixas:           -R$ 50.000               |
+|     12-Variaveis:       -R$ 30.000               |
+|     21-Distribuicoes:   -R$ 20.000               |
++--------------------------------------------------+
 ```
 
-### Estrutura técnica
+### Arquivos a criar/modificar
 
-**1. Novo componente: `src/components/RankingProdutos.tsx`**
-
-Props: `data: Pagina5Record[]`, `allData: Pagina5Record[]`, `selectedMonth: string`, `selectedYear: string`
-
-Lógica:
-- Filtrar receitas (custoNum 1-10) e agrupar por `descricao` (nome do curso)
-- Para cada produto calcular:
-  - Quantidade de vendas (count de registros)
-  - Valor Bruto (soma valorBruto)
-  - Taxas (soma taxas)
-  - Impostos (soma vrImposto)
-  - Comissões (soma vrVendedor + vrMkt)
-  - Valor Líquido (valorLiquido - impostos - comissões)
-  - Margem % = (Líquido / Bruto) * 100
-- Toggle "Mês atual" vs "Acumulado ano" filtra dados do mês ou do ano inteiro
-- Tabela ordenável por qualquer coluna (default: valor bruto desc)
-- Gráfico de barras horizontais (Recharts BarChart layout="vertical") com top 10
-- Gráfico de pizza (Recharts PieChart) com participação %
-- Cards destacando os 3 melhores produtos com medalhas visuais
-
-**2. Modificar `src/components/PainelFinanceiro.tsx`**
-- Adicionar 4a aba "Ranking" com ícone `Trophy`
-- Grid de tabs passa de 3 para 4 colunas
-- Passar `allData={data}` para o novo componente
-
-### Arquivos
-
-| Arquivo | Ação |
+| Arquivo | Acao |
 |---------|------|
-| `src/components/RankingProdutos.tsx` | Criar |
-| `src/components/PainelFinanceiro.tsx` | Adicionar 4a aba |
+| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
+| `src/components/HistoricoAnual.tsx` | Criar componente completo |
+| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
 

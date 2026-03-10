@@ -5,11 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { RefreshCw, BarChart3, Users, BookOpen } from 'lucide-react';
+import { RefreshCw, BarChart3, Users, BookOpen, Trophy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import DREFluxoCaixa from './DREFluxoCaixa';
 import ComissoesPainel from './ComissoesPainel';
 import CursosTerceiros from './CursosTerceirosPainel';
+import RankingProdutos from './RankingProdutos';
 
 const MONTHS = [
   { value: '1', label: 'Janeiro' },
@@ -151,7 +152,7 @@ const PainelFinanceiro = () => {
 
       {/* Sub-tabs */}
       <Tabs defaultValue="dre-fluxo" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="dre-fluxo" className="flex items-center gap-1">
             <BarChart3 className="h-4 w-4" />
             DRE + Fluxo
@@ -164,6 +165,10 @@ const PainelFinanceiro = () => {
             <BookOpen className="h-4 w-4" />
             Cursos Terceiros
           </TabsTrigger>
+          <TabsTrigger value="ranking" className="flex items-center gap-1">
+            <Trophy className="h-4 w-4" />
+            Ranking
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="dre-fluxo">
           <DREFluxoCaixa data={filteredData} allData={data} selectedMonth={selectedMonth} selectedYear={selectedYear} />
@@ -173,6 +178,9 @@ const PainelFinanceiro = () => {
         </TabsContent>
         <TabsContent value="cursos-terceiros">
           <CursosTerceiros data={filteredData} selectedMonth={selectedMonth} selectedYear={selectedYear} />
+        </TabsContent>
+        <TabsContent value="ranking">
+          <RankingProdutos data={filteredData} allData={data} selectedMonth={selectedMonth} selectedYear={selectedYear} />
         </TabsContent>
       </Tabs>
     </div>
