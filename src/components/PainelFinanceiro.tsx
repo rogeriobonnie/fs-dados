@@ -152,7 +152,7 @@ const PainelFinanceiro = () => {
 
       {/* Sub-tabs */}
       <Tabs defaultValue="dre-fluxo" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="dre-fluxo" className="flex items-center gap-1">
             <BarChart3 className="h-4 w-4" />
             DRE + Fluxo
@@ -164,6 +164,10 @@ const PainelFinanceiro = () => {
           <TabsTrigger value="cursos-terceiros" className="flex items-center gap-1">
             <BookOpen className="h-4 w-4" />
             Cursos Terceiros
+          </TabsTrigger>
+          <TabsTrigger value="ranking" className="flex items-center gap-1">
+            <Trophy className="h-4 w-4" />
+            Ranking
           </TabsTrigger>
         </TabsList>
         <TabsContent value="dre-fluxo">
