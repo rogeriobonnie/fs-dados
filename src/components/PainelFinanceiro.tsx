@@ -166,7 +166,7 @@ const PainelFinanceiro = () => {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="dre-fluxo">
-          <DREFluxoCaixa data={filteredData} selectedMonth={selectedMonth} selectedYear={selectedYear} />
+          <DREFluxoCaixa data={filteredData} allData={data} selectedMonth={selectedMonth} selectedYear={selectedYear} />
         </TabsContent>
         <TabsContent value="comissoes">
           <ComissoesPainel data={filteredData} selectedMonth={selectedMonth} selectedYear={selectedYear} />

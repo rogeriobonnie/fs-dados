@@ -1,42 +1,97 @@
 
 
-## Plano: Transporte automático de Saldo Inicial entre meses
+## Painel Historico Anual - Nova Aba "Historico"
 
-### Problema
-Cada mês só exibe registros com `custoNum: 0` daquele próprio mês. Se fevereiro não tem lançamentos de saldo inicial, aparece R$ 0,00.
+Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
 
-### Solução
-Quando o mês selecionado **não tem registros de saldo inicial** (custoNum 0), calcular automaticamente o Saldo Final do mês anterior e usá-lo como Saldo Inicial.
+---
 
-### Alterações
+### O que sera construido
 
-**Arquivo: `src/components/PainelFinanceiro.tsx`**
+Uma pagina com 3 niveis de detalhe:
 
-1. Passar **todos os dados** (`data`) para `DREFluxoCaixa`, além do `filteredData`, para que o componente possa acessar o mês anterior.
+**Nivel 1 - Visao Macro (cards anuais)**
+- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
+  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
+  - Margem operacional (%)
+  - Barra de progresso visual comparando receita vs despesa
 
-**Arquivo: `src/components/DREFluxoCaixa.tsx`**
+**Nivel 2 - Ao clicar no ano, expande:**
+- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
+- Grafico de barras empilhadas (Recharts) comparando todos os anos
+- Grafico de linha mostrando evolucao do resultado ao longo dos anos
 
-1. Receber prop adicional `allData: Pagina5Record[]` (dados de todos os meses).
-2. Na lógica do `grouped`, se `saldoInicial` estiver vazio (sem registros custoNum 0 no mês atual):
-   - Calcular mês/ano anterior
-   - Filtrar `allData` para esse mês anterior
-   - Processar receitas, despesas, saídas, entradas, transferências do mês anterior
-   - Calcular o Saldo Final do mês anterior
-   - Criar registros sintéticos de saldo inicial por banco com esses valores
-3. Adicionar indicador visual discreto ("Transportado de Jan/2025") quando o saldo for automático.
+**Nivel 3 - Ao clicar em uma linha do ano, expande:**
+- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
+- Lista de itens individuais agrupados por categoria
 
-### Lógica de cálculo do mês anterior
+---
+
+### Estrutura tecnica
+
+**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
+- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
+- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
+
+**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
+- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
+- Agrupa por ano usando o campo `year` dos registros
+- Para cada ano calcula:
+  - Receitas: custoNum 1-10, soma de valorLiquido
+  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
+  - Resultado: Receitas - Despesas
+  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
+  - Margem: (Resultado / Receitas) * 100
+- Renderiza cards clicaveis por ano com Collapsible
+- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
+- Graficos comparativos usando Recharts (BarChart + LineChart)
+
+**3. Nova aba principal** (`src/pages/Index.tsx`)
+- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
+- Grid de 4 colunas no TabsList
+
+---
+
+### Layout visual da pagina
 
 ```text
-Saldo Final (Jan) = Saldo Inicial (Jan) + Receitas - Despesas - Saídas + Entradas + Transferências
-                  → vira Saldo Inicial (Fev) por banco
++--------------------------------------------------+
+|  HISTORICO FINANCEIRO           [Atualizar]       |
+|  Evolucao anual da empresa desde 2022             |
++--------------------------------------------------+
+
++----------+ +----------+ +----------+ +----------+
+| 2022     | | 2023     | | 2024     | | 2025     |
+| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
+| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
+| Res +40k | | Res +100k| | Res +160k| | Res +90k |
+| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
+| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
++----------+ +----------+ +----------+ +----------+
+
+[========= GRAFICO COMPARATIVO ANUAL =========]
+[  Barras: Receitas vs Despesas por ano        ]
+[  Linha: Evolucao do Resultado                ]
+[=============================================]
+
++--------------------------------------------------+
+| TABELA COMPARATIVA                                |
+| Ano | Receitas | Despesas | Result | Dist | Marg  |
+| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
+|  v  (clica para expandir por centro de custo)     |
+|     01-Cursos FS:        R$ 90.000               |
+|     05-Cursos Terceiros: R$ 30.000               |
+|     11-Fixas:           -R$ 50.000               |
+|     12-Variaveis:       -R$ 30.000               |
+|     21-Distribuicoes:   -R$ 20.000               |
++--------------------------------------------------+
 ```
 
-Se o mês anterior também não tiver saldo inicial, a cadeia continua recursivamente até encontrar um mês com lançamento manual, ou retorna 0.
+### Arquivos a criar/modificar
 
-### Detalhes técnicos
-- A recursão será limitada a 12 meses para evitar loops infinitos
-- Os registros sintéticos terão um flag para distingui-los dos manuais
-- O card de Saldo Inicial mostrará "(transportado)" quando for automático
-- Nenhuma alteração na planilha necessária
+| Arquivo | Acao |
+|---------|------|
+| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
+| `src/components/HistoricoAnual.tsx` | Criar componente completo |
+| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
 

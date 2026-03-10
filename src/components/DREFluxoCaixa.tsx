@@ -11,6 +11,7 @@ import autoTable from 'jspdf-autotable';
 
 interface Props {
   data: Pagina5Record[];
+  allData?: Pagina5Record[];
   selectedMonth?: string;
   selectedYear?: string;
 }
@@ -18,7 +19,67 @@ interface Props {
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
+// Calculate saldo final per banco for a given month's data
+const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, number> => {
+  const bancos: Record<string, { si: number; rec: number; desp: number; saidas: number; entradas: number; transf: number }> = {};
+  const ensure = (b: string) => {
+    if (!b || b === 'PROVISAO') return;
+    if (!bancos[b]) bancos[b] = { si: 0, rec: 0, desp: 0, saidas: 0, entradas: 0, transf: 0 };
+  };
+
+  monthData.forEach(r => {
+    if (r.custoNum === 0) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].si += r.valorBruto; }
+    else if (r.custoNum >= 1 && r.custoNum <= 10 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].rec += r.valorLiquido; }
+    else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO' && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].desp += Math.abs(r.valorLiquido); }
+    else if (r.custoNum >= 21 && r.custoNum <= 30 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
+    else if ((r.custoNum === 97 || r.custoNum === 98) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].entradas += Math.abs(r.valorLiquido); }
+    else if (r.custoNum === 99) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].transf += r.valorLiquido; }
+  });
+
+  const result: Record<string, number> = {};
+  Object.entries(bancos).forEach(([banco, v]) => {
+    result[banco] = v.si + v.rec - v.desp - v.saidas + v.entradas + v.transf;
+  });
+  return result;
+};
+
+// Recursively find saldo inicial for a month by computing previous month's saldo final
+const calcSaldoInicialTransportado = (
+  allData: Pagina5Record[],
+  month: number,
+  year: number,
+  depth: number = 0
+): { bancos: Record<string, number>; fromMonth: number; fromYear: number } | null => {
+  if (depth > 12) return null;
+
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevData = allData.filter(r => r.month === prevMonth && r.year === prevYear);
+
+  if (prevData.length === 0) return null;
+
+  // Check if prev month has manual saldo inicial
+  const prevSaldoInicial = prevData.filter(r => r.custoNum === 0);
+  if (prevSaldoInicial.length === 0) {
+    // Recursively get saldo inicial for prev month first
+    const inherited = calcSaldoInicialTransportado(allData, prevMonth, prevYear, depth + 1);
+    if (inherited) {
+      // Inject synthetic saldo inicial into prevData for calculation
+      const syntheticRecords = Object.entries(inherited.bancos).map(([banco, valor]) => ({
+        id: `synthetic-${banco}`, date: '', descricao: 'Saldo Transportado', detalhamento: '',
+        custo: '00-Saldo Inicial', custoNum: 0, valorBruto: valor, taxas: 0, acrescimos: 0,
+        valorLiquido: valor, banco, impAliq: 0, vrImposto: 0, vendedor: '', vrVendedor: 0,
+        mkt: '', vrMkt: 0, month: prevMonth, year: prevYear,
+      } as Pagina5Record));
+      const augmentedPrevData = [...prevData, ...syntheticRecords];
+      return { bancos: calcSaldoFinalPorBanco(augmentedPrevData), fromMonth: prevMonth, fromYear: prevYear };
+    }
+  }
+
+  return { bancos: calcSaldoFinalPorBanco(prevData), fromMonth: prevMonth, fromYear: prevYear };
+};
+
+const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) => {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
   const [expandedFluxoRow, setExpandedFluxoRow] = useState<string | null>(null);
@@ -28,8 +89,46 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
   const toggleSection = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   const toggleCourse = (key: string) => setOpenCourses(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // Check if saldo inicial needs to be transported from previous month
+  const saldoTransportado = useMemo(() => {
+    const manualSaldo = data.filter(r => r.custoNum === 0);
+    if (manualSaldo.length > 0 || !allData || !selectedMonth || !selectedYear) return null;
+
+    const m = parseInt(selectedMonth);
+    const y = parseInt(selectedYear);
+    return calcSaldoInicialTransportado(allData, m, y);
+  }, [data, allData, selectedMonth, selectedYear]);
+
   const grouped = useMemo(() => {
-    const saldoInicial = data.filter(r => r.custoNum === 0);
+    let saldoInicial = data.filter(r => r.custoNum === 0);
+
+    // If no manual saldo inicial, inject synthetic records from previous month
+    if (saldoInicial.length === 0 && saldoTransportado) {
+      saldoInicial = Object.entries(saldoTransportado.bancos)
+        .filter(([, valor]) => valor !== 0)
+        .map(([banco, valor]) => ({
+          id: `transported-${banco}`,
+          date: '',
+          descricao: 'Saldo Transportado',
+          detalhamento: `Transportado de ${MONTH_NAMES[saldoTransportado.fromMonth - 1]}/${saldoTransportado.fromYear}`,
+          custo: '00-Saldo Inicial',
+          custoNum: 0,
+          valorBruto: valor,
+          taxas: 0,
+          acrescimos: 0,
+          valorLiquido: valor,
+          banco,
+          impAliq: 0,
+          vrImposto: 0,
+          vendedor: '',
+          vrVendedor: 0,
+          mkt: '',
+          vrMkt: 0,
+          month: parseInt(selectedMonth || '0'),
+          year: parseInt(selectedYear || '0'),
+        } as Pagina5Record));
+    }
+
     const receitas: Record<string, Pagina5Record[]> = {};
     const despesas: Record<string, Pagina5Record[]> = {};
     const saidasCaixa: Record<string, Pagina5Record[]> = {};
@@ -43,14 +142,12 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
         if (!receitas[r.custo]) receitas[r.custo] = [];
         receitas[r.custo].push(r);
       } else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO') {
-        // Despesas: exclui banco=PAGO (já foi pago, não entra no resultado)
         if (!despesas[r.custo]) despesas[r.custo] = [];
         despesas[r.custo].push(r);
       } else if (r.custoNum >= 21 && r.custoNum <= 30) {
         if (!saidasCaixa[r.custo]) saidasCaixa[r.custo] = [];
         saidasCaixa[r.custo].push(r);
       } else if (r.custoNum === 31 && (r.banco || '').toUpperCase() === 'PROVISAO') {
-        // Provisões: apenas banco=PROVISAO (banco=PAGO ou outro = já foi pago, ignora)
         if (!provisoes[r.custo]) provisoes[r.custo] = [];
         provisoes[r.custo].push(r);
       } else if (r.custoNum === 97 || r.custoNum === 98) {
@@ -60,7 +157,7 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
     });
 
     return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias };
-  }, [data]);
+  }, [data, saldoTransportado, selectedMonth, selectedYear]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
   const receitasPorCurso = useMemo(() => {
@@ -742,6 +839,11 @@ const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
                 <div className="flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold">SALDO INICIAL</span>
+                  {saldoTransportado && (
+                    <Badge variant="outline" className="text-xs border-primary/50 text-primary">
+                      Transportado de {MONTH_NAMES[saldoTransportado.fromMonth - 1]}/{saldoTransportado.fromYear}
+                    </Badge>
+                  )}
                 </div>
                 <span className="text-sm font-bold text-primary">{fmt(totals.totalSaldoInicial)}</span>
               </div>
