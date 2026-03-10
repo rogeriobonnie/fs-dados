@@ -119,7 +119,7 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
   };
 
   const medalColors = ['text-yellow-500', 'text-gray-400', 'text-amber-700'];
-  const periodoLabel = modo === 'mes' ? `${MONTHS[parseInt(selectedMonth) - 1]}/${selectedYear}` : `Acumulado ${selectedYear}`;
+  const periodoLabel = localMonth === null ? `Acumulado ${localYear}` : `${MONTHS[parseInt(localMonth) - 1]}/${localYear}`;
 
   const pieData = top10Chart.map(r => ({
     name: r.nome.length > 20 ? r.nome.substring(0, 20) + '...' : r.nome,
