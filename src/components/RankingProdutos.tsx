@@ -78,14 +78,24 @@ function calcRanking(records: Pagina5Record[]): ProdutoRanking[] {
 }
 
 const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) => {
-  const [modo, setModo] = useState<'mes' | 'ano'>('mes');
+  const [localMonth, setLocalMonth] = useState<string | null>(selectedMonth); // null = acumulado
+  const [localYear, setLocalYear] = useState(selectedYear);
   const [sortKey, setSortKey] = useState<SortKey>('valorBruto');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const dadosAno = useMemo(() => {
-    const y = parseInt(selectedYear);
-    return allData.filter(r => r.year === y);
+  const availableYears = useMemo(() => {
+    const years = [...new Set(allData.filter(r => r.year > 0).map(r => r.year))].sort();
+    return years.length > 0 ? years : [parseInt(selectedYear)];
   }, [allData, selectedYear]);
+
+  const filteredRecords = useMemo(() => {
+    const y = parseInt(localYear);
+    if (localMonth === null) {
+      return allData.filter(r => r.year === y);
+    }
+    const m = parseInt(localMonth);
+    return allData.filter(r => r.year === y && r.month === m);
+  }, [allData, localYear, localMonth]);
 
   const ranking = useMemo(() => {
     const source = modo === 'mes' ? data : dadosAno;
