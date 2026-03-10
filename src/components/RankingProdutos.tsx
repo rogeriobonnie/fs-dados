@@ -98,9 +98,8 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
   }, [allData, localYear, localMonth]);
 
   const ranking = useMemo(() => {
-    const source = modo === 'mes' ? data : dadosAno;
-    return calcRanking(source);
-  }, [data, dadosAno, modo]);
+    return calcRanking(filteredRecords);
+  }, [filteredRecords]);
 
   const sorted = useMemo(() => {
     return [...ranking].sort((a, b) => {
