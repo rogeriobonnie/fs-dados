@@ -89,8 +89,46 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
   const toggleSection = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   const toggleCourse = (key: string) => setOpenCourses(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // Check if saldo inicial needs to be transported from previous month
+  const saldoTransportado = useMemo(() => {
+    const manualSaldo = data.filter(r => r.custoNum === 0);
+    if (manualSaldo.length > 0 || !allData || !selectedMonth || !selectedYear) return null;
+
+    const m = parseInt(selectedMonth);
+    const y = parseInt(selectedYear);
+    return calcSaldoInicialTransportado(allData, m, y);
+  }, [data, allData, selectedMonth, selectedYear]);
+
   const grouped = useMemo(() => {
-    const saldoInicial = data.filter(r => r.custoNum === 0);
+    let saldoInicial = data.filter(r => r.custoNum === 0);
+
+    // If no manual saldo inicial, inject synthetic records from previous month
+    if (saldoInicial.length === 0 && saldoTransportado) {
+      saldoInicial = Object.entries(saldoTransportado.bancos)
+        .filter(([, valor]) => valor !== 0)
+        .map(([banco, valor]) => ({
+          id: `transported-${banco}`,
+          date: '',
+          descricao: 'Saldo Transportado',
+          detalhamento: `Transportado de ${MONTH_NAMES[saldoTransportado.fromMonth - 1]}/${saldoTransportado.fromYear}`,
+          custo: '00-Saldo Inicial',
+          custoNum: 0,
+          valorBruto: valor,
+          taxas: 0,
+          acrescimos: 0,
+          valorLiquido: valor,
+          banco,
+          impAliq: 0,
+          vrImposto: 0,
+          vendedor: '',
+          vrVendedor: 0,
+          mkt: '',
+          vrMkt: 0,
+          month: parseInt(selectedMonth || '0'),
+          year: parseInt(selectedYear || '0'),
+        } as Pagina5Record));
+    }
+
     const receitas: Record<string, Pagina5Record[]> = {};
     const despesas: Record<string, Pagina5Record[]> = {};
     const saidasCaixa: Record<string, Pagina5Record[]> = {};
@@ -104,20 +142,19 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
         if (!receitas[r.custo]) receitas[r.custo] = [];
         receitas[r.custo].push(r);
       } else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO') {
-        // Despesas: exclui banco=PAGO (já foi pago, não entra no resultado)
         if (!despesas[r.custo]) despesas[r.custo] = [];
         despesas[r.custo].push(r);
       } else if (r.custoNum >= 21 && r.custoNum <= 30) {
         if (!saidasCaixa[r.custo]) saidasCaixa[r.custo] = [];
         saidasCaixa[r.custo].push(r);
       } else if (r.custoNum === 31 && (r.banco || '').toUpperCase() === 'PROVISAO') {
-        // Provisões: apenas banco=PROVISAO (banco=PAGO ou outro = já foi pago, ignora)
         if (!provisoes[r.custo]) provisoes[r.custo] = [];
         provisoes[r.custo].push(r);
       } else if (r.custoNum === 97 || r.custoNum === 98) {
         if (!entradasCaixa[r.custo]) entradasCaixa[r.custo] = [];
         entradasCaixa[r.custo].push(r);
       }
+    });
     });
 
     return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias };
