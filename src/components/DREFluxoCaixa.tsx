@@ -839,6 +839,11 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                 <div className="flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-primary" />
                   <span className="text-sm font-semibold">SALDO INICIAL</span>
+                  {saldoTransportado && (
+                    <Badge variant="outline" className="text-xs border-primary/50 text-primary">
+                      Transportado de {MONTH_NAMES[saldoTransportado.fromMonth - 1]}/{saldoTransportado.fromYear}
+                    </Badge>
+                  )}
                 </div>
                 <span className="text-sm font-bold text-primary">{fmt(totals.totalSaldoInicial)}</span>
               </div>
