@@ -11,6 +11,7 @@ import autoTable from 'jspdf-autotable';
 
 interface Props {
   data: Pagina5Record[];
+  allData?: Pagina5Record[];
   selectedMonth?: string;
   selectedYear?: string;
 }
@@ -18,7 +19,67 @@ interface Props {
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-const DREFluxoCaixa = ({ data, selectedMonth, selectedYear }: Props) => {
+// Calculate saldo final per banco for a given month's data
+const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, number> => {
+  const bancos: Record<string, { si: number; rec: number; desp: number; saidas: number; entradas: number; transf: number }> = {};
+  const ensure = (b: string) => {
+    if (!b || b === 'PROVISAO') return;
+    if (!bancos[b]) bancos[b] = { si: 0, rec: 0, desp: 0, saidas: 0, entradas: 0, transf: 0 };
+  };
+
+  monthData.forEach(r => {
+    if (r.custoNum === 0) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].si += r.valorBruto; }
+    else if (r.custoNum >= 1 && r.custoNum <= 10 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].rec += r.valorLiquido; }
+    else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO' && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].desp += Math.abs(r.valorLiquido); }
+    else if (r.custoNum >= 21 && r.custoNum <= 30 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
+    else if ((r.custoNum === 97 || r.custoNum === 98) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].entradas += Math.abs(r.valorLiquido); }
+    else if (r.custoNum === 99) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].transf += r.valorLiquido; }
+  });
+
+  const result: Record<string, number> = {};
+  Object.entries(bancos).forEach(([banco, v]) => {
+    result[banco] = v.si + v.rec - v.desp - v.saidas + v.entradas + v.transf;
+  });
+  return result;
+};
+
+// Recursively find saldo inicial for a month by computing previous month's saldo final
+const calcSaldoInicialTransportado = (
+  allData: Pagina5Record[],
+  month: number,
+  year: number,
+  depth: number = 0
+): { bancos: Record<string, number>; fromMonth: number; fromYear: number } | null => {
+  if (depth > 12) return null;
+
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevData = allData.filter(r => r.month === prevMonth && r.year === prevYear);
+
+  if (prevData.length === 0) return null;
+
+  // Check if prev month has manual saldo inicial
+  const prevSaldoInicial = prevData.filter(r => r.custoNum === 0);
+  if (prevSaldoInicial.length === 0) {
+    // Recursively get saldo inicial for prev month first
+    const inherited = calcSaldoInicialTransportado(allData, prevMonth, prevYear, depth + 1);
+    if (inherited) {
+      // Inject synthetic saldo inicial into prevData for calculation
+      const syntheticRecords = Object.entries(inherited.bancos).map(([banco, valor]) => ({
+        id: `synthetic-${banco}`, date: '', descricao: 'Saldo Transportado', detalhamento: '',
+        custo: '00-Saldo Inicial', custoNum: 0, valorBruto: valor, taxas: 0, acrescimos: 0,
+        valorLiquido: valor, banco, impAliq: 0, vrImposto: 0, vendedor: '', vrVendedor: 0,
+        mkt: '', vrMkt: 0, month: prevMonth, year: prevYear,
+      } as Pagina5Record));
+      const augmentedPrevData = [...prevData, ...syntheticRecords];
+      return { bancos: calcSaldoFinalPorBanco(augmentedPrevData), fromMonth: prevMonth, fromYear: prevYear };
+    }
+  }
+
+  return { bancos: calcSaldoFinalPorBanco(prevData), fromMonth: prevMonth, fromYear: prevYear };
+};
+
+const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) => {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
   const [expandedFluxoRow, setExpandedFluxoRow] = useState<string | null>(null);
