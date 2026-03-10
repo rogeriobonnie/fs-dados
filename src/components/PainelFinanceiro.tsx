@@ -179,6 +179,9 @@ const PainelFinanceiro = () => {
         <TabsContent value="cursos-terceiros">
           <CursosTerceiros data={filteredData} selectedMonth={selectedMonth} selectedYear={selectedYear} />
         </TabsContent>
+        <TabsContent value="ranking">
+          <RankingProdutos data={filteredData} allData={data} selectedMonth={selectedMonth} selectedYear={selectedYear} />
+        </TabsContent>
       </Tabs>
     </div>
   );
