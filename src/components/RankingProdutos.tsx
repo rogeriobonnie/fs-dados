@@ -143,8 +143,8 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
 
   return (
     <div className="space-y-6">
-      {/* Header + Toggle */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Header */}
+      <div className="space-y-3">
         <div>
           <h3 className="text-lg font-bold flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" />
@@ -152,13 +152,45 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
           </h3>
           <p className="text-sm text-muted-foreground">{periodoLabel} • {ranking.length} produtos</p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant={modo === 'mes' ? 'default' : 'outline'} onClick={() => setModo('mes')}>
-            Mês atual
+
+        {/* Year buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground mr-1">Ano:</span>
+          {availableYears.map(y => (
+            <Button
+              key={y}
+              size="sm"
+              variant={localYear === String(y) ? 'default' : 'outline'}
+              className="h-7 px-3 text-xs"
+              onClick={() => setLocalYear(String(y))}
+            >
+              {y}
+            </Button>
+          ))}
+        </div>
+
+        {/* Month buttons */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground mr-1">Período:</span>
+          <Button
+            size="sm"
+            variant={localMonth === null ? 'default' : 'outline'}
+            className="h-7 px-3 text-xs"
+            onClick={() => setLocalMonth(null)}
+          >
+            Acumulado
           </Button>
-          <Button size="sm" variant={modo === 'ano' ? 'default' : 'outline'} onClick={() => setModo('ano')}>
-            Acumulado ano
-          </Button>
+          {MONTHS.map((m, i) => (
+            <Button
+              key={i}
+              size="sm"
+              variant={localMonth === String(i + 1) ? 'default' : 'outline'}
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setLocalMonth(String(i + 1))}
+            >
+              {m.substring(0, 3)}
+            </Button>
+          ))}
         </div>
       </div>
 
