@@ -33,16 +33,9 @@ type SortKey = keyof Omit<ProdutoRanking, 'nome'>;
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 const COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--accent))',
-  'hsl(142 76% 36%)',
-  'hsl(38 92% 50%)',
-  'hsl(280 65% 60%)',
-  'hsl(200 80% 50%)',
-  'hsl(350 80% 55%)',
-  'hsl(160 60% 45%)',
-  'hsl(30 80% 55%)',
-  'hsl(220 70% 55%)',
+  'hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(142 76% 36%)',
+  'hsl(38 92% 50%)', 'hsl(280 65% 60%)', 'hsl(200 80% 50%)',
+  'hsl(350 80% 55%)', 'hsl(160 60% 45%)', 'hsl(30 80% 55%)', 'hsl(220 70% 55%)',
 ];
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -54,14 +47,12 @@ const fmtK = (v: number) => {
 function calcRanking(records: Pagina5Record[]): ProdutoRanking[] {
   const receitas = records.filter(r => r.custoNum >= 1 && r.custoNum <= 10);
   const grouped = new Map<string, Pagina5Record[]>();
-
   for (const r of receitas) {
     const key = r.descricao.trim();
     if (!key) continue;
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key)!.push(r);
   }
-
   const result: ProdutoRanking[] = [];
   for (const [nome, items] of grouped) {
     const valorBruto = items.reduce((s, r) => s + r.valorBruto, 0);
@@ -70,16 +61,17 @@ function calcRanking(records: Pagina5Record[]): ProdutoRanking[] {
     const comissoes = items.reduce((s, r) => s + r.vrVendedor + r.vrMkt, 0);
     const valorLiquido = items.reduce((s, r) => s + r.valorLiquido, 0) - impostos - comissoes;
     const margem = valorBruto !== 0 ? (valorLiquido / valorBruto) * 100 : 0;
-
     result.push({ nome, qtdVendas: items.length, valorBruto, taxas, impostos, comissoes, valorLiquido, margem });
   }
-
   return result.sort((a, b) => b.valorBruto - a.valorBruto);
 }
 
+interface PeriodKey { label: string; records: Pagina5Record[] }
+
 const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) => {
-  const [localMonth, setLocalMonth] = useState<string | null>(selectedMonth); // null = acumulado
-  const [localYear, setLocalYear] = useState(selectedYear);
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([parseInt(selectedMonth)]);
+  const [selectedYears, setSelectedYears] = useState<number[]>([parseInt(selectedYear)]);
+  const [acumulado, setAcumulado] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('valorBruto');
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -88,18 +80,49 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
     return years.length > 0 ? years : [parseInt(selectedYear)];
   }, [allData, selectedYear]);
 
-  const filteredRecords = useMemo(() => {
-    const y = parseInt(localYear);
-    if (localMonth === null) {
-      return allData.filter(r => r.year === y);
-    }
-    const m = parseInt(localMonth);
-    return allData.filter(r => r.year === y && r.month === m);
-  }, [allData, localYear, localMonth]);
+  const toggleMonth = (m: number) => {
+    if (acumulado) { setAcumulado(false); setSelectedMonths([m]); return; }
+    setSelectedMonths(prev => prev.includes(m) ? (prev.length > 1 ? prev.filter(x => x !== m) : prev) : [...prev, m].sort((a, b) => a - b));
+  };
+  const toggleYear = (y: number) => {
+    setSelectedYears(prev => prev.includes(y) ? (prev.length > 1 ? prev.filter(x => x !== y) : prev) : [...prev, y].sort((a, b) => a - b));
+  };
+  const toggleAcumulado = () => {
+    setAcumulado(!acumulado);
+    if (!acumulado) setSelectedMonths([]);
+  };
 
-  const ranking = useMemo(() => {
-    return calcRanking(filteredRecords);
-  }, [filteredRecords]);
+  const isMultiPeriod = selectedYears.length > 1 || (!acumulado && selectedMonths.length > 1);
+
+  // Build period groups for comparison
+  const periods = useMemo<PeriodKey[]>(() => {
+    if (acumulado) {
+      return selectedYears.map(y => ({
+        label: `Acumulado ${y}`,
+        records: allData.filter(r => r.year === y),
+      }));
+    }
+    const result: PeriodKey[] = [];
+    for (const y of selectedYears) {
+      for (const m of selectedMonths) {
+        result.push({
+          label: `${MONTHS[m - 1].substring(0, 3)}/${y}`,
+          records: allData.filter(r => r.year === y && r.month === m),
+        });
+      }
+    }
+    return result;
+  }, [allData, selectedYears, selectedMonths, acumulado]);
+
+  // Combined ranking (all selected data merged)
+  const allFilteredRecords = useMemo(() => periods.flatMap(p => p.records), [periods]);
+  const ranking = useMemo(() => calcRanking(allFilteredRecords), [allFilteredRecords]);
+
+  // Per-period rankings for comparison
+  const periodRankings = useMemo(() => {
+    if (!isMultiPeriod) return [];
+    return periods.map(p => ({ label: p.label, ranking: calcRanking(p.records) }));
+  }, [periods, isMultiPeriod]);
 
   const sorted = useMemo(() => {
     return [...ranking].sort((a, b) => {
@@ -119,7 +142,10 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
   };
 
   const medalColors = ['text-yellow-500', 'text-gray-400', 'text-amber-700'];
-  const periodoLabel = localMonth === null ? `Acumulado ${localYear}` : `${MONTHS[parseInt(localMonth) - 1]}/${localYear}`;
+
+  const periodoLabel = acumulado
+    ? `Acumulado ${selectedYears.join(', ')}`
+    : `${selectedMonths.map(m => MONTHS[m - 1].substring(0, 3)).join(', ')}/${selectedYears.join(', ')}`;
 
   const pieData = top10Chart.map(r => ({
     name: r.nome.length > 20 ? r.nome.substring(0, 20) + '...' : r.nome,
@@ -141,6 +167,21 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
     </TableHead>
   );
 
+  // Comparison data: products as rows, periods as column groups
+  const comparisonData = useMemo(() => {
+    if (!isMultiPeriod || periodRankings.length === 0) return [];
+    const allProducts = new Set<string>();
+    periodRankings.forEach(pr => pr.ranking.forEach(r => allProducts.add(r.nome)));
+    return [...allProducts].map(nome => {
+      const byPeriod = periodRankings.map(pr => {
+        const found = pr.ranking.find(r => r.nome === nome);
+        return found || null;
+      });
+      const totalBruto = byPeriod.reduce((s, r) => s + (r?.valorBruto ?? 0), 0);
+      return { nome, byPeriod, totalBruto };
+    }).sort((a, b) => b.totalBruto - a.totalBruto);
+  }, [isMultiPeriod, periodRankings]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -153,30 +194,30 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
           <p className="text-sm text-muted-foreground">{periodoLabel} • {ranking.length} produtos</p>
         </div>
 
-        {/* Year buttons */}
+        {/* Year buttons - multi-select */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground mr-1">Ano:</span>
           {availableYears.map(y => (
             <Button
               key={y}
               size="sm"
-              variant={localYear === String(y) ? 'default' : 'outline'}
+              variant={selectedYears.includes(y) ? 'default' : 'outline'}
               className="h-7 px-3 text-xs"
-              onClick={() => setLocalYear(String(y))}
+              onClick={() => toggleYear(y)}
             >
               {y}
             </Button>
           ))}
         </div>
 
-        {/* Month buttons */}
+        {/* Month buttons - multi-select */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium text-muted-foreground mr-1">Período:</span>
           <Button
             size="sm"
-            variant={localMonth === null ? 'default' : 'outline'}
+            variant={acumulado ? 'default' : 'outline'}
             className="h-7 px-3 text-xs"
-            onClick={() => setLocalMonth(null)}
+            onClick={toggleAcumulado}
           >
             Acumulado
           </Button>
@@ -184,14 +225,21 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
             <Button
               key={i}
               size="sm"
-              variant={localMonth === String(i + 1) ? 'default' : 'outline'}
+              variant={!acumulado && selectedMonths.includes(i + 1) ? 'default' : 'outline'}
               className="h-7 px-2.5 text-xs"
-              onClick={() => setLocalMonth(String(i + 1))}
+              onClick={() => toggleMonth(i + 1)}
+              disabled={acumulado}
             >
               {m.substring(0, 3)}
             </Button>
           ))}
         </div>
+
+        {isMultiPeriod && (
+          <Badge variant="secondary" className="text-xs">
+            Visão comparativa: {periods.map(p => p.label).join(' vs ')}
+          </Badge>
+        )}
       </div>
 
       {/* Top 3 Cards */}
@@ -239,10 +287,65 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
         </div>
       )}
 
+      {/* Comparison Table - shown when multiple periods selected */}
+      {isMultiPeriod && comparisonData.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Comparativo por Período</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">#</TableHead>
+                  <TableHead>Produto</TableHead>
+                  {periodRankings.map(pr => (
+                    <TableHead key={pr.label} colSpan={3} className="text-center border-l">
+                      {pr.label}
+                    </TableHead>
+                  ))}
+                </TableRow>
+                <TableRow>
+                  <TableHead />
+                  <TableHead />
+                  {periodRankings.map(pr => (
+                    <>
+                      <TableHead key={`${pr.label}-v`} className="text-xs border-l">Vendas</TableHead>
+                      <TableHead key={`${pr.label}-b`} className="text-xs">Bruto</TableHead>
+                      <TableHead key={`${pr.label}-m`} className="text-xs">Margem</TableHead>
+                    </>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {comparisonData.slice(0, 20).map((row, i) => (
+                  <TableRow key={row.nome}>
+                    <TableCell className="font-bold text-muted-foreground">{i + 1}</TableCell>
+                    <TableCell className="font-medium max-w-[180px] truncate" title={row.nome}>{row.nome}</TableCell>
+                    {row.byPeriod.map((p, pi) => (
+                      <>
+                        <TableCell key={`${pi}-v`} className="border-l">{p?.qtdVendas ?? '-'}</TableCell>
+                        <TableCell key={`${pi}-b`}>{p ? fmtK(p.valorBruto) : '-'}</TableCell>
+                        <TableCell key={`${pi}-m`}>
+                          {p ? (
+                            <Badge variant={p.margem >= 50 ? 'default' : p.margem >= 30 ? 'secondary' : 'destructive'} className="text-xs">
+                              {p.margem.toFixed(0)}%
+                            </Badge>
+                          ) : '-'}
+                        </TableCell>
+                      </>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Charts */}
       {top10Chart.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Bar Chart */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Top 10 - Faturamento</CardTitle>
@@ -260,8 +363,6 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
-          {/* Pie Chart */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Participação no Faturamento</CardTitle>
@@ -269,18 +370,9 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
+                  <Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                    {pieData.map((_, i) => (<Cell key={i} fill={COLORS[i % COLORS.length]} />))}
                   </Pie>
                   <Tooltip formatter={(v: number) => fmt(v)} />
                 </PieChart>
@@ -290,7 +382,7 @@ const RankingProdutos = ({ data, allData, selectedMonth, selectedYear }: Props) 
         </div>
       )}
 
-      {/* Table */}
+      {/* Full ranking table */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Ranking Completo</CardTitle>
