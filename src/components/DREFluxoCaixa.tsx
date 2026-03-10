@@ -155,10 +155,9 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
         entradasCaixa[r.custo].push(r);
       }
     });
-    });
 
     return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias };
-  }, [data]);
+  }, [data, saldoTransportado, selectedMonth, selectedYear]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
   const receitasPorCurso = useMemo(() => {
