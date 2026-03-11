@@ -20,7 +20,7 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 // Calculate saldo final per banco for a given month's data
-// Simple logic: iterate all records, group by banco, sum — matches spreadsheet filter
+// Ultra-simple: saldo = valorBruto(SI) + sum(valorLiquido) — matches spreadsheet SOMA filter
 const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, number> => {
   const NON_BANKS = ['PROVISAO', 'PAGO', 'INVEST', 'L2', ''];
   const bancos: Record<string, number> = {};
@@ -32,19 +32,8 @@ const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, numb
 
     if (r.custoNum === 0) {
       bancos[r.banco] += r.valorBruto;
-    } else if (r.custoNum >= 1 && r.custoNum <= 10) {
-      bancos[r.banco] += r.valorLiquido;
-    } else if (r.custoNum >= 11 && r.custoNum <= 20) {
-      bancos[r.banco] -= Math.abs(r.valorLiquido);
-    } else if (r.custoNum >= 21 && r.custoNum <= 30) {
-      bancos[r.banco] -= Math.abs(r.valorLiquido);
-    } else if (r.custoNum === 97 || r.custoNum === 98) {
-      bancos[r.banco] += Math.abs(r.valorLiquido);
-    } else if (r.custoNum === 99) {
-      bancos[r.banco] += r.valorLiquido;
     } else {
-      // All other custoNum (31,32,50,51,52): count as outflow from this bank
-      bancos[r.banco] -= Math.abs(r.valorLiquido);
+      bancos[r.banco] += r.valorLiquido;
     }
   });
 
@@ -309,7 +298,16 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       else { b.destinacoes += Math.abs(r.valorLiquido); }
     });
 
-    bancos.forEach(b => { b.saldoFinal = b.saldoInicial + b.receitas - b.despesas - b.destinacoes + b.resgates + b.transferencias; });
+    // saldoFinal = saldoInicial + raw sum of valorLiquido (matching spreadsheet SOMA)
+    bancos.forEach(b => {
+      let sumVL = 0;
+      data.forEach(r => {
+        if (r.banco === b.banco && r.custoNum !== 0) {
+          sumVL += r.valorLiquido;
+        }
+      });
+      b.saldoFinal = b.saldoInicial + sumVL;
+    });
     return Array.from(bancos.values()).sort((a, b) => a.banco.localeCompare(b.banco));
   }, [data, grouped.saldoInicial]);
 
