@@ -303,18 +303,27 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       else { b.destinacoes += Math.abs(r.valorLiquido); }
     });
 
-    // saldoFinal = saldoInicial + raw sum of valorLiquido (matching spreadsheet SOMA)
+    // saldoFinal = cumulative YTD: filter allData from month 1..selectedMonth for the year + banco
+    // This matches spreadsheet logic: filter by banco + months 01..MM → sum all valorLiquido
+    const m = parseInt(selectedMonth);
+    const y = parseInt(selectedYear);
     bancos.forEach(b => {
+      // Get all records for this bank from month 1 to selected month in the selected year
+      const ytdRecords = allData.filter(r => r.banco === b.banco && r.year === y && r.month >= 1 && r.month <= m);
+      // Saldo inicial = sum of valorBruto for custoNum 0 in the FIRST month that has it
+      let saldoInicialYTD = 0;
       let sumVL = 0;
-      data.forEach(r => {
-        if (r.banco === b.banco && r.custoNum !== 0) {
+      ytdRecords.forEach(r => {
+        if (r.custoNum === 0) {
+          saldoInicialYTD += r.valorBruto;
+        } else {
           sumVL += r.valorLiquido;
         }
       });
-      b.saldoFinal = b.saldoInicial + sumVL;
+      b.saldoFinal = saldoInicialYTD + sumVL;
     });
     return Array.from(bancos.values()).sort((a, b) => a.banco.localeCompare(b.banco));
-  }, [data, grouped.saldoInicial]);
+  }, [data, allData, selectedMonth, selectedYear, grouped.saldoInicial]);
 
   const fluxoTotal = useMemo(() => {
     return fluxoBancos.reduce(
