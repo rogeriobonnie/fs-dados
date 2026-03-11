@@ -20,28 +20,35 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 // Calculate saldo final per banco for a given month's data
+// Simple logic: iterate all records, group by banco, sum — matches spreadsheet filter
 const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, number> => {
-  const bancos: Record<string, { si: number; rec: number; desp: number; saidas: number; entradas: number; transf: number }> = {};
-  const ensure = (b: string) => {
-    if (!b || b === 'PROVISAO') return;
-    if (!bancos[b]) bancos[b] = { si: 0, rec: 0, desp: 0, saidas: 0, entradas: 0, transf: 0 };
-  };
+  const NON_BANKS = ['PROVISAO', 'PAGO', 'INVEST', 'L2', ''];
+  const bancos: Record<string, number> = {};
 
   monthData.forEach(r => {
-    if (r.custoNum === 0) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].si += r.valorBruto; }
-    else if (r.custoNum >= 1 && r.custoNum <= 10 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].rec += r.valorLiquido; }
-    else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO' && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].desp += Math.abs(r.valorLiquido); }
-    else if (r.custoNum >= 21 && r.custoNum <= 30 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
-    else if ((r.custoNum === 97 || r.custoNum === 98) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].entradas += Math.abs(r.valorLiquido); }
-    else if (r.custoNum === 99) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].transf += r.valorLiquido; }
-     // custoNum 31,32,50,51,52 are accounting categories, NOT real bank movements
+    const banco = (r.banco || '').toUpperCase();
+    if (NON_BANKS.includes(banco)) return;
+    if (!bancos[r.banco]) bancos[r.banco] = 0;
+
+    if (r.custoNum === 0) {
+      bancos[r.banco] += r.valorBruto;
+    } else if (r.custoNum >= 1 && r.custoNum <= 10) {
+      bancos[r.banco] += r.valorLiquido;
+    } else if (r.custoNum >= 11 && r.custoNum <= 20) {
+      bancos[r.banco] -= Math.abs(r.valorLiquido);
+    } else if (r.custoNum >= 21 && r.custoNum <= 30) {
+      bancos[r.banco] -= Math.abs(r.valorLiquido);
+    } else if (r.custoNum === 97 || r.custoNum === 98) {
+      bancos[r.banco] += Math.abs(r.valorLiquido);
+    } else if (r.custoNum === 99) {
+      bancos[r.banco] += r.valorLiquido;
+    } else {
+      // All other custoNum (31,32,50,51,52): count as outflow from this bank
+      bancos[r.banco] -= Math.abs(r.valorLiquido);
+    }
   });
 
-  const result: Record<string, number> = {};
-  Object.entries(bancos).forEach(([banco, v]) => {
-    result[banco] = v.si + v.rec - v.desp - v.saidas + v.entradas + v.transf;
-  });
-  return result;
+  return bancos;
 };
 
 // Recursively find saldo inicial for a month by computing previous month's saldo final
@@ -264,26 +271,47 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     };
   }, [grouped, receitasPorCurso]);
 
+  // Simple bank balance: iterate ALL records for the month, group by banco, sum values
+  // This matches spreadsheet filter logic: filter by banco + month → sum valorLiquido
   const fluxoBancos = useMemo(() => {
+    const NON_BANKS = ['PROVISAO', 'PAGO', 'INVEST', 'L2', ''];
     const bancos = new Map<string, FluxoCaixaBanco>();
-    const ensureBanco = (b: string) => {
-      if (!b || b === 'PROVISAO') return;
+
+    const ensure = (b: string) => {
+      if (NON_BANKS.includes((b || '').toUpperCase())) return false;
       if (!bancos.has(b)) {
         bancos.set(b, { banco: b, saldoInicial: 0, receitas: 0, despesas: 0, destinacoes: 0, resgates: 0, transferencias: 0, saldoFinal: 0 });
       }
+      return true;
     };
 
-    grouped.saldoInicial.forEach(r => { ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.saldoInicial += r.valorBruto; });
-    Object.values(grouped.receitas).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.receitas += r.valorLiquido; });
-    Object.values(grouped.despesas).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.despesas += Math.abs(r.valorLiquido); });
-    Object.values(grouped.saidasCaixa).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorLiquido); });
-    Object.values(grouped.entradasCaixa).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.resgates += Math.abs(r.valorLiquido); });
-    grouped.transferencias.forEach(r => { ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.transferencias += r.valorLiquido; });
-    // custoNum 31,32,50,51,52 excluded from bank balance (accounting categories, not real bank movements)
+    // Include saldo inicial (which may be synthetic/transported)
+    grouped.saldoInicial.forEach(r => {
+      if (ensure(r.banco)) {
+        const b = bancos.get(r.banco)!;
+        b.saldoInicial += r.valorBruto;
+      }
+    });
+
+    // Iterate ALL original data records (not grouped) to catch every custoNum
+    data.forEach(r => {
+      if (!ensure(r.banco)) return;
+      const b = bancos.get(r.banco)!;
+      const cn = r.custoNum;
+
+      if (cn === 0) return; // already handled via grouped.saldoInicial
+      if (cn >= 1 && cn <= 10) { b.receitas += r.valorLiquido; }
+      else if (cn >= 11 && cn <= 20) { b.despesas += Math.abs(r.valorLiquido); }
+      else if (cn >= 21 && cn <= 30) { b.destinacoes += Math.abs(r.valorLiquido); }
+      else if (cn === 97 || cn === 98) { b.resgates += Math.abs(r.valorLiquido); }
+      else if (cn === 99) { b.transferencias += r.valorLiquido; }
+      // All other custoNum (31,32,50,51,52 etc) with real banco: count as outflow
+      else { b.destinacoes += Math.abs(r.valorLiquido); }
+    });
 
     bancos.forEach(b => { b.saldoFinal = b.saldoInicial + b.receitas - b.despesas - b.destinacoes + b.resgates + b.transferencias; });
     return Array.from(bancos.values()).sort((a, b) => a.banco.localeCompare(b.banco));
-  }, [grouped]);
+  }, [data, grouped.saldoInicial]);
 
   const fluxoTotal = useMemo(() => {
     return fluxoBancos.reduce(
