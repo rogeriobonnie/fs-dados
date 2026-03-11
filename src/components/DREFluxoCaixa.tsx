@@ -136,6 +136,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const investimentos: Pagina5Record[] = [];
     const reservas: Record<string, Pagina5Record[]> = {};
     const lanceADois: Pagina5Record[] = [];
+    const despMesSub: Record<string, Pagina5Record[]> = {};
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
@@ -152,6 +153,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
         provisoes[r.custo].push(r);
     } else if (r.custoNum === 32) {
       lanceADois.push(r);
+    } else if (r.custoNum === 33) {
+      const key = r.descricao || 'Sem descrição';
+      if (!despMesSub[key]) despMesSub[key] = [];
+      despMesSub[key].push(r);
     } else if (r.custoNum === 50) {
       investimentos.push(r);
     } else if (r.custoNum === 51 || r.custoNum === 52) {
@@ -163,7 +168,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       }
     });
 
-    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois };
+    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois, despMesSub };
   }, [data, saldoTransportado, selectedMonth, selectedYear]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
@@ -1362,73 +1367,139 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                           </div>
                           <span className="text-base font-bold text-primary">{fmt(patrimonioFinal)}</span>
                         </div>
+
+                        {/* ── DESPESAS MÊS SUBSEQUENTE (custoNum 33) ── */}
+                        {(() => {
+                          const allDespSub = Object.values(grouped.despMesSub).flat();
+                          const totalDespMesSub = allDespSub.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                          const resultadoMensal = patrimonioFinal - totalDespMesSub;
+                          const resultadoDivTres = resultadoMensal / 3;
+
+                          return (
+                            <>
+                              {allDespSub.length > 0 && (
+                                <div className="border-t border-border">
+                                  <div className="flex justify-between items-center py-2 px-4 bg-destructive/5">
+                                    <div className="flex items-center gap-2">
+                                      <FileText className="h-4 w-4 text-destructive" />
+                                      <span className="text-xs font-bold text-destructive">(-) DESP MÊS SUBSEQUENTE</span>
+                                      <Badge variant="outline" className="text-[10px]">33</Badge>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-0">
+                                    {Object.entries(grouped.despMesSub).sort(([a], [b]) => a.localeCompare(b)).map(([desc, items]) => {
+                                      const descTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                                      const isOpen = openSections[`dms-${desc}`] ?? false;
+                                      return (
+                                        <Collapsible key={desc} open={isOpen} onOpenChange={() => toggleSection(`dms-${desc}`)}>
+                                          <CollapsibleTrigger className="w-full">
+                                            <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 hover:bg-muted/30 transition-colors cursor-pointer border-t border-border/30">
+                                              <div className="flex items-center gap-1.5">
+                                                {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                                <span className="font-medium">{desc}</span>
+                                                <span className="text-muted-foreground">({items.length})</span>
+                                              </div>
+                                              <span className="font-semibold text-destructive">-{fmt(descTotal)}</span>
+                                            </div>
+                                          </CollapsibleTrigger>
+                                          <CollapsibleContent>
+                                            <div className="pl-12 pr-4 pb-1">
+                                              {items.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
+                                                <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
+                                                  <span className="truncate max-w-[65%]">{r.date} - {r.detalhamento || r.descricao} {r.banco ? `[${r.banco}]` : ''}</span>
+                                                  <span className="font-medium">-{fmt(Math.abs(r.valorLiquido))}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      );
+                                    })}
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs py-1.5 px-4 border-t border-border/50 bg-destructive/5">
+                                    <span className="font-semibold text-destructive">TOTAL DESP MÊS SUB</span>
+                                    <span className="font-bold text-destructive">-{fmt(totalDespMesSub)}</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* RESULTADO MENSAL */}
+                              <div className="flex justify-between items-center py-2.5 px-4 border-t-2 border-border bg-accent/20">
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp className="h-4 w-4 text-accent-foreground" />
+                                  <span className="text-sm font-bold">RESULTADO MENSAL</span>
+                                  <span className="text-[10px] text-muted-foreground">(Patrimônio Final - Desp Mês Sub)</span>
+                                </div>
+                                <span className={`text-base font-bold ${resultadoMensal >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>{fmt(resultadoMensal)}</span>
+                              </div>
+
+                              {/* RESULTADO ÷ 3 */}
+                              <div className="flex justify-between items-center py-1.5 px-4 pl-8 border-t border-border/50 bg-accent/10">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-medium text-muted-foreground">÷ 3</span>
+                                </div>
+                                <span className={`text-sm font-semibold ${resultadoDivTres >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>{fmt(resultadoDivTres)}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
+
+                        {/* ── RESERVAS / CAIXINHAS (custoNum 51, 52) ── */}
+                        {(() => {
+                          const totalReservas = Object.values(grouped.reservas).flat().reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                          if (Object.keys(grouped.reservas).length === 0) return null;
+
+                          return (
+                            <div className="border-t-2 border-border" style={{ backgroundColor: 'hsl(210 70% 50% / 0.06)' }}>
+                              <div className="flex justify-between items-center py-2 px-4">
+                                <div className="flex items-center gap-2">
+                                  <Package className="h-4 w-4" style={{ color: 'hsl(210 70% 50%)' }} />
+                                  <span className="text-sm font-bold">RESERVAS / CAIXINHAS</span>
+                                </div>
+                              </div>
+                              <div className="space-y-0">
+                                {Object.entries(grouped.reservas).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => {
+                                  const custoTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                                  const isOpen = openSections[`res-${custo}`] ?? false;
+                                  return (
+                                    <Collapsible key={custo} open={isOpen} onOpenChange={() => toggleSection(`res-${custo}`)}>
+                                      <CollapsibleTrigger className="w-full">
+                                        <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 hover:bg-muted/30 transition-colors cursor-pointer border-t border-border/30">
+                                          <div className="flex items-center gap-1.5">
+                                            {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                            <span className="font-medium">{custo}</span>
+                                            <span className="text-muted-foreground">({items.length})</span>
+                                          </div>
+                                          <span className="font-semibold" style={{ color: 'hsl(210 70% 50%)' }}>{fmt(custoTotal)}</span>
+                                        </div>
+                                      </CollapsibleTrigger>
+                                      <CollapsibleContent>
+                                        <div className="pl-12 pr-4 pb-1">
+                                          {items.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
+                                            <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
+                                              <span className="truncate max-w-[65%]">{r.date} - {r.descricao} {r.detalhamento ? `- ${r.detalhamento}` : ''}</span>
+                                              <span className="font-medium">{fmt(Math.abs(r.valorLiquido))}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </CollapsibleContent>
+                                    </Collapsible>
+                                  );
+                                })}
+                              </div>
+                              <div className="border-t border-border/50 px-4 py-1.5">
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="font-semibold">Total em Reservas</span>
+                                  <span className="font-bold" style={{ color: 'hsl(210 70% 50%)' }}>{fmt(totalReservas)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                       </div>
                     );
                   })()}
-                </div>
-              );
-            })()}
-
-            {/* ── RESERVAS / CAIXINHAS (custoNum 51, 52) ── */}
-            {(() => {
-              const totalReservas = Object.values(grouped.reservas).flat().reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-              const saldoDisponivel = totals.saldoFinalLivre - totalReservas;
-
-              if (Object.keys(grouped.reservas).length === 0) return null;
-
-              return (
-                <div>
-                  <div className="flex justify-between items-center py-2 px-4" style={{ backgroundColor: 'hsl(210 70% 50% / 0.05)' }}>
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4" style={{ color: 'hsl(210 70% 50%)' }} />
-                      <span className="text-sm font-bold">RESERVAS / CAIXINHAS</span>
-                    </div>
-                  </div>
-                  <div className="space-y-0">
-                    {Object.entries(grouped.reservas).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => {
-                      const custoTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-                      const isOpen = openSections[`res-${custo}`] ?? false;
-                      return (
-                        <Collapsible key={custo} open={isOpen} onOpenChange={() => toggleSection(`res-${custo}`)}>
-                          <CollapsibleTrigger className="w-full">
-                            <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 hover:bg-muted/30 transition-colors cursor-pointer border-t border-border/30">
-                              <div className="flex items-center gap-1.5">
-                                {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                                <span className="font-medium">{custo}</span>
-                                <span className="text-muted-foreground">({items.length})</span>
-                              </div>
-                              <span className="font-semibold" style={{ color: 'hsl(210 70% 50%)' }}>{fmt(custoTotal)}</span>
-                            </div>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="pl-12 pr-4 pb-1">
-                              {items.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
-                                <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
-                                  <span className="truncate max-w-[65%]">{r.date} - {r.descricao} {r.detalhamento ? `- ${r.detalhamento}` : ''}</span>
-                                  <span className="font-medium">{fmt(Math.abs(r.valorLiquido))}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      );
-                    })}
-                  </div>
-                  {/* Totais de reservas */}
-                  <div className="border-t border-border bg-muted/20 space-y-0">
-                    <div className="flex justify-between items-center text-xs py-1.5 px-4">
-                      <span className="font-semibold">Total em Reservas</span>
-                      <span className="font-bold" style={{ color: 'hsl(210 70% 50%)' }}>{fmt(totalReservas)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm py-2 px-4 border-t border-border/50 bg-primary/5">
-                      <div className="flex items-center gap-2">
-                        <Banknote className="h-4 w-4 text-primary" />
-                        <span className="font-bold">SALDO DISPONÍVEL</span>
-                        <span className="text-[10px] text-muted-foreground">(SF - Reservas)</span>
-                      </div>
-                      <span className="font-bold text-primary">{fmt(saldoDisponivel)}</span>
-                    </div>
-                  </div>
                 </div>
               );
             })()}
