@@ -1034,41 +1034,9 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
           <h2 className="text-xl font-bold">FLUXO DE CAIXA</h2>
         </div>
 
-        {/* ══════ FILTRO POR BANCO ══════ */}
-        {fluxoBancos.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground font-medium">Filtrar por banco:</span>
-            <Button
-              variant={selectedBanco === null ? 'default' : 'outline'}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setSelectedBanco(null)}
-            >
-              Todos
-            </Button>
-            {fluxoBancos.map(b => (
-              <Button
-                key={b.banco}
-                variant={selectedBanco === b.banco ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setSelectedBanco(prev => prev === b.banco ? null : b.banco)}
-              >
-                <Building2 className="h-3 w-3 mr-1" />
-                {b.banco}
-              </Button>
-            ))}
-          </div>
-        )}
-
-        {/* ══════ CARDS RESUMO POR BANCO ══════ */}
+        {/* ══════ CARDS RESUMO POR BANCO (clicáveis como filtro) ══════ */}
         {(() => {
-          const bancosToShow = selectedBanco
-            ? fluxoBancos.filter(b => b.banco === selectedBanco)
-            : fluxoBancos;
-
-          const consolidado = bancosToShow.reduce(
+          const consolidado = fluxoBancos.reduce(
             (acc, b) => ({
               saldoInicial: acc.saldoInicial + b.saldoInicial,
               receitas: acc.receitas + b.receitas,
@@ -1081,49 +1049,62 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
             { saldoInicial: 0, receitas: 0, despesas: 0, destinacoes: 0, resgates: 0, transferencias: 0, saldoFinal: 0 }
           );
 
-          const renderBankCard = (banco: string, si: number, entradas: number, saidas: number, sf: number, isTotal = false) => {
-            const maxVal = Math.max(entradas, saidas, 1);
-            const entPct = Math.round((entradas / maxVal) * 100);
-            const saiPct = Math.round((saidas / maxVal) * 100);
+          const renderBankCard = (banco: string, si: number, entradas: number, saidas: number, sf: number, isConsolidado = false) => {
+            const isSelected = isConsolidado ? selectedBanco === null : selectedBanco === banco;
+            const variacao = entradas - saidas;
             return (
-              <Card key={banco} className={`border-l-4 ${isTotal ? 'border-l-primary bg-primary/5' : 'border-l-muted-foreground/30'}`}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    {isTotal ? <Landmark className="h-4 w-4 text-primary" /> : <Building2 className="h-4 w-4 text-muted-foreground" />}
-                    <span className={`text-sm font-bold ${isTotal ? 'text-primary' : ''}`}>{banco}</span>
+              <Card
+                key={banco}
+                className={`cursor-pointer transition-all hover:shadow-md ${
+                  isSelected
+                    ? 'ring-2 ring-primary border-primary shadow-md'
+                    : 'border-border hover:border-primary/40'
+                } ${isConsolidado ? 'bg-primary/5' : ''}`}
+                onClick={() => {
+                  if (isConsolidado) setSelectedBanco(null);
+                  else setSelectedBanco(prev => prev === banco ? null : banco);
+                }}
+              >
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      {isConsolidado
+                        ? <Landmark className="h-4 w-4 text-primary" />
+                        : <Building2 className="h-4 w-4 text-muted-foreground" />
+                      }
+                      <span className={`text-xs font-bold ${isConsolidado ? 'text-primary' : ''}`}>{banco}</span>
+                    </div>
+                    {isSelected && (
+                      <Badge variant="default" className="text-[9px] px-1.5 py-0 h-4">Ativo</Badge>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-0.5">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo Inicial</div>
-                      <div className="text-sm font-semibold">{fmt(si)}</div>
+                  {/* Fluxo horizontal compacto */}
+                  <div className="flex items-center gap-1 text-[10px]">
+                    <div className="flex-1 text-center">
+                      <div className="text-muted-foreground uppercase tracking-wider">SI</div>
+                      <div className="font-semibold text-xs">{fmt(si)}</div>
                     </div>
-                    <div className="space-y-0.5 text-right">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo Final</div>
-                      <div className={`text-sm font-bold ${sf >= 0 ? 'text-primary' : ''}`} style={sf < 0 ? { color: 'hsl(var(--destructive))' } : {}}>{fmt(sf)}</div>
+                    <span className="text-muted-foreground">→</span>
+                    <div className="flex-1 text-center">
+                      <div className="uppercase tracking-wider" style={{ color: 'hsl(142 70% 35%)' }}>+Ent</div>
+                      <div className="font-semibold text-xs" style={{ color: 'hsl(142 70% 35%)' }}>{fmt(entradas)}</div>
+                    </div>
+                    <span className="text-muted-foreground">→</span>
+                    <div className="flex-1 text-center">
+                      <div className="uppercase tracking-wider" style={{ color: 'hsl(var(--destructive))' }}>-Saí</div>
+                      <div className="font-semibold text-xs" style={{ color: 'hsl(var(--destructive))' }}>{fmt(saidas)}</div>
+                    </div>
+                    <span className="text-muted-foreground">=</span>
+                    <div className="flex-1 text-center">
+                      <div className="text-muted-foreground uppercase tracking-wider">SF</div>
+                      <div className="font-bold text-xs" style={{ color: sf >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>{fmt(sf)}</div>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3" style={{ color: 'hsl(142 70% 35%)' }} />
-                        Entradas
-                      </span>
-                      <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(entradas)}</span>
-                    </div>
-                    <Progress value={entPct} className="h-2 bg-muted" />
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1">
-                        <TrendingDown className="h-3 w-3" style={{ color: 'hsl(var(--destructive))' }} />
-                        Saídas
-                      </span>
-                      <span className="font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(saidas)}</span>
-                    </div>
-                    <Progress value={saiPct} className="h-2 bg-muted [&>div]:bg-destructive" />
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-1 border-t">
-                    <span>Variação</span>
-                    <span className={`font-bold text-xs ${(entradas - saidas) >= 0 ? '' : ''}`} style={{ color: (entradas - saidas) >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                      {(entradas - saidas) >= 0 ? '+' : ''}{fmt(entradas - saidas)}
+                  {/* Variação compacta */}
+                  <div className="text-center pt-1 border-t border-border/50">
+                    <span className="text-[10px] text-muted-foreground">Variação: </span>
+                    <span className="text-xs font-bold" style={{ color: variacao >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                      {variacao >= 0 ? '+' : ''}{fmt(variacao)}
                     </span>
                   </div>
                 </CardContent>
@@ -1132,8 +1113,8 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
           };
 
           return (
-            <div className={`grid gap-3 ${selectedBanco ? 'grid-cols-1' : bancosToShow.length <= 3 ? `grid-cols-1 md:grid-cols-${bancosToShow.length + 1}` : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}`}>
-              {!selectedBanco && renderBankCard(
+            <div className={`grid gap-3 grid-cols-1 md:grid-cols-${Math.min(fluxoBancos.length + 1, 4)}`}>
+              {renderBankCard(
                 'CONSOLIDADO',
                 consolidado.saldoInicial,
                 consolidado.receitas + consolidado.resgates + Math.max(0, consolidado.transferencias),
@@ -1141,7 +1122,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                 consolidado.saldoFinal,
                 true
               )}
-              {bancosToShow.map(b => {
+              {fluxoBancos.map(b => {
                 const ent = b.receitas + b.resgates + Math.max(0, b.transferencias);
                 const sai = b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias));
                 return renderBankCard(b.banco, b.saldoInicial, ent, sai, b.saldoFinal);
@@ -1150,18 +1131,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
           );
         })()}
 
-        {/* ══════ MOVIMENTAÇÕES DO PERÍODO ══════ */}
+        {/* ══════ MOVIMENTAÇÕES DO PERÍODO (agrupadas por tipo) ══════ */}
         {(() => {
           type Movement = Pagina5Record & { tipo: string; tipoColor: string; isEntrada: boolean };
           const movements: Movement[] = [];
-
-          const addMovements = (records: Pagina5Record[], tipo: string, tipoColor: string, isEntrada: boolean) => {
-            records.forEach(r => {
-              if (r.banco === 'PROVISAO') return;
-              if (selectedBanco && r.banco !== selectedBanco) return;
-              movements.push({ ...r, tipo, tipoColor, isEntrada });
-            });
-          };
 
           Object.values(grouped.receitas).flat().forEach(r => {
             if (r.banco === 'PROVISAO') return;
@@ -1188,16 +1161,17 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
             movements.push({ ...r, tipo: 'Transferência', tipoColor: 'hsl(210 70% 50%)', isEntrada: r.valorLiquido >= 0 });
           });
 
+          // Sort chronologically for saldo acumulado
           movements.sort((a, b) => {
             if (a.date && b.date) return a.date.localeCompare(b.date);
             return 0;
           });
 
-          // Calculate saldo acumulado
           const saldoInicialFiltrado = selectedBanco
             ? grouped.saldoInicial.filter(r => r.banco === selectedBanco).reduce((s, r) => s + r.valorBruto, 0)
             : totals.totalSaldoInicial;
 
+          // Calculate saldo acumulado in chronological order
           let saldoAcum = saldoInicialFiltrado;
           const movementsWithSaldo = movements.map(m => {
             const valor = m.isEntrada ? Math.abs(m.valorLiquido) : -Math.abs(m.valorLiquido);
@@ -1205,13 +1179,25 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
             return { ...m, saldoAcumulado: saldoAcum };
           });
 
-          // Group by tipo for subtotals
-          const subtotais = new Map<string, { total: number; count: number; color: string }>();
-          movements.forEach(m => {
-            if (!subtotais.has(m.tipo)) subtotais.set(m.tipo, { total: 0, count: 0, color: m.tipoColor });
-            const st = subtotais.get(m.tipo)!;
-            st.count++;
-            st.total += m.isEntrada ? Math.abs(m.valorLiquido) : -Math.abs(m.valorLiquido);
+          // Group by tipo
+          const tipoOrder = ['Receita', 'Entrada Caixa', 'Despesa', 'Saída Caixa', 'Transferência'];
+          const groupedByTipo = new Map<string, typeof movementsWithSaldo>();
+          movementsWithSaldo.forEach(m => {
+            if (!groupedByTipo.has(m.tipo)) groupedByTipo.set(m.tipo, []);
+            groupedByTipo.get(m.tipo)!.push(m);
+          });
+
+          // Sort groups within each tipo by date
+          groupedByTipo.forEach(items => items.sort((a, b) => (a.date || '').localeCompare(b.date || '')));
+
+          const sortedTipos = tipoOrder.filter(t => groupedByTipo.has(t));
+
+          // Subtotais
+          const subtotais = sortedTipos.map(tipo => {
+            const items = groupedByTipo.get(tipo)!;
+            const isEnt = items[0]?.isEntrada;
+            const total = items.reduce((s, m) => s + Math.abs(m.valorLiquido), 0);
+            return { tipo, count: items.length, total: isEnt ? total : -total, color: items[0]?.tipoColor || '' };
           });
 
           return (
@@ -1227,195 +1213,82 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                 </div>
                 {/* Subtotais por tipo */}
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {Array.from(subtotais.entries()).map(([tipo, st]) => (
-                    <div key={tipo} className="flex items-center gap-1.5 text-xs bg-muted/50 rounded-full px-2.5 py-1">
+                  {subtotais.map(st => (
+                    <div key={st.tipo} className="flex items-center gap-1.5 text-xs bg-muted/50 rounded-full px-2.5 py-1">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: st.color }} />
-                      <span className="font-medium">{tipo}</span>
+                      <span className="font-medium">{st.tipo}</span>
                       <span className="text-muted-foreground">({st.count})</span>
                       <span className="font-bold" style={{ color: st.color }}>{fmt(st.total)}</span>
                     </div>
                   ))}
                 </div>
               </CardHeader>
-              <CardContent className="px-4 pb-4 pt-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs py-1.5 w-16">Data</TableHead>
-                        <TableHead className="text-xs py-1.5 w-24">Tipo</TableHead>
-                        <TableHead className="text-xs py-1.5">Descrição</TableHead>
-                        <TableHead className="text-xs py-1.5">Detalhe</TableHead>
-                        <TableHead className="text-xs py-1.5 text-right w-24">Entrada</TableHead>
-                        <TableHead className="text-xs py-1.5 text-right w-24">Saída</TableHead>
-                        <TableHead className="text-xs py-1.5 text-right w-28">Saldo Acum.</TableHead>
-                        {!selectedBanco && <TableHead className="text-xs py-1.5 w-20">Banco</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {/* Linha de saldo inicial */}
-                      <TableRow className="bg-primary/5">
-                        <TableCell className="text-xs py-1.5 font-medium">—</TableCell>
-                        <TableCell className="text-xs py-1.5">
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">Saldo Inicial</Badge>
-                        </TableCell>
-                        <TableCell colSpan={2} className="text-xs py-1.5 font-medium">Saldo transportado</TableCell>
-                        <TableCell className="text-xs py-1.5 text-right" />
-                        <TableCell className="text-xs py-1.5 text-right" />
-                        <TableCell className="text-xs py-1.5 text-right font-bold">{fmt(saldoInicialFiltrado)}</TableCell>
-                        {!selectedBanco && <TableCell className="text-xs py-1.5" />}
-                      </TableRow>
-                      {movementsWithSaldo.map((m, i) => (
-                        <TableRow key={`${m.id}-${i}`} className="hover:bg-muted/30">
-                          <TableCell className="text-xs py-1.5">{m.date}</TableCell>
-                          <TableCell className="text-xs py-1.5">
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border" style={{ borderColor: m.tipoColor, color: m.tipoColor }}>
-                              {m.tipo}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs py-1.5 max-w-[200px] truncate" title={m.descricao}>{m.descricao}</TableCell>
-                          <TableCell className="text-xs py-1.5 max-w-[150px] truncate text-muted-foreground" title={m.detalhamento}>{m.detalhamento}</TableCell>
-                          <TableCell className="text-xs py-1.5 text-right font-medium" style={m.isEntrada ? { color: 'hsl(142 70% 35%)' } : {}}>
-                            {m.isEntrada ? `+${fmt(Math.abs(m.valorLiquido))}` : ''}
-                          </TableCell>
-                          <TableCell className="text-xs py-1.5 text-right font-medium" style={!m.isEntrada ? { color: 'hsl(var(--destructive))' } : {}}>
-                            {!m.isEntrada ? `-${fmt(Math.abs(m.valorLiquido))}` : ''}
-                          </TableCell>
-                          <TableCell className={`text-xs py-1.5 text-right font-semibold ${m.saldoAcumulado >= 0 ? '' : ''}`} style={{ color: m.saldoAcumulado >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                            {fmt(m.saldoAcumulado)}
-                          </TableCell>
-                          {!selectedBanco && <TableCell className="text-xs py-1.5 font-medium">{m.banco}</TableCell>}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="bg-primary/10">
-                        <TableCell colSpan={2} className="text-xs font-bold">TOTAL</TableCell>
-                        <TableCell colSpan={2} className="text-xs" />
-                        <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(142 70% 35%)' }}>
-                          +{fmt(movements.filter(m => m.isEntrada).reduce((s, m) => s + Math.abs(m.valorLiquido), 0))}
-                        </TableCell>
-                        <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(var(--destructive))' }}>
-                          -{fmt(movements.filter(m => !m.isEntrada).reduce((s, m) => s + Math.abs(m.valorLiquido), 0))}
-                        </TableCell>
-                        <TableCell className="text-xs text-right font-bold" style={{ color: (movementsWithSaldo[movementsWithSaldo.length - 1]?.saldoAcumulado ?? saldoInicialFiltrado) >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                          {fmt(movementsWithSaldo[movementsWithSaldo.length - 1]?.saldoAcumulado ?? saldoInicialFiltrado)}
-                        </TableCell>
-                        {!selectedBanco && <TableCell className="text-xs" />}
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
+              <CardContent className="px-4 pb-4 pt-0 space-y-0">
+                {/* Saldo inicial row */}
+                <div className="flex justify-between items-center text-xs py-2 px-3 bg-primary/5 rounded-t border border-border/50">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">Saldo Inicial</Badge>
+                    <span className="font-medium text-muted-foreground">Saldo transportado</span>
+                  </div>
+                  <span className="font-bold">{fmt(saldoInicialFiltrado)}</span>
+                </div>
+
+                {/* Grupos por tipo com collapsible */}
+                {sortedTipos.map(tipo => {
+                  const items = groupedByTipo.get(tipo)!;
+                  const isEnt = items[0]?.isEntrada;
+                  const groupTotal = items.reduce((s, m) => s + Math.abs(m.valorLiquido), 0);
+
+                  return (
+                    <Collapsible key={tipo} defaultOpen={true}>
+                      <CollapsibleTrigger className="w-full">
+                        <div className="flex justify-between items-center text-xs py-2 px-3 bg-muted/30 border-x border-b border-border/50 hover:bg-muted/60 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: items[0]?.tipoColor }} />
+                            <span className="font-bold">{tipo}</span>
+                            <span className="text-muted-foreground">({items.length})</span>
+                          </div>
+                          <span className="font-bold" style={{ color: items[0]?.tipoColor }}>
+                            {isEnt ? '+' : '-'}{fmt(groupTotal)}
+                          </span>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="border-x border-border/50">
+                          <Table>
+                            <TableBody>
+                              {items.map((m, i) => (
+                                <TableRow key={`${m.id}-${i}`} className="hover:bg-muted/20">
+                                  <TableCell className="text-xs py-1.5 w-16 pl-6">{m.date}</TableCell>
+                                  <TableCell className="text-xs py-1.5 max-w-[220px] truncate" title={m.descricao}>{m.descricao}</TableCell>
+                                  <TableCell className="text-xs py-1.5 max-w-[160px] truncate text-muted-foreground" title={m.detalhamento}>{m.detalhamento}</TableCell>
+                                  {!selectedBanco && (
+                                    <TableCell className="text-xs py-1.5 w-20 font-medium">{m.banco}</TableCell>
+                                  )}
+                                  <TableCell className="text-xs py-1.5 text-right w-24 font-medium" style={{ color: isEnt ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                                    {isEnt ? '+' : '-'}{fmt(Math.abs(m.valorLiquido))}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                })}
+
+                {/* Total footer */}
+                <div className="flex justify-between items-center text-xs py-2 px-3 bg-primary/10 rounded-b border border-border/50 font-bold">
+                  <span>SALDO FINAL</span>
+                  <span style={{ color: (movementsWithSaldo[movementsWithSaldo.length - 1]?.saldoAcumulado ?? saldoInicialFiltrado) >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                    {fmt(movementsWithSaldo[movementsWithSaldo.length - 1]?.saldoAcumulado ?? saldoInicialFiltrado)}
+                  </span>
                 </div>
               </CardContent>
             </Card>
           );
         })()}
-
-        {/* ══════ CONCILIAÇÃO BANCÁRIA ══════ */}
-        {fluxoBancos.length > 0 && (
-          <Card>
-            <CardHeader className="py-3 px-4">
-              <div className="flex items-center gap-2">
-                <Landmark className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-bold">CONCILIAÇÃO BANCÁRIA</CardTitle>
-              </div>
-              <p className="text-xs text-muted-foreground">Detalhamento completo por banco com todas as categorias de movimentação</p>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 pt-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs py-1.5">Banco</TableHead>
-                      <TableHead className="text-xs py-1.5 text-right">Saldo Inicial</TableHead>
-                      <TableHead className="text-xs py-1.5 text-right">Receitas</TableHead>
-                      <TableHead className="text-xs py-1.5 text-right">Despesas</TableHead>
-                      <TableHead className="text-xs py-1.5 text-right">Saídas Cx</TableHead>
-                      <TableHead className="text-xs py-1.5 text-right">Entradas Cx</TableHead>
-                      <TableHead className="text-xs py-1.5 text-right">Transf.</TableHead>
-                      <TableHead className="text-xs py-1.5 text-right font-bold">Saldo Final</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(() => {
-                      const bancosToShow = selectedBanco ? fluxoBancos.filter(b => b.banco === selectedBanco) : fluxoBancos;
-                      const maxReceita = Math.max(...bancosToShow.map(b => b.receitas), 1);
-                      const maxDespesa = Math.max(...bancosToShow.map(b => b.despesas), 1);
-
-                      return bancosToShow.map(b => (
-                        <TableRow key={b.banco} className="hover:bg-muted/30">
-                          <TableCell className="text-xs py-2 font-medium">
-                            <div className="flex items-center gap-1.5">
-                              <Building2 className="h-3 w-3 text-muted-foreground" />
-                              {b.banco}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-right">{fmt(b.saldoInicial)}</TableCell>
-                          <TableCell className="text-xs py-2 text-right">
-                            <div className="space-y-1">
-                              <span style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(b.receitas)}</span>
-                              <div className="w-full bg-muted rounded-full h-1">
-                                <div className="h-1 rounded-full" style={{ width: `${(b.receitas / maxReceita) * 100}%`, backgroundColor: 'hsl(142 70% 35%)' }} />
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-right">
-                            <div className="space-y-1">
-                              <span style={{ color: 'hsl(var(--destructive))' }}>-{fmt(b.despesas)}</span>
-                              <div className="w-full bg-muted rounded-full h-1">
-                                <div className="h-1 rounded-full bg-destructive" style={{ width: `${(b.despesas / maxDespesa) * 100}%` }} />
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-right" style={{ color: 'hsl(0 70% 50%)' }}>
-                            {b.destinacoes > 0 ? `-${fmt(b.destinacoes)}` : '—'}
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-right" style={{ color: 'hsl(142 70% 35%)' }}>
-                            {b.resgates > 0 ? `+${fmt(b.resgates)}` : '—'}
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-right">
-                            <span style={{ color: b.transferencias >= 0 ? 'hsl(210 70% 50%)' : 'hsl(var(--destructive))' }}>
-                              {b.transferencias !== 0 ? `${b.transferencias >= 0 ? '+' : ''}${fmt(b.transferencias)}` : '—'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-right font-bold" style={{ color: b.saldoFinal >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                            {fmt(b.saldoFinal)}
-                          </TableCell>
-                        </TableRow>
-                      ));
-                    })()}
-                  </TableBody>
-                  <TableFooter>
-                    {(() => {
-                      const bancosToShow = selectedBanco ? fluxoBancos.filter(b => b.banco === selectedBanco) : fluxoBancos;
-                      const totSI = bancosToShow.reduce((s, b) => s + b.saldoInicial, 0);
-                      const totRec = bancosToShow.reduce((s, b) => s + b.receitas, 0);
-                      const totDesp = bancosToShow.reduce((s, b) => s + b.despesas, 0);
-                      const totDest = bancosToShow.reduce((s, b) => s + b.destinacoes, 0);
-                      const totResg = bancosToShow.reduce((s, b) => s + b.resgates, 0);
-                      const totTransf = bancosToShow.reduce((s, b) => s + b.transferencias, 0);
-                      const totSF = bancosToShow.reduce((s, b) => s + b.saldoFinal, 0);
-                      return (
-                        <TableRow className="bg-primary/10">
-                          <TableCell className="text-xs font-bold">TOTAL</TableCell>
-                          <TableCell className="text-xs text-right font-bold">{fmt(totSI)}</TableCell>
-                          <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(totRec)}</TableCell>
-                          <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(totDesp)}</TableCell>
-                          <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(0 70% 50%)' }}>{totDest > 0 ? `-${fmt(totDest)}` : '—'}</TableCell>
-                          <TableCell className="text-xs text-right font-bold" style={{ color: 'hsl(142 70% 35%)' }}>{totResg > 0 ? `+${fmt(totResg)}` : '—'}</TableCell>
-                          <TableCell className="text-xs text-right font-bold" style={{ color: totTransf >= 0 ? 'hsl(210 70% 50%)' : 'hsl(var(--destructive))' }}>
-                            {totTransf !== 0 ? `${totTransf >= 0 ? '+' : ''}${fmt(totTransf)}` : '—'}
-                          </TableCell>
-                          <TableCell className="text-xs text-right font-bold text-primary">{fmt(totSF)}</TableCell>
-                        </TableRow>
-                      );
-                    })()}
-                  </TableFooter>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* ══════ RESUMO DO FLUXO (card colapsável existente) ══════ */}
         <Card className="border-2 border-primary">
