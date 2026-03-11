@@ -323,7 +323,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       b.saldoFinal = saldoInicialYTD + sumVL;
     });
     return Array.from(bancos.values()).sort((a, b) => a.banco.localeCompare(b.banco));
-  }, [data, grouped.saldoInicial]);
+  }, [data, allData, selectedMonth, selectedYear, grouped.saldoInicial]);
 
   const fluxoTotal = useMemo(() => {
     return fluxoBancos.reduce(
