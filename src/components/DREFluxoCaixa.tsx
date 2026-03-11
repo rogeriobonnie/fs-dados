@@ -1259,7 +1259,8 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
             {/* ── INVESTIMENTOS (custoNum 50) ── */}
             {(() => {
               const totalInvestido = grouped.investimentos.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-              const patrimonioTotal = totals.saldoFinalLivre + totalInvestido;
+              const saldoFinalBancosReais = fluxoBancos.filter(b => !['INVEST', 'L2', 'PROVISAO'].includes(b.banco.toUpperCase())).reduce((s, b) => s + b.saldoFinal, 0);
+              const patrimonioTotal = saldoFinalBancosReais + totalInvestido;
 
               if (grouped.investimentos.length === 0 && totalInvestido === 0) return null;
 
