@@ -1,97 +1,48 @@
 
 
-## Painel Historico Anual - Nova Aba "Historico"
+## Plano: Adicionar Despesas Provisionadas (custo 33) + Resultado Mensal + Reorganizar Reservas
 
-Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
+### O que muda
 
----
+Após o **Patrimônio Final**, adicionar uma nova seção:
 
-### O que sera construido
+1. **Despesas do Mês Subsequente (custoNum 33)** — agrupadas por `descricao` (coluna B), com subtotais por grupo e total geral. Esse total é subtraído do Patrimônio Final.
 
-Uma pagina com 3 niveis de detalhe:
+2. **Resultado Mensal** = Patrimônio Final - Total Desp Mês Sub
 
-**Nivel 1 - Visao Macro (cards anuais)**
-- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
-  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
-  - Margem operacional (%)
-  - Barra de progresso visual comparando receita vs despesa
+3. **Resultado ÷ 3** — uma linha abaixo mostrando o valor dividido por 3.
 
-**Nivel 2 - Ao clicar no ano, expande:**
-- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
-- Grafico de barras empilhadas (Recharts) comparando todos os anos
-- Grafico de linha mostrando evolucao do resultado ao longo dos anos
+4. **Reservas/Caixinhas** — mover para depois do Resultado ÷ 3, com cor diferenciada (manter a cor azul que já tem). Remover a linha "Saldo Disponível" que fica no final.
 
-**Nivel 3 - Ao clicar em uma linha do ano, expande:**
-- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
-- Lista de itens individuais agrupados por categoria
+### Alterações em `src/components/DREFluxoCaixa.tsx`
 
----
+**1. Grouped data (linha ~140-166)**: Adicionar captura de `custoNum === 33` como `despMesSub`, agrupado por `r.descricao`.
 
-### Estrutura tecnica
+**2. JSX (após Patrimônio Final, linha ~1367)**: Dentro do mesmo IIFE que calcula patrimônio:
+- Seção "DESPESAS MÊS SUBSEQUENTE" (custoNum 33), colapsável, agrupada por descrição com subtotais
+- Linha "TOTAL DESP MÊS SUB" com total
+- Linha "RESULTADO MENSAL" = patrimonioFinal - totalDespMesSub
+- Linha "RESULTADO ÷ 3" = resultadoMensal / 3
 
-**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
-- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
-- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
+**3. Reservas (linha ~1372-1434)**: Mover para depois do bloco acima. Remover "Saldo Disponível" (linhas 1423-1430).
 
-**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
-- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
-- Agrupa por ano usando o campo `year` dos registros
-- Para cada ano calcula:
-  - Receitas: custoNum 1-10, soma de valorLiquido
-  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
-  - Resultado: Receitas - Despesas
-  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
-  - Margem: (Resultado / Receitas) * 100
-- Renderiza cards clicaveis por ano com Collapsible
-- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
-- Graficos comparativos usando Recharts (BarChart + LineChart)
-
-**3. Nova aba principal** (`src/pages/Index.tsx`)
-- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
-- Grid de 4 colunas no TabsList
-
----
-
-### Layout visual da pagina
+### Layout visual
 
 ```text
-+--------------------------------------------------+
-|  HISTORICO FINANCEIRO           [Atualizar]       |
-|  Evolucao anual da empresa desde 2022             |
-+--------------------------------------------------+
-
-+----------+ +----------+ +----------+ +----------+
-| 2022     | | 2023     | | 2024     | | 2025     |
-| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
-| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
-| Res +40k | | Res +100k| | Res +160k| | Res +90k |
-| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
-| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
-+----------+ +----------+ +----------+ +----------+
-
-[========= GRAFICO COMPARATIVO ANUAL =========]
-[  Barras: Receitas vs Despesas por ano        ]
-[  Linha: Evolucao do Resultado                ]
-[=============================================]
-
-+--------------------------------------------------+
-| TABELA COMPARATIVA                                |
-| Ano | Receitas | Despesas | Result | Dist | Marg  |
-| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
-|  v  (clica para expandir por centro de custo)     |
-|     01-Cursos FS:        R$ 90.000               |
-|     05-Cursos Terceiros: R$ 30.000               |
-|     11-Fixas:           -R$ 50.000               |
-|     12-Variaveis:       -R$ 30.000               |
-|     21-Distribuicoes:   -R$ 20.000               |
-+--------------------------------------------------+
+PATRIMÔNIO FINAL                          R$ XX.XXX
+──────────────────────────────────────────────────
+(-) DESP MÊS SUBSEQUENTE [33]
+    Aluguel (3)                          -R$ 3.000
+    Internet (1)                           -R$ 200
+    ...
+    TOTAL                                -R$ 5.000
+──────────────────────────────────────────────────
+RESULTADO MENSAL                          R$ XX.XXX
+    ÷ 3                                  R$ XX.XXX
+──────────────────────────────────────────────────
+RESERVAS / CAIXINHAS  (fundo azul)
+    51-Giro (2)                           R$ X.XXX
+    52-Caixinhas (3)                      R$ X.XXX
+    Total em Reservas                     R$ X.XXX
 ```
-
-### Arquivos a criar/modificar
-
-| Arquivo | Acao |
-|---------|------|
-| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
-| `src/components/HistoricoAnual.tsx` | Criar componente completo |
-| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
 
