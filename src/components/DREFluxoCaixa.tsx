@@ -298,7 +298,16 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       else { b.destinacoes += Math.abs(r.valorLiquido); }
     });
 
-    bancos.forEach(b => { b.saldoFinal = b.saldoInicial + b.receitas - b.despesas - b.destinacoes + b.resgates + b.transferencias; });
+    // saldoFinal = saldoInicial + raw sum of valorLiquido (matching spreadsheet SOMA)
+    bancos.forEach(b => {
+      let sumVL = 0;
+      data.forEach(r => {
+        if (r.banco === b.banco && r.custoNum !== 0) {
+          sumVL += r.valorLiquido;
+        }
+      });
+      b.saldoFinal = b.saldoInicial + sumVL;
+    });
     return Array.from(bancos.values()).sort((a, b) => a.banco.localeCompare(b.banco));
   }, [data, grouped.saldoInicial]);
 
