@@ -139,6 +139,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const provisoes: Record<string, Pagina5Record[]> = {};
     const investimentos: Pagina5Record[] = [];
     const reservas: Record<string, Pagina5Record[]> = {};
+    const lanceADois: Pagina5Record[] = [];
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
