@@ -153,6 +153,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
         provisoes[r.custo].push(r);
     } else if (r.custoNum === 32) {
       lanceADois.push(r);
+    } else if (r.custoNum === 33) {
+      const key = r.descricao || 'Sem descrição';
+      if (!despMesSub[key]) despMesSub[key] = [];
+      despMesSub[key].push(r);
     } else if (r.custoNum === 50) {
       investimentos.push(r);
     } else if (r.custoNum === 51 || r.custoNum === 52) {
