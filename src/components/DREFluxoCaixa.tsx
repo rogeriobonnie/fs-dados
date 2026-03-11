@@ -154,9 +154,11 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       } else if (r.custoNum === 31 && (r.banco || '').toUpperCase() === 'PROVISAO') {
         if (!provisoes[r.custo]) provisoes[r.custo] = [];
         provisoes[r.custo].push(r);
-      } else if (r.custoNum === 50) {
-        investimentos.push(r);
-      } else if (r.custoNum === 51 || r.custoNum === 52) {
+    } else if (r.custoNum === 32) {
+      lanceADois.push(r);
+    } else if (r.custoNum === 50) {
+      investimentos.push(r);
+    } else if (r.custoNum === 51 || r.custoNum === 52) {
         if (!reservas[r.custo]) reservas[r.custo] = [];
         reservas[r.custo].push(r);
       } else if (r.custoNum === 97 || r.custoNum === 98) {
