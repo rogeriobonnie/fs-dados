@@ -34,8 +34,7 @@ const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, numb
     else if (r.custoNum >= 21 && r.custoNum <= 30 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
     else if ((r.custoNum === 97 || r.custoNum === 98) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].entradas += Math.abs(r.valorLiquido); }
     else if (r.custoNum === 99) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].transf += r.valorLiquido; }
-    else if ((r.custoNum === 32 || r.custoNum === 50 || r.custoNum === 51 || r.custoNum === 52) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
-    else if (r.custoNum === 31 && r.banco !== 'PROVISAO' && (r.banco || '').toUpperCase() !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
+     // custoNum 31,32,50,51,52 are accounting categories, NOT real bank movements
   });
 
   const result: Record<string, number> = {};
@@ -280,10 +279,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     Object.values(grouped.saidasCaixa).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorLiquido); });
     Object.values(grouped.entradasCaixa).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.resgates += Math.abs(r.valorLiquido); });
     grouped.transferencias.forEach(r => { ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.transferencias += r.valorLiquido; });
-    // Include investimentos and reservas as bank outflows
-    grouped.investimentos.forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorLiquido); });
-    Object.values(grouped.reservas).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorLiquido); });
-    grouped.lanceADois.forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorLiquido); });
+    // custoNum 31,32,50,51,52 excluded from bank balance (accounting categories, not real bank movements)
 
     bancos.forEach(b => { b.saldoFinal = b.saldoInicial + b.receitas - b.despesas - b.destinacoes + b.resgates + b.transferencias; });
     return Array.from(bancos.values()).sort((a, b) => a.banco.localeCompare(b.banco));
@@ -1223,7 +1219,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="px-4 pb-3 space-y-1">
-                    {fluxoBancos.map(b => (
+                    {fluxoBancos.filter(b => !['INVEST', 'L2', 'PROVISAO'].includes(b.banco.toUpperCase())).map(b => (
                       <div key={b.banco} className="flex justify-between items-center text-xs pl-6">
                         <span className="text-muted-foreground">{b.banco}</span>
                         <span className="font-semibold" style={{ color: b.saldoFinal >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>{fmt(b.saldoFinal)}</span>
