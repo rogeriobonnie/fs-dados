@@ -1238,8 +1238,8 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                       <span className="text-sm font-bold">═ SALDO FINAL DO MÊS</span>
                       <ChevronDown className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    <span className="text-base font-bold" style={{ color: totals.saldoFinalLivre >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
-                      {fmt(totals.saldoFinalLivre)}
+                    <span className="text-base font-bold" style={{ color: fluxoBancos.filter(b => !['INVEST', 'L2', 'PROVISAO'].includes(b.banco.toUpperCase())).reduce((s, b) => s + b.saldoFinal, 0) >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>
+                      {fmt(fluxoBancos.filter(b => !['INVEST', 'L2', 'PROVISAO'].includes(b.banco.toUpperCase())).reduce((s, b) => s + b.saldoFinal, 0))}
                     </span>
                   </div>
                 </CollapsibleTrigger>
