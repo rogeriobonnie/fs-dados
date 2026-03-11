@@ -34,6 +34,7 @@ const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, numb
     else if (r.custoNum >= 21 && r.custoNum <= 30 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
     else if ((r.custoNum === 97 || r.custoNum === 98) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].entradas += Math.abs(r.valorLiquido); }
     else if (r.custoNum === 99) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].transf += r.valorLiquido; }
+    else if ((r.custoNum === 50 || r.custoNum === 51 || r.custoNum === 52) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
   });
 
   const result: Record<string, number> = {};
@@ -138,6 +139,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const provisoes: Record<string, Pagina5Record[]> = {};
     const investimentos: Pagina5Record[] = [];
     const reservas: Record<string, Pagina5Record[]> = {};
+    const lanceADois: Pagina5Record[] = [];
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
@@ -152,9 +154,11 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       } else if (r.custoNum === 31 && (r.banco || '').toUpperCase() === 'PROVISAO') {
         if (!provisoes[r.custo]) provisoes[r.custo] = [];
         provisoes[r.custo].push(r);
-      } else if (r.custoNum === 50) {
-        investimentos.push(r);
-      } else if (r.custoNum === 51 || r.custoNum === 52) {
+    } else if (r.custoNum === 32) {
+      lanceADois.push(r);
+    } else if (r.custoNum === 50) {
+      investimentos.push(r);
+    } else if (r.custoNum === 51 || r.custoNum === 52) {
         if (!reservas[r.custo]) reservas[r.custo] = [];
         reservas[r.custo].push(r);
       } else if (r.custoNum === 97 || r.custoNum === 98) {
@@ -163,7 +167,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       }
     });
 
-    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas };
+    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois };
   }, [data, saldoTransportado, selectedMonth, selectedYear]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
@@ -275,6 +279,9 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     Object.values(grouped.saidasCaixa).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorLiquido); });
     Object.values(grouped.entradasCaixa).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.resgates += Math.abs(r.valorLiquido); });
     grouped.transferencias.forEach(r => { ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.transferencias += r.valorLiquido; });
+    // Include investimentos and reservas as bank outflows
+    grouped.investimentos.forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorLiquido); });
+    Object.values(grouped.reservas).flat().forEach(r => { if (r.banco === 'PROVISAO') return; ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.destinacoes += Math.abs(r.valorLiquido); });
 
     bancos.forEach(b => { b.saldoFinal = b.saldoInicial + b.receitas - b.despesas - b.destinacoes + b.resgates + b.transferencias; });
     return Array.from(bancos.values()).sort((a, b) => a.banco.localeCompare(b.banco));
@@ -1258,14 +1265,81 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                     </CollapsibleContent>
                   </Collapsible>
                   {/* Patrimônio Total */}
-                  <div className="flex justify-between items-center py-2 px-4 bg-muted/30 border-t border-border/50">
-                    <div className="flex items-center gap-2">
-                      <Banknote className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-bold">PATRIMÔNIO TOTAL</span>
-                      <span className="text-[10px] text-muted-foreground">(Saldo em Bancos + Investimentos)</span>
-                    </div>
-                    <span className="text-sm font-bold text-primary">{fmt(patrimonioTotal)}</span>
-                  </div>
+                  {(() => {
+                    const totalProvisao32 = grouped.lanceADois.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                    const patrimonioLiquido = patrimonioTotal - totalProvisao32;
+                    const investimentoXP = patrimonioLiquido * 0.10;
+                    const patrimonioFinal = patrimonioLiquido - investimentoXP;
+
+                    return (
+                      <div className="border-t border-border/50 bg-muted/30 space-y-0">
+                        {/* Patrimônio Total */}
+                        <div className="flex justify-between items-center py-2 px-4">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-bold">PATRIMÔNIO TOTAL</span>
+                            <span className="text-[10px] text-muted-foreground">(Saldo em Bancos + Investimentos)</span>
+                          </div>
+                          <span className="text-sm font-bold text-primary">{fmt(patrimonioTotal)}</span>
+                        </div>
+
+                        {/* Provisão Lance a Dois */}
+                        {grouped.lanceADois.length > 0 && (
+                          <Collapsible>
+                            <CollapsibleTrigger className="w-full">
+                              <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 hover:bg-muted/40 transition-colors cursor-pointer border-t border-border/30">
+                                <div className="flex items-center gap-1.5">
+                                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                  <span className="font-medium text-destructive">(-) Provisão Lance a Dois</span>
+                                  <Badge variant="outline" className="text-[10px]">32</Badge>
+                                  <span className="text-muted-foreground">({grouped.lanceADois.length})</span>
+                                </div>
+                                <span className="font-semibold text-destructive">-{fmt(totalProvisao32)}</span>
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="pl-12 pr-4 pb-1">
+                                {grouped.lanceADois.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
+                                  <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
+                                    <span className="truncate max-w-[65%]">{r.date} - {r.descricao} {r.detalhamento ? `- ${r.detalhamento}` : ''} {r.banco ? `[${r.banco}]` : ''}</span>
+                                    <span className="font-medium">{fmt(Math.abs(r.valorLiquido))}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )}
+
+                        {/* Patrimônio Líquido */}
+                        <div className="flex justify-between items-center py-2 px-4 border-t border-border/50 bg-primary/5">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-bold">PATRIMÔNIO LÍQUIDO</span>
+                            <span className="text-[10px] text-muted-foreground">(Patrimônio Total - Provisão)</span>
+                          </div>
+                          <span className="text-sm font-bold text-primary">{fmt(patrimonioLiquido)}</span>
+                        </div>
+
+                        {/* Investimento XP (10%) */}
+                        <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 border-t border-border/30">
+                          <div className="flex items-center gap-1.5">
+                            <TrendingDown className="h-3 w-3" style={{ color: 'hsl(45 80% 50%)' }} />
+                            <span className="font-medium">(-) Investimento XP (10%)</span>
+                          </div>
+                          <span className="font-semibold" style={{ color: 'hsl(45 80% 50%)' }}>-{fmt(investimentoXP)}</span>
+                        </div>
+
+                        {/* Patrimônio Final */}
+                        <div className="flex justify-between items-center py-2.5 px-4 border-t border-border bg-primary/10">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-bold">PATRIMÔNIO FINAL</span>
+                          </div>
+                          <span className="text-base font-bold text-primary">{fmt(patrimonioFinal)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
