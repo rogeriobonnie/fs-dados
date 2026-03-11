@@ -1,78 +1,97 @@
 
 
-## Plano: Redesign completo do Fluxo de Caixa - Formato Extrato Compacto
+## Painel Historico Anual - Nova Aba "Historico"
 
-### Visão geral
+Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
 
-Substituir toda a seção "FLUXO DE CAIXA" (linhas 1029-1499) por um extrato contábil compacto e sequencial, sem cards de banco separados. Adicionar captura de custoNum 50, 51, 52 nos dados agrupados.
+---
 
-### Nova estrutura visual
+### O que sera construido
+
+Uma pagina com 3 niveis de detalhe:
+
+**Nivel 1 - Visao Macro (cards anuais)**
+- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
+  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
+  - Margem operacional (%)
+  - Barra de progresso visual comparando receita vs despesa
+
+**Nivel 2 - Ao clicar no ano, expande:**
+- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
+- Grafico de barras empilhadas (Recharts) comparando todos os anos
+- Grafico de linha mostrando evolucao do resultado ao longo dos anos
+
+**Nivel 3 - Ao clicar em uma linha do ano, expande:**
+- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
+- Lista de itens individuais agrupados por categoria
+
+---
+
+### Estrutura tecnica
+
+**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
+- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
+- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
+
+**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
+- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
+- Agrupa por ano usando o campo `year` dos registros
+- Para cada ano calcula:
+  - Receitas: custoNum 1-10, soma de valorLiquido
+  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
+  - Resultado: Receitas - Despesas
+  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
+  - Margem: (Resultado / Receitas) * 100
+- Renderiza cards clicaveis por ano com Collapsible
+- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
+- Graficos comparativos usando Recharts (BarChart + LineChart)
+
+**3. Nova aba principal** (`src/pages/Index.tsx`)
+- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
+- Grid de 4 colunas no TabsList
+
+---
+
+### Layout visual da pagina
 
 ```text
-═══ FLUXO DE CAIXA ═══
++--------------------------------------------------+
+|  HISTORICO FINANCEIRO           [Atualizar]       |
+|  Evolucao anual da empresa desde 2022             |
++--------------------------------------------------+
 
-┌─────────────────────────────────────────────────────┐
-│ SALDO INICIAL EM CAIXA           R$ 150.000,00      │
-│  ▸ Banco Inter                     R$ 50.000,00     │
-│  ▸ Banco Caixa                     R$ 60.000,00     │
-│  ▸ Banco PagBank                   R$ 40.000,00     │
-├─────────────────────────────────────────────────────┤
-│ (+) ENTRADAS                     R$ 280.000,00      │
-│  ▸ 01-Cursos FS (12)             R$ 200.000,00  ▾   │
-│    │ 15/01 - Curso XYZ - Banco Inter   R$ 5.000     │
-│    │ 16/01 - Curso ABC - Banco Caixa   R$ 3.200     │
-│  ▸ 05-Cursos Terceiros (3)        R$ 30.000,00  ▾   │
-│  ▸ 97-Resgates (2)                R$ 50.000,00  ▾   │
-├─────────────────────────────────────────────────────┤
-│ (-) SAÍDAS                      -R$ 220.000,00      │
-│  ▸ 11-Fixas (8)                  -R$ 80.000,00  ▾   │
-│  ▸ 12-Variáveis (5)             -R$ 40.000,00  ▾   │
-│  ▸ 21-Distribuições (1)         -R$ 50.000,00  ▾   │
-│  ▸ 99-Transferências (2)        -R$ 50.000,00  ▾   │
-├─────────────────────────────────────────────────────┤
-│ ═ SALDO FINAL DO MÊS              R$ 210.000,00    │
-│  ▸ Banco Inter                     R$ 80.000,00     │
-│  ▸ Banco Caixa                     R$ 70.000,00     │
-│  ▸ Banco PagBank                   R$ 60.000,00     │
-├─────────────────────────────────────────────────────┤
-│ 💰 INVESTIMENTOS (50)              R$ 30.000,00     │
-│  ▸ Detalhamento dos itens custoNum 50               │
-│                                                     │
-│ PATRIMÔNIO TOTAL                   R$ 240.000,00    │
-│  = Saldo em Bancos + Saldo Investido                │
-├─────────────────────────────────────────────────────┤
-│ 📦 RESERVAS / CAIXINHAS                             │
-│  ▸ 51-GIRO                         R$ 15.000,00    │
-│    │ detalhamento...                                │
-│  ▸ 52-CAIXINHAS                     R$ 10.000,00    │
-│    │ detalhamento...                                │
-│  Total em Reservas                  R$ 25.000,00    │
-│  Saldo Disponível (SF - Reservas)   R$ 185.000,00   │
-└─────────────────────────────────────────────────────┘
++----------+ +----------+ +----------+ +----------+
+| 2022     | | 2023     | | 2024     | | 2025     |
+| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
+| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
+| Res +40k | | Res +100k| | Res +160k| | Res +90k |
+| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
+| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
++----------+ +----------+ +----------+ +----------+
+
+[========= GRAFICO COMPARATIVO ANUAL =========]
+[  Barras: Receitas vs Despesas por ano        ]
+[  Linha: Evolucao do Resultado                ]
+[=============================================]
+
++--------------------------------------------------+
+| TABELA COMPARATIVA                                |
+| Ano | Receitas | Despesas | Result | Dist | Marg  |
+| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
+|  v  (clica para expandir por centro de custo)     |
+|     01-Cursos FS:        R$ 90.000               |
+|     05-Cursos Terceiros: R$ 30.000               |
+|     11-Fixas:           -R$ 50.000               |
+|     12-Variaveis:       -R$ 30.000               |
+|     21-Distribuicoes:   -R$ 20.000               |
++--------------------------------------------------+
 ```
 
-### Implementação
+### Arquivos a criar/modificar
 
-**1. Adicionar custoNum 50, 51, 52 ao `grouped`** (linhas 103-161)
-- Novo grupo `investimentos: Record<string, Pagina5Record[]>` para custoNum 50
-- Novo grupo `reservas: Record<string, Pagina5Record[]>` para custoNum 51 e 52
-- Adicionar ao return do useMemo
-
-**2. Classificação de entradas vs saídas para o extrato:**
-- **Entradas**: receitas (1-10) + entradasCaixa (97,98) + transferências positivas
-- **Saídas**: despesas (11-20) + saidasCaixa (21-30) + transferências negativas
-
-**3. Substituir toda a seção FLUXO DE CAIXA** (linhas 1029-1499) por um único `Card` com layout de extrato sequencial:
-- Cada seção é um bloco compacto com header e itens colapsáveis por centro de custo
-- Sem cards separados por banco, sem botões de filtro
-- Tudo em um fluxo vertical contínuo e legível
-
-**4. Saldo Final por banco** - reutilizar `fluxoBancos` já calculado para mostrar breakdown
-
-**5. Seção Investimentos** - somar `valorLiquido` de custoNum 50, mostrar `Patrimônio Total = Saldo Final + Investimentos`
-
-**6. Seção Reservas** - somar custoNum 51 (GIRO) e 52 (CAIXINHAS), mostrar total e `Saldo Disponível = Saldo Final - Reservas`
-
-### Arquivo alterado
-`src/components/DREFluxoCaixa.tsx`
+| Arquivo | Acao |
+|---------|------|
+| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
+| `src/components/HistoricoAnual.tsx` | Criar componente completo |
+| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
 
