@@ -20,28 +20,35 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 // Calculate saldo final per banco for a given month's data
+// Simple logic: iterate all records, group by banco, sum — matches spreadsheet filter
 const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, number> => {
-  const bancos: Record<string, { si: number; rec: number; desp: number; saidas: number; entradas: number; transf: number }> = {};
-  const ensure = (b: string) => {
-    if (!b || b === 'PROVISAO') return;
-    if (!bancos[b]) bancos[b] = { si: 0, rec: 0, desp: 0, saidas: 0, entradas: 0, transf: 0 };
-  };
+  const NON_BANKS = ['PROVISAO', 'PAGO', 'INVEST', 'L2', ''];
+  const bancos: Record<string, number> = {};
 
   monthData.forEach(r => {
-    if (r.custoNum === 0) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].si += r.valorBruto; }
-    else if (r.custoNum >= 1 && r.custoNum <= 10 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].rec += r.valorLiquido; }
-    else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO' && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].desp += Math.abs(r.valorLiquido); }
-    else if (r.custoNum >= 21 && r.custoNum <= 30 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
-    else if ((r.custoNum === 97 || r.custoNum === 98) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].entradas += Math.abs(r.valorLiquido); }
-    else if (r.custoNum === 99) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].transf += r.valorLiquido; }
-     // custoNum 31,32,50,51,52 are accounting categories, NOT real bank movements
+    const banco = (r.banco || '').toUpperCase();
+    if (NON_BANKS.includes(banco)) return;
+    if (!bancos[r.banco]) bancos[r.banco] = 0;
+
+    if (r.custoNum === 0) {
+      bancos[r.banco] += r.valorBruto;
+    } else if (r.custoNum >= 1 && r.custoNum <= 10) {
+      bancos[r.banco] += r.valorLiquido;
+    } else if (r.custoNum >= 11 && r.custoNum <= 20) {
+      bancos[r.banco] -= Math.abs(r.valorLiquido);
+    } else if (r.custoNum >= 21 && r.custoNum <= 30) {
+      bancos[r.banco] -= Math.abs(r.valorLiquido);
+    } else if (r.custoNum === 97 || r.custoNum === 98) {
+      bancos[r.banco] += Math.abs(r.valorLiquido);
+    } else if (r.custoNum === 99) {
+      bancos[r.banco] += r.valorLiquido;
+    } else {
+      // All other custoNum (31,32,50,51,52): count as outflow from this bank
+      bancos[r.banco] -= Math.abs(r.valorLiquido);
+    }
   });
 
-  const result: Record<string, number> = {};
-  Object.entries(bancos).forEach(([banco, v]) => {
-    result[banco] = v.si + v.rec - v.desp - v.saidas + v.entradas + v.transf;
-  });
-  return result;
+  return bancos;
 };
 
 // Recursively find saldo inicial for a month by computing previous month's saldo final
