@@ -1219,7 +1219,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="px-4 pb-3 space-y-1">
-                    {fluxoBancos.map(b => (
+                    {fluxoBancos.filter(b => !['INVEST', 'L2', 'PROVISAO'].includes(b.banco.toUpperCase())).map(b => (
                       <div key={b.banco} className="flex justify-between items-center text-xs pl-6">
                         <span className="text-muted-foreground">{b.banco}</span>
                         <span className="font-semibold" style={{ color: b.saldoFinal >= 0 ? 'hsl(142 70% 35%)' : 'hsl(var(--destructive))' }}>{fmt(b.saldoFinal)}</span>
