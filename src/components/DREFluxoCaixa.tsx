@@ -34,8 +34,7 @@ const calcSaldoFinalPorBanco = (monthData: Pagina5Record[]): Record<string, numb
     else if (r.custoNum >= 21 && r.custoNum <= 30 && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
     else if ((r.custoNum === 97 || r.custoNum === 98) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].entradas += Math.abs(r.valorLiquido); }
     else if (r.custoNum === 99) { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].transf += r.valorLiquido; }
-    else if ((r.custoNum === 32 || r.custoNum === 50 || r.custoNum === 51 || r.custoNum === 52) && r.banco !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
-    else if (r.custoNum === 31 && r.banco !== 'PROVISAO' && (r.banco || '').toUpperCase() !== 'PROVISAO') { ensure(r.banco); if (bancos[r.banco]) bancos[r.banco].saidas += Math.abs(r.valorLiquido); }
+     // custoNum 31,32,50,51,52 are accounting categories, NOT real bank movements
   });
 
   const result: Record<string, number> = {};
