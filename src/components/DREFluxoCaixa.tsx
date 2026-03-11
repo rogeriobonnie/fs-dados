@@ -281,6 +281,14 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     grouped.transferencias.forEach(r => { ensureBanco(r.banco); const b = bancos.get(r.banco); if (b) b.transferencias += r.valorLiquido; });
     // custoNum 31,32,50,51,52 excluded from bank balance (accounting categories, not real bank movements)
 
+    // DEBUG: log AZUL bank details
+    const azulData = data.filter(r => (r.banco || '').toUpperCase() === 'AZUL');
+    console.log('=== DEBUG AZUL ===', {
+      totalRecords: azulData.length,
+      records: azulData.map(r => ({ custoNum: r.custoNum, custo: r.custo, desc: r.descricao, valorBruto: r.valorBruto, valorLiquido: r.valorLiquido, banco: r.banco })),
+      bancoAzul: bancos.get('AZUL'),
+    });
+
     bancos.forEach(b => { b.saldoFinal = b.saldoInicial + b.receitas - b.despesas - b.destinacoes + b.resgates + b.transferencias; });
     return Array.from(bancos.values()).sort((a, b) => a.banco.localeCompare(b.banco));
   }, [grouped]);
