@@ -1,40 +1,97 @@
 
 
-## Plano: Atualizar PDF do DRE + Fluxo com nova lógica completa
+## Painel Historico Anual - Nova Aba "Historico"
 
-### Problema
-O PDF atual (linhas 400-862) para na seção "Saldo por Banco" e não inclui as seções adicionadas recentemente na UI: Investimentos, Patrimônio Total/Líquido/Final, Provisão Lance a Dois, Investimento XP, Despesas Mês Subsequente, Resultado Mensal, Resultado ÷ 3, e Reservas/Caixinhas.
+Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
 
-### Alterações em `src/components/DREFluxoCaixa.tsx` — função `generatePDF` (linhas 400-862)
+---
 
-**Página 2 (Fluxo de Caixa)** — após "Saldo por Banco" (linha 736), adicionar:
+### O que sera construido
 
-1. **Investimentos (custo 50)** — tabela com itens e total
-2. **Patrimônio Total** = Saldo Final Bancos Reais + Investimentos
-3. **(-) Provisão Lance a Dois (32)** — itens e total
-4. **Patrimônio Líquido** = Patrimônio Total - Provisão L2
-5. **(-) Investimento XP (10%)** do Patrimônio Líquido
-6. **Patrimônio Final** = Patrimônio Líquido - Investimento XP
-7. **(-) Despesas Mês Subsequente (33)** — agrupadas por descrição, com subtotais e total
-8. **Resultado Mensal** = Patrimônio Final - Total Desp Mês Sub
-9. **Resultado ÷ 3**
-10. **Reservas / Caixinhas (51, 52)** — tabela com fundo azul claro
+Uma pagina com 3 niveis de detalhe:
 
-**Página de Detalhamento** — após entradas de caixa (linha 860), adicionar:
+**Nivel 1 - Visao Macro (cards anuais)**
+- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
+  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
+  - Margem operacional (%)
+  - Barra de progresso visual comparando receita vs despesa
 
-11. **Detalhamento Provisões (31)** — se houver
-12. **Detalhamento Lance a Dois (32)** — se houver
-13. **Detalhamento Desp Mês Subsequente (33)** — agrupado por descrição
-14. **Detalhamento Investimentos (50)** — se houver
-15. **Detalhamento Reservas (51, 52)** — se houver
+**Nivel 2 - Ao clicar no ano, expande:**
+- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
+- Grafico de barras empilhadas (Recharts) comparando todos os anos
+- Grafico de linha mostrando evolucao do resultado ao longo dos anos
 
-### Cálculos no PDF
-Reutiliza os mesmos dados já calculados em `grouped`, `fluxoBancos`, `totals` — os valores de patrimônio serão recalculados inline na função `generatePDF` usando a mesma lógica do JSX (linhas 1274-1311).
+**Nivel 3 - Ao clicar em uma linha do ano, expande:**
+- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
+- Lista de itens individuais agrupados por categoria
 
-### Formato visual
-Cada seção usa `autoTable` com cores distintas:
-- Patrimônio: azul (`[0, 100, 180]`)
-- Desp Mês Sub: vermelho (`[200, 50, 50]`)
-- Resultado Mensal: cinza escuro com destaque verde/vermelho
-- Reservas: azul claro (`[100, 150, 220]`) com fundo `[230, 240, 255]`
+---
+
+### Estrutura tecnica
+
+**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
+- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
+- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
+
+**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
+- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
+- Agrupa por ano usando o campo `year` dos registros
+- Para cada ano calcula:
+  - Receitas: custoNum 1-10, soma de valorLiquido
+  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
+  - Resultado: Receitas - Despesas
+  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
+  - Margem: (Resultado / Receitas) * 100
+- Renderiza cards clicaveis por ano com Collapsible
+- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
+- Graficos comparativos usando Recharts (BarChart + LineChart)
+
+**3. Nova aba principal** (`src/pages/Index.tsx`)
+- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
+- Grid de 4 colunas no TabsList
+
+---
+
+### Layout visual da pagina
+
+```text
++--------------------------------------------------+
+|  HISTORICO FINANCEIRO           [Atualizar]       |
+|  Evolucao anual da empresa desde 2022             |
++--------------------------------------------------+
+
++----------+ +----------+ +----------+ +----------+
+| 2022     | | 2023     | | 2024     | | 2025     |
+| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
+| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
+| Res +40k | | Res +100k| | Res +160k| | Res +90k |
+| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
+| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
++----------+ +----------+ +----------+ +----------+
+
+[========= GRAFICO COMPARATIVO ANUAL =========]
+[  Barras: Receitas vs Despesas por ano        ]
+[  Linha: Evolucao do Resultado                ]
+[=============================================]
+
++--------------------------------------------------+
+| TABELA COMPARATIVA                                |
+| Ano | Receitas | Despesas | Result | Dist | Marg  |
+| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
+|  v  (clica para expandir por centro de custo)     |
+|     01-Cursos FS:        R$ 90.000               |
+|     05-Cursos Terceiros: R$ 30.000               |
+|     11-Fixas:           -R$ 50.000               |
+|     12-Variaveis:       -R$ 30.000               |
+|     21-Distribuicoes:   -R$ 20.000               |
++--------------------------------------------------+
+```
+
+### Arquivos a criar/modificar
+
+| Arquivo | Acao |
+|---------|------|
+| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
+| `src/components/HistoricoAnual.tsx` | Criar componente completo |
+| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
 

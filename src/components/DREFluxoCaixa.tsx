@@ -735,6 +735,167 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     });
     y = (doc as any).lastAutoTable.finalY + 10;
 
+    // ── INVESTIMENTOS (custoNum 50) ──
+    const totalInvestidoPDF = grouped.investimentos.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+    const saldoFinalBancosReaisPDF = fluxoBancos.filter(b => !['INVEST', 'L2', 'PROVISAO'].includes(b.banco.toUpperCase())).reduce((s, b) => s + b.saldoFinal, 0);
+    const patrimonioTotalPDF = saldoFinalBancosReaisPDF + totalInvestidoPDF;
+    const totalProvisao32PDF = grouped.lanceADois.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+    const patrimonioLiquidoPDF = patrimonioTotalPDF - totalProvisao32PDF;
+    const investimentoXPpdf = patrimonioLiquidoPDF * 0.10;
+    const patrimonioFinalPDF = patrimonioLiquidoPDF - investimentoXPpdf;
+    const allDespSubPDF = Object.values(grouped.despMesSub).flat();
+    const totalDespMesSubPDF = allDespSubPDF.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+    const resultadoMensalPDF = patrimonioFinalPDF - totalDespMesSubPDF;
+    const resultadoDivTresPDF = resultadoMensalPDF / 3;
+
+    if (grouped.investimentos.length > 0) {
+      checkPage(30);
+      const investRows = grouped.investimentos.map(r => [r.date || '-', r.descricao, r.detalhamento || '-', fmt(Math.abs(r.valorLiquido)), r.banco || '-']);
+      investRows.push(['', '', 'TOTAL INVESTIMENTOS', fmt(totalInvestidoPDF), '']);
+      autoTable(doc, {
+        startY: y,
+        head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']],
+        body: investRows,
+        theme: 'grid', styles: { fontSize: 8 },
+        headStyles: { fillColor: [180, 150, 40], fontStyle: 'bold', textColor: [255, 255, 255] },
+        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === investRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [255, 250, 220];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // ── PATRIMÔNIO ──
+    checkPage(50);
+    const patrimonioRows: string[][] = [
+      ['Saldo em Bancos Reais', fmt(saldoFinalBancosReaisPDF)],
+      ['(+) Investimentos (50)', fmt(totalInvestidoPDF)],
+      ['= PATRIMÔNIO TOTAL', fmt(patrimonioTotalPDF)],
+    ];
+    if (totalProvisao32PDF > 0) {
+      patrimonioRows.push(['(-) Provisão Lance a Dois (32)', `-${fmt(totalProvisao32PDF)}`]);
+    }
+    patrimonioRows.push(['= PATRIMÔNIO LÍQUIDO', fmt(patrimonioLiquidoPDF)]);
+    patrimonioRows.push([`(-) Investimento XP (10%)`, `-${fmt(investimentoXPpdf)}`]);
+    patrimonioRows.push(['= PATRIMÔNIO FINAL', fmt(patrimonioFinalPDF)]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [['PATRIMÔNIO', 'Valor']],
+      body: patrimonioRows,
+      theme: 'grid', styles: { fontSize: 10 },
+      headStyles: { fillColor: [0, 100, 180], fontStyle: 'bold', textColor: [255, 255, 255] },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        const lastIdx = patrimonioRows.length - 1;
+        if (data.section === 'body' && data.row.index === lastIdx) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 12;
+          data.cell.styles.fillColor = [220, 235, 255];
+        }
+        if (data.section === 'body' && data.row.index === 2) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [230, 240, 255];
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    // ── DESPESAS MÊS SUBSEQUENTE (33) ──
+    if (allDespSubPDF.length > 0) {
+      checkPage(30);
+      const dmsRows: string[][] = [];
+      Object.entries(grouped.despMesSub).sort(([a], [b]) => a.localeCompare(b)).forEach(([desc, items]) => {
+        const descTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        items.forEach(r => {
+          dmsRows.push([`   ${r.date || '-'} - ${r.detalhamento || desc}`, `-${fmt(Math.abs(r.valorLiquido))}`]);
+        });
+        if (items.length > 1) {
+          dmsRows.push([`   Subtotal: ${desc}`, `-${fmt(descTotal)}`]);
+        }
+      });
+      dmsRows.push(['TOTAL DESP MÊS SUBSEQUENTE', `-${fmt(totalDespMesSubPDF)}`]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['(-) DESPESAS MÊS SUBSEQUENTE [33]', 'Valor']],
+        body: dmsRows,
+        theme: 'grid', styles: { fontSize: 9 },
+        headStyles: { fillColor: [200, 50, 50], fontStyle: 'bold', textColor: [255, 255, 255] },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === dmsRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [255, 230, 230];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // ── RESULTADO MENSAL + ÷ 3 ──
+    checkPage(20);
+    const resultMensalRows: string[][] = [
+      ['Patrimônio Final', fmt(patrimonioFinalPDF)],
+      ['(-) Desp Mês Subsequente', `-${fmt(totalDespMesSubPDF)}`],
+      ['= RESULTADO MENSAL', fmt(resultadoMensalPDF)],
+      ['÷ 3', fmt(resultadoDivTresPDF)],
+    ];
+    autoTable(doc, {
+      startY: y,
+      head: [['RESULTADO MENSAL', 'Valor']],
+      body: resultMensalRows,
+      theme: 'grid', styles: { fontSize: 10 },
+      headStyles: { fillColor: [66, 66, 66], fontStyle: 'bold', textColor: [255, 255, 255] },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.row.index === 2) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 12;
+          data.cell.styles.fillColor = resultadoMensalPDF >= 0 ? [220, 255, 220] : [255, 220, 220];
+        }
+        if (data.section === 'body' && data.row.index === 3) {
+          data.cell.styles.fillColor = [245, 245, 245];
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    // ── RESERVAS / CAIXINHAS (51, 52) ──
+    if (Object.keys(grouped.reservas).length > 0) {
+      checkPage(30);
+      const reservaRows: string[][] = [];
+      const totalReservasPDF = Object.values(grouped.reservas).flat().reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+      Object.entries(grouped.reservas).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
+        const custoTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        reservaRows.push([custo, `(${items.length})`, fmt(custoTotal)]);
+      });
+      reservaRows.push(['TOTAL EM RESERVAS', '', fmt(totalReservasPDF)]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['RESERVAS / CAIXINHAS', 'Qtd', 'Valor']],
+        body: reservaRows,
+        theme: 'grid', styles: { fontSize: 9 },
+        headStyles: { fillColor: [100, 150, 220], fontStyle: 'bold', textColor: [255, 255, 255] },
+        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body') {
+            data.cell.styles.fillColor = [230, 240, 255];
+          }
+          if (data.section === 'body' && data.row.index === reservaRows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [200, 220, 255];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
     // ══════════════════════════════════════════════
     // PÁGINAS SEGUINTES: DETALHAMENTO
     // ══════════════════════════════════════════════
@@ -854,6 +1015,98 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
           theme: 'striped', styles: { fontSize: 7 },
           headStyles: { fillColor: [34, 120, 34], textColor: [255, 255, 255] },
           columnStyles: { 3: { halign: 'right' } },
+        });
+        y = (doc as any).lastAutoTable.finalY + 6;
+      });
+    }
+
+    // ── Detalhamento Provisões (31) ──
+    if (Object.keys(grouped.provisoes).length > 0) {
+      checkPage(15);
+      addSectionTitle('PROVISÕES (31)');
+      Object.entries(grouped.provisoes).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
+        checkPage(20);
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text(custo, 14, y); y += 5;
+        const rows = items.map(r => [r.date, r.descricao, r.detalhamento || '-', fmt(Math.abs(r.valorLiquido)), r.banco]);
+        const total = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        rows.push(['', '', 'TOTAL', fmt(total), '']);
+        autoTable(doc, {
+          startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
+          theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [150, 120, 50], textColor: [255, 255, 255] },
+          columnStyles: { 3: { halign: 'right' } },
+          didParseCell: (data: any) => { if (data.section === 'body' && data.row.index === rows.length - 1) data.cell.styles.fontStyle = 'bold'; },
+        });
+        y = (doc as any).lastAutoTable.finalY + 6;
+      });
+    }
+
+    // ── Detalhamento Lance a Dois (32) ──
+    if (grouped.lanceADois.length > 0) {
+      checkPage(15);
+      addSectionTitle('LANCE A DOIS (32)');
+      const rows = grouped.lanceADois.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => [r.date, r.descricao, r.detalhamento || '-', fmt(Math.abs(r.valorLiquido)), r.banco || '-']);
+      const total = grouped.lanceADois.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+      rows.push(['', '', 'TOTAL', fmt(total), '']);
+      autoTable(doc, {
+        startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
+        theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [180, 80, 80], textColor: [255, 255, 255] },
+        columnStyles: { 3: { halign: 'right' } },
+        didParseCell: (data: any) => { if (data.section === 'body' && data.row.index === rows.length - 1) data.cell.styles.fontStyle = 'bold'; },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // ── Detalhamento Desp Mês Subsequente (33) ──
+    if (allDespSubPDF.length > 0) {
+      checkPage(15);
+      addSectionTitle('DESPESAS MÊS SUBSEQUENTE (33)');
+      Object.entries(grouped.despMesSub).sort(([a], [b]) => a.localeCompare(b)).forEach(([desc, items]) => {
+        checkPage(20);
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text(desc, 14, y); y += 5;
+        const rows = items.map(r => [r.date, r.descricao, r.detalhamento || '-', fmt(Math.abs(r.valorLiquido)), r.banco || '-']);
+        const total = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        rows.push(['', '', 'TOTAL', fmt(total), '']);
+        autoTable(doc, {
+          startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
+          theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [200, 50, 50], textColor: [255, 255, 255] },
+          columnStyles: { 3: { halign: 'right' } },
+          didParseCell: (data: any) => { if (data.section === 'body' && data.row.index === rows.length - 1) data.cell.styles.fontStyle = 'bold'; },
+        });
+        y = (doc as any).lastAutoTable.finalY + 6;
+      });
+    }
+
+    // ── Detalhamento Investimentos (50) ──
+    if (grouped.investimentos.length > 0) {
+      checkPage(15);
+      addSectionTitle('INVESTIMENTOS (50)');
+      const rows = grouped.investimentos.map(r => [r.date, r.descricao, r.detalhamento || '-', fmt(Math.abs(r.valorLiquido)), r.banco || '-']);
+      const total = grouped.investimentos.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+      rows.push(['', '', 'TOTAL', fmt(total), '']);
+      autoTable(doc, {
+        startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
+        theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [180, 150, 40], textColor: [255, 255, 255] },
+        columnStyles: { 3: { halign: 'right' } },
+        didParseCell: (data: any) => { if (data.section === 'body' && data.row.index === rows.length - 1) data.cell.styles.fontStyle = 'bold'; },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+
+    // ── Detalhamento Reservas (51, 52) ──
+    if (Object.keys(grouped.reservas).length > 0) {
+      checkPage(15);
+      addSectionTitle('RESERVAS / CAIXINHAS (51, 52)');
+      Object.entries(grouped.reservas).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
+        checkPage(20);
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text(custo, 14, y); y += 5;
+        const rows = items.map(r => [r.date, r.descricao, r.detalhamento || '-', fmt(Math.abs(r.valorLiquido)), r.banco || '-']);
+        const total = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        rows.push(['', '', 'TOTAL', fmt(total), '']);
+        autoTable(doc, {
+          startY: y, head: [['Data', 'Descrição', 'Detalhe', 'Valor', 'Banco']], body: rows,
+          theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [100, 150, 220], textColor: [255, 255, 255] },
+          columnStyles: { 3: { halign: 'right' } },
+          didParseCell: (data: any) => { if (data.section === 'body' && data.row.index === rows.length - 1) data.cell.styles.fontStyle = 'bold'; },
         });
         y = (doc as any).lastAutoTable.finalY + 6;
       });
