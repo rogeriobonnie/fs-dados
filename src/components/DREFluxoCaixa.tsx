@@ -135,8 +135,9 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const saidasCaixa: Record<string, Pagina5Record[]> = {};
     const entradasCaixa: Record<string, Pagina5Record[]> = {};
     const transferencias = data.filter(r => r.custoNum === 99);
-
     const provisoes: Record<string, Pagina5Record[]> = {};
+    const investimentos: Pagina5Record[] = [];
+    const reservas: Record<string, Pagina5Record[]> = {};
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
@@ -151,13 +152,18 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       } else if (r.custoNum === 31 && (r.banco || '').toUpperCase() === 'PROVISAO') {
         if (!provisoes[r.custo]) provisoes[r.custo] = [];
         provisoes[r.custo].push(r);
+      } else if (r.custoNum === 50) {
+        investimentos.push(r);
+      } else if (r.custoNum === 51 || r.custoNum === 52) {
+        if (!reservas[r.custo]) reservas[r.custo] = [];
+        reservas[r.custo].push(r);
       } else if (r.custoNum === 97 || r.custoNum === 98) {
         if (!entradasCaixa[r.custo]) entradasCaixa[r.custo] = [];
         entradasCaixa[r.custo].push(r);
       }
     });
 
-    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias };
+    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas };
   }, [data, saldoTransportado, selectedMonth, selectedYear]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
