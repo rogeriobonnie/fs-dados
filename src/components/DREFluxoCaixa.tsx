@@ -1265,14 +1265,81 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                     </CollapsibleContent>
                   </Collapsible>
                   {/* Patrimônio Total */}
-                  <div className="flex justify-between items-center py-2 px-4 bg-muted/30 border-t border-border/50">
-                    <div className="flex items-center gap-2">
-                      <Banknote className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-bold">PATRIMÔNIO TOTAL</span>
-                      <span className="text-[10px] text-muted-foreground">(Saldo em Bancos + Investimentos)</span>
-                    </div>
-                    <span className="text-sm font-bold text-primary">{fmt(patrimonioTotal)}</span>
-                  </div>
+                  {(() => {
+                    const totalProvisao32 = grouped.lanceADois.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                    const patrimonioLiquido = patrimonioTotal - totalProvisao32;
+                    const investimentoXP = patrimonioLiquido * 0.10;
+                    const patrimonioFinal = patrimonioLiquido - investimentoXP;
+
+                    return (
+                      <div className="border-t border-border/50 bg-muted/30 space-y-0">
+                        {/* Patrimônio Total */}
+                        <div className="flex justify-between items-center py-2 px-4">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-bold">PATRIMÔNIO TOTAL</span>
+                            <span className="text-[10px] text-muted-foreground">(Saldo em Bancos + Investimentos)</span>
+                          </div>
+                          <span className="text-sm font-bold text-primary">{fmt(patrimonioTotal)}</span>
+                        </div>
+
+                        {/* Provisão Lance a Dois */}
+                        {grouped.lanceADois.length > 0 && (
+                          <Collapsible>
+                            <CollapsibleTrigger className="w-full">
+                              <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 hover:bg-muted/40 transition-colors cursor-pointer border-t border-border/30">
+                                <div className="flex items-center gap-1.5">
+                                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                  <span className="font-medium text-destructive">(-) Provisão Lance a Dois</span>
+                                  <Badge variant="outline" className="text-[10px]">32</Badge>
+                                  <span className="text-muted-foreground">({grouped.lanceADois.length})</span>
+                                </div>
+                                <span className="font-semibold text-destructive">-{fmt(totalProvisao32)}</span>
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="pl-12 pr-4 pb-1">
+                                {grouped.lanceADois.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
+                                  <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
+                                    <span className="truncate max-w-[65%]">{r.date} - {r.descricao} {r.detalhamento ? `- ${r.detalhamento}` : ''} {r.banco ? `[${r.banco}]` : ''}</span>
+                                    <span className="font-medium">{fmt(Math.abs(r.valorLiquido))}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )}
+
+                        {/* Patrimônio Líquido */}
+                        <div className="flex justify-between items-center py-2 px-4 border-t border-border/50 bg-primary/5">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-bold">PATRIMÔNIO LÍQUIDO</span>
+                            <span className="text-[10px] text-muted-foreground">(Patrimônio Total - Provisão)</span>
+                          </div>
+                          <span className="text-sm font-bold text-primary">{fmt(patrimonioLiquido)}</span>
+                        </div>
+
+                        {/* Investimento XP (10%) */}
+                        <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 border-t border-border/30">
+                          <div className="flex items-center gap-1.5">
+                            <TrendingDown className="h-3 w-3" style={{ color: 'hsl(45 80% 50%)' }} />
+                            <span className="font-medium">(-) Investimento XP (10%)</span>
+                          </div>
+                          <span className="font-semibold" style={{ color: 'hsl(45 80% 50%)' }}>-{fmt(investimentoXP)}</span>
+                        </div>
+
+                        {/* Patrimônio Final */}
+                        <div className="flex justify-between items-center py-2.5 px-4 border-t border-border bg-primary/10">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-bold">PATRIMÔNIO FINAL</span>
+                          </div>
+                          <span className="text-base font-bold text-primary">{fmt(patrimonioFinal)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
