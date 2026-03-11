@@ -1,97 +1,22 @@
 
 
-## Painel Historico Anual - Nova Aba "Historico"
+## Plano: Corrigir Saldo Final por Banco (AZUL 632,91 → 1473,55)
 
-Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
+### Diagnóstico
 
----
+O problema tem duas causas:
 
-### O que sera construido
+1. **Bancos falsos na listagem**: Registros com `custoNum` 50 (Investimentos) e 32 (Lance a Dois) têm `banco` = "INVEST" e "L2" respectivamente. O sistema cria entradas de banco para eles no Saldo Final, mas estes NÃO são bancos reais.
 
-Uma pagina com 3 niveis de detalhe:
+2. **Dupla contagem**: As linhas 284-286 e 37-38 adicionam custoNum 50, 51, 52, 32 como `destinacoes` (saídas) dos bancos. Mas esses registros NÃO representam dinheiro saindo de um banco real - são categorias contábeis. Se houver transferência real de AZUL para investimento, ela já está contabilizada via custoNum 99 (transferência) ou outro registro. Contá-los novamente reduz artificialmente o saldo do AZUL.
 
-**Nivel 1 - Visao Macro (cards anuais)**
-- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
-  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
-  - Margem operacional (%)
-  - Barra de progresso visual comparando receita vs despesa
+### Correção
 
-**Nivel 2 - Ao clicar no ano, expande:**
-- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
-- Grafico de barras empilhadas (Recharts) comparando todos os anos
-- Grafico de linha mostrando evolucao do resultado ao longo dos anos
+**Arquivo**: `src/components/DREFluxoCaixa.tsx`
 
-**Nivel 3 - Ao clicar em uma linha do ano, expande:**
-- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
-- Lista de itens individuais agrupados por categoria
+**1. `calcSaldoFinalPorBanco` (linha 37-38)**: Remover custoNum 32, 50, 51, 52 e 31 do cálculo de saldo por banco. Saldo por banco deve refletir apenas: SI + receitas(1-10) - despesas(11-20) - saidasCaixa(21-30) + entradasCaixa(97/98) + transferências(99).
 
----
+**2. `fluxoBancos` (linhas 284-286)**: Remover as 3 linhas que adicionam `grouped.investimentos`, `grouped.reservas` e `grouped.lanceADois` como destinações bancárias.
 
-### Estrutura tecnica
-
-**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
-- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
-- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
-
-**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
-- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
-- Agrupa por ano usando o campo `year` dos registros
-- Para cada ano calcula:
-  - Receitas: custoNum 1-10, soma de valorLiquido
-  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
-  - Resultado: Receitas - Despesas
-  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
-  - Margem: (Resultado / Receitas) * 100
-- Renderiza cards clicaveis por ano com Collapsible
-- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
-- Graficos comparativos usando Recharts (BarChart + LineChart)
-
-**3. Nova aba principal** (`src/pages/Index.tsx`)
-- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
-- Grid de 4 colunas no TabsList
-
----
-
-### Layout visual da pagina
-
-```text
-+--------------------------------------------------+
-|  HISTORICO FINANCEIRO           [Atualizar]       |
-|  Evolucao anual da empresa desde 2022             |
-+--------------------------------------------------+
-
-+----------+ +----------+ +----------+ +----------+
-| 2022     | | 2023     | | 2024     | | 2025     |
-| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
-| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
-| Res +40k | | Res +100k| | Res +160k| | Res +90k |
-| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
-| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
-+----------+ +----------+ +----------+ +----------+
-
-[========= GRAFICO COMPARATIVO ANUAL =========]
-[  Barras: Receitas vs Despesas por ano        ]
-[  Linha: Evolucao do Resultado                ]
-[=============================================]
-
-+--------------------------------------------------+
-| TABELA COMPARATIVA                                |
-| Ano | Receitas | Despesas | Result | Dist | Marg  |
-| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
-|  v  (clica para expandir por centro de custo)     |
-|     01-Cursos FS:        R$ 90.000               |
-|     05-Cursos Terceiros: R$ 30.000               |
-|     11-Fixas:           -R$ 50.000               |
-|     12-Variaveis:       -R$ 30.000               |
-|     21-Distribuicoes:   -R$ 20.000               |
-+--------------------------------------------------+
-```
-
-### Arquivos a criar/modificar
-
-| Arquivo | Acao |
-|---------|------|
-| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
-| `src/components/HistoricoAnual.tsx` | Criar componente completo |
-| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
+**3. Filtrar bancos não-reais do Saldo Final**: No JSX (linha 1226), filtrar `fluxoBancos` para excluir bancos que não são reais (INVEST, L2, PROVISAO e similares). Usar uma lista de bancos reais extraída dos registros de saldo inicial (custoNum 0), ou filtrar bancos que só aparecem em custoNum 50/32/51/52.
 
