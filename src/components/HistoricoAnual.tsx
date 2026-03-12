@@ -132,6 +132,19 @@ const HistoricoAnual = () => {
     return Object.values(map).sort((a, b) => a.custoNum - b.custoNum);
   }, [data]);
 
+  // Receitas operacionais: detalhe por centro de custo → ano → mês
+  const receitasDetalhe = useMemo(() => {
+    const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7);
+    const map: Record<string, Record<number, number[]>> = {};
+    filtered.forEach(r => {
+      const key = r.custo || `${r.custoNum}-Sem categoria`;
+      if (!map[key]) map[key] = { 2024: Array(12).fill(0), 2025: Array(12).fill(0) };
+      const mi = (r.month || 1) - 1;
+      map[key][r.year][mi] += r.valorLiquido;
+    });
+    return map;
+  }, [data]);
+
   // Despesas matriz: centro de custo × mês
   const despesasMatriz = useMemo(() => {
     const filtered = data.filter(r => r.year === selectedDetailYear && r.custoNum >= 11 && r.custoNum <= 20);
