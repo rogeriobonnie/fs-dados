@@ -170,10 +170,15 @@ const HistoricoAnual = () => {
     });
   }, [data]);
 
-  // Eduzz: ranking de cursos
+  // Eduzz: ranking year filter
+  const [eduzzRankingYear, setEduzzRankingYear] = useState<'todos' | number>('todos');
+  const eduzzRankingYears = useMemo(() => [...new Set(eduzzData.map(r => r.year))].filter(Boolean).sort(), [eduzzData]);
+
+  // Eduzz: ranking de cursos (filtrado por ano)
   const eduzzRanking = useMemo(() => {
+    const filtered = eduzzRankingYear === 'todos' ? eduzzData : eduzzData.filter(r => r.year === eduzzRankingYear);
     const map: Record<string, { curso: string; vendas: number; alunos: Set<string>; valor: number; valorLiquido: number; taxas: number; bestMonth: string; bestMonthVal: number; monthMap: Record<string, number> }> = {};
-    eduzzData.forEach(r => {
+    filtered.forEach(r => {
       if (!map[r.curso]) map[r.curso] = { curso: r.curso, vendas: 0, alunos: new Set(), valor: 0, valorLiquido: 0, taxas: 0, bestMonth: '', bestMonthVal: 0, monthMap: {} };
       const e = map[r.curso];
       e.vendas++;
@@ -188,7 +193,7 @@ const HistoricoAnual = () => {
     return Object.values(map)
       .map(e => ({ ...e, alunosCount: e.alunos.size }))
       .sort((a, b) => b.valor - a.valor);
-  }, [eduzzData]);
+  }, [eduzzData, eduzzRankingYear]);
 
   // Eduzz: matriz de vendas por mês
   const eduzzMatriz = useMemo(() => {
