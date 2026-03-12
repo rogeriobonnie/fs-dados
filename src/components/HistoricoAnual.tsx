@@ -495,6 +495,305 @@ const HistoricoAnual = () => {
         </CardContent>
       </Card>
 
+      {/* Aplicações/Rendimentos e Lucros Divididos */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-primary" />
+            Aplicações/Rendimentos e Lucros Divididos — 2024 vs 2025
+          </CardTitle>
+          <CardDescription>custoNum 07 e 21 — comparativo anual com detalhamento</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Categoria</TableHead>
+                <TableHead className="text-right">2024</TableHead>
+                <TableHead className="text-right">2025</TableHead>
+                <TableHead className="text-right">Variação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {aplicacoesLucros.map(g => (
+                <Collapsible key={g.label} asChild>
+                  <>
+                    <CollapsibleTrigger asChild>
+                      <TableRow className="cursor-pointer hover:bg-muted/50 transition-colors">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-1">
+                            <ChevronRight className="h-3 w-3" />
+                            {g.label}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{fmt(g.total2024)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmt(g.total2025)}</TableCell>
+                        <TableCell className={`text-right font-bold ${g.variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                          {g.variacao >= 0 ? '+' : ''}{g.variacao.toFixed(1)}%
+                        </TableCell>
+                      </TableRow>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent asChild>
+                      <tr>
+                        <td colSpan={4} className="p-0">
+                          <div className="bg-muted/20 px-4 py-3 border-y">
+                            <div className="grid grid-cols-2 gap-6">
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">2024 ({g.items2024.length} itens)</p>
+                                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                                  {g.items2024.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
+                                      <div className="flex gap-2 items-center">
+                                        <Minus className="h-2 w-2 text-muted-foreground" />
+                                        <span className="text-muted-foreground">{item.date}</span>
+                                        <span className="truncate max-w-[200px]">{item.descricao}</span>
+                                      </div>
+                                      <span className="font-medium tabular-nums">{fmt(item.valorLiquido)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">2025 ({g.items2025.length} itens)</p>
+                                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                                  {g.items2025.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
+                                      <div className="flex gap-2 items-center">
+                                        <Minus className="h-2 w-2 text-muted-foreground" />
+                                        <span className="text-muted-foreground">{item.date}</span>
+                                        <span className="truncate max-w-[200px]">{item.descricao}</span>
+                                      </div>
+                                      <span className="font-medium tabular-nums">{fmt(item.valorLiquido)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </CollapsibleContent>
+                  </>
+                </Collapsible>
+              ))}
+              {(() => {
+                const t2024 = aplicacoesLucros.reduce((s, g) => s + g.total2024, 0);
+                const t2025 = aplicacoesLucros.reduce((s, g) => s + g.total2025, 0);
+                const vt = t2024 !== 0 ? ((t2025 - t2024) / Math.abs(t2024)) * 100 : 0;
+                return (
+                  <TableRow className="bg-muted/50 font-bold border-t-2">
+                    <TableCell>TOTAL</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmt(t2024)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmt(t2025)}</TableCell>
+                    <TableCell className={`text-right ${vt >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                      {vt >= 0 ? '+' : ''}{vt.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })()}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Cursos Eduzz — Análise de Vendas */}
+      {eduzzData.length > 0 && (
+        <>
+          {/* Resumo Eduzz */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-primary" />
+                Cursos Eduzz — Análise de Vendas
+              </CardTitle>
+              <CardDescription>Dados consolidados de vendas na plataforma Eduzz</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Total Vendido</p>
+                  <p className="text-lg font-bold text-foreground">{fmt(eduzzTotals.valor)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Taxas</p>
+                  <p className="text-lg font-bold text-destructive">{fmt(eduzzTotals.taxas)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Líquido</p>
+                  <p className="text-lg font-bold text-emerald-600">{fmt(eduzzTotals.valorLiquido)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Vendas</p>
+                  <p className="text-lg font-bold text-foreground">{eduzzTotals.vendas}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Alunos</p>
+                  <p className="text-lg font-bold text-foreground">{eduzzTotals.alunos}</p>
+                </div>
+              </div>
+
+              {/* Ranking de Cursos */}
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Trophy className="h-4 w-4" /> Ranking de Cursos
+              </h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Curso</TableHead>
+                    <TableHead className="text-right">Vendas</TableHead>
+                    <TableHead className="text-right">Alunos</TableHead>
+                    <TableHead className="text-right">Valor Bruto</TableHead>
+                    <TableHead className="text-right">Taxas</TableHead>
+                    <TableHead className="text-right">Líquido</TableHead>
+                    <TableHead className="text-right">Melhor Mês</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {eduzzRanking.map((c, i) => (
+                    <Collapsible key={c.curso} open={expandedEduzzCurso === c.curso} asChild>
+                      <>
+                        <CollapsibleTrigger asChild>
+                          <TableRow
+                            className="cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => setExpandedEduzzCurso(expandedEduzzCurso === c.curso ? null : c.curso)}
+                          >
+                            <TableCell>
+                              {i === 0 ? <Badge className="bg-amber-500 text-white">🥇</Badge> :
+                               i === 1 ? <Badge variant="secondary">🥈</Badge> :
+                               i === 2 ? <Badge variant="outline">🥉</Badge> :
+                               <span className="text-muted-foreground">{i + 1}</span>}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-1">
+                                {expandedEduzzCurso === c.curso ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                {c.curso}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{c.vendas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{c.alunosCount}</TableCell>
+                            <TableCell className="text-right tabular-nums">{fmt(c.valor)}</TableCell>
+                            <TableCell className="text-right text-destructive tabular-nums">{fmt(c.taxas)}</TableCell>
+                            <TableCell className="text-right text-emerald-600 font-semibold tabular-nums">{fmt(c.valorLiquido)}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline">{c.bestMonth}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent asChild>
+                          <tr>
+                            <td colSpan={8} className="p-0">
+                              <div className="bg-muted/20 px-4 py-3 border-y">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-2">
+                                  <Users className="h-3 w-3" /> Alunos — {c.curso}
+                                </p>
+                                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                                  {eduzzData
+                                    .filter(r => r.curso === c.curso)
+                                    .sort((a, b) => {
+                                      if (a.year !== b.year) return b.year - a.year;
+                                      return b.month - a.month;
+                                    })
+                                    .map((item, idx) => (
+                                      <div key={idx} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
+                                        <div className="flex gap-3 items-center">
+                                          <Minus className="h-2 w-2 text-muted-foreground" />
+                                          <span className="text-muted-foreground w-20">{item.date}</span>
+                                          <span className="font-medium">{item.aluno}</span>
+                                        </div>
+                                        <div className="flex gap-4 items-center">
+                                          <span className="tabular-nums">{fmt(item.valor)}</span>
+                                          <span className="text-destructive tabular-nums text-xs">-{fmt(Math.abs(item.taxas))}</span>
+                                          <span className="text-emerald-600 font-medium tabular-nums">{fmt(item.valorLiquido)}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        </CollapsibleContent>
+                      </>
+                    </Collapsible>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Vendas Eduzz por Ano/Mês */}
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Vendas Eduzz por Mês
+                  </CardTitle>
+                  <CardDescription>Quantidade de vendas por curso e mês</CardDescription>
+                </div>
+                <div className="flex gap-1">
+                  {eduzzYears.map(yr => (
+                    <Button
+                      key={yr}
+                      variant={selectedEduzzYear === yr ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedEduzzYear(yr)}
+                    >
+                      {yr}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="w-full">
+                <div className="min-w-[900px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">Curso</TableHead>
+                        {MONTH_NAMES.map(m => (
+                          <TableHead key={m} className="text-center min-w-[50px]">{m}</TableHead>
+                        ))}
+                        <TableHead className="text-center min-w-[60px] font-bold">TOTAL</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {eduzzMatriz.map(row => {
+                        const rowTotal = row.months.reduce((s, v) => s + v, 0);
+                        return (
+                          <TableRow key={row.curso}>
+                            <TableCell className="sticky left-0 bg-background z-10 font-medium text-sm">{row.curso}</TableCell>
+                            {row.months.map((v, i) => (
+                              <TableCell key={i} className="text-center tabular-nums text-sm">
+                                {v > 0 ? <span className="font-semibold">{v}</span> : <span className="text-muted-foreground">-</span>}
+                              </TableCell>
+                            ))}
+                            <TableCell className="text-center font-bold tabular-nums">{rowTotal}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="bg-muted/50 font-bold border-t-2">
+                        <TableCell className="sticky left-0 bg-muted/50 z-10">TOTAL</TableCell>
+                        {MONTH_NAMES.map((_, i) => {
+                          const t = eduzzMatriz.reduce((s, row) => s + row.months[i], 0);
+                          return <TableCell key={i} className="text-center tabular-nums">{t > 0 ? t : '-'}</TableCell>;
+                        })}
+                        <TableCell className="text-center tabular-nums">
+                          {eduzzMatriz.reduce((s, row) => s + row.months.reduce((a, b) => a + b, 0), 0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
       {/* Comparative Table */}
       <Card>
         <CardHeader>
