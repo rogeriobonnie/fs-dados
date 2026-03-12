@@ -981,6 +981,72 @@ export class GoogleSheetsService {
     return records;
   }
 
+  // ============ Página6 - Cursos Eduzz ============
+
+  static async fetchPagina6Data(): Promise<{ date: string; curso: string; aluno: string; valor: number; valorLiquido: number; taxas: number; month: number; year: number }[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+    
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      const range = 'Página6!A:F';
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados da Página6: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+      
+      return this.parsePagina6Data(rows);
+    } catch (error) {
+      console.error('Error fetching Página6 data:', error);
+      throw error;
+    }
+  }
+
+  private static parsePagina6Data(rows: string[][]): { date: string; curso: string; aluno: string; valor: number; valorLiquido: number; taxas: number; month: number; year: number }[] {
+    const records: { date: string; curso: string; aluno: string; valor: number; valorLiquido: number; taxas: number; month: number; year: number }[] = [];
+    
+    // Skip header row
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+      
+      const dateStr = (row[0] || '').toString().trim();
+      const curso = (row[1] || '').toString().trim();
+      const aluno = (row[2] || '').toString().trim();
+      const valor = this.parseAmount(row[3] || '');
+      const valorLiquido = this.parseAmount(row[4] || '');
+      const taxas = this.parseAmount(row[5] || '');
+      
+      if (!curso && !aluno && valor === 0) continue;
+      
+      let month = 0;
+      let year = 0;
+      if (dateStr) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          month = parseInt(parts[1]);
+          year = parseInt(parts[2]);
+          if (year < 100) year += 2000;
+        }
+      }
+      
+      records.push({ date: dateStr, curso, aluno, valor, valorLiquido, taxas, month, year });
+    }
+    
+    console.log('Parsed Página6 records:', records.length);
+    console.log('Cursos found:', [...new Set(records.map(r => r.curso))]);
+    return records;
+  }
+
   static async updateSheetData(records: FinancialRecord[]): Promise<boolean> {
     const apiKey = this.getApiKey();
     const sheetId = this.getSheetId();

@@ -5,10 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { RefreshCw, TrendingUp, TrendingDown, ChevronDown, ChevronRight, BarChart3, Minus } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, ChevronDown, ChevronRight, BarChart3, Minus, DollarSign, Trophy, Users, ShoppingCart } from 'lucide-react';
+
+interface EduzzRecord {
+  date: string;
+  curso: string;
+  aluno: string;
+  valor: number;
+  valorLiquido: number;
+  taxas: number;
+  month: number;
+  year: number;
+}
 
 interface YearSummary {
   year: number;
@@ -35,19 +47,26 @@ const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Se
 
 const HistoricoAnual = () => {
   const [data, setData] = useState<Pagina5Record[]>([]);
+  const [eduzzData, setEduzzData] = useState<EduzzRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [expandedCusto, setExpandedCusto] = useState<string | null>(null);
   const [selectedDetailYear, setSelectedDetailYear] = useState<number>(2025);
   const [expandedDespRow, setExpandedDespRow] = useState<string | null>(null);
+  const [selectedEduzzYear, setSelectedEduzzYear] = useState<number>(2025);
+  const [expandedEduzzCurso, setExpandedEduzzCurso] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const records = await GoogleSheetsService.fetchFluxoCaixaHistorico();
+      const [records, eduzz] = await Promise.all([
+        GoogleSheetsService.fetchFluxoCaixaHistorico(),
+        GoogleSheetsService.fetchPagina6Data(),
+      ]);
       setData(records);
+      setEduzzData(eduzz);
     } catch (err) {
       setError('Erro ao carregar dados históricos');
       console.error(err);
@@ -130,6 +149,68 @@ const HistoricoAnual = () => {
     });
     return totals;
   }, [despesasMatriz]);
+
+  // Aplicações/Rendimentos (custoNum 7) e Lucros Divididos (custoNum 21) — 2024 vs 2025
+  const aplicacoesLucros = useMemo(() => {
+    const groups = [
+      { label: '07-Aplicação/Rendimento', custoFilter: (n: number) => n === 7 },
+      { label: '21-Lucros Divididos', custoFilter: (n: number) => n === 21 },
+    ];
+    return groups.map(g => {
+      const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && g.custoFilter(r.custoNum));
+      const total2024 = filtered.filter(r => r.year === 2024).reduce((s, r) => s + r.valorLiquido, 0);
+      const total2025 = filtered.filter(r => r.year === 2025).reduce((s, r) => s + r.valorLiquido, 0);
+      const items2024 = filtered.filter(r => r.year === 2024);
+      const items2025 = filtered.filter(r => r.year === 2025);
+      const variacao = total2024 !== 0 ? ((total2025 - total2024) / Math.abs(total2024)) * 100 : 0;
+      return { label: g.label, total2024, total2025, variacao, items2024, items2025 };
+    });
+  }, [data]);
+
+  // Eduzz: ranking de cursos
+  const eduzzRanking = useMemo(() => {
+    const map: Record<string, { curso: string; vendas: number; alunos: Set<string>; valor: number; valorLiquido: number; taxas: number; bestMonth: string; bestMonthVal: number; monthMap: Record<string, number> }> = {};
+    eduzzData.forEach(r => {
+      if (!map[r.curso]) map[r.curso] = { curso: r.curso, vendas: 0, alunos: new Set(), valor: 0, valorLiquido: 0, taxas: 0, bestMonth: '', bestMonthVal: 0, monthMap: {} };
+      const e = map[r.curso];
+      e.vendas++;
+      if (r.aluno) e.alunos.add(r.aluno);
+      e.valor += r.valor;
+      e.valorLiquido += r.valorLiquido;
+      e.taxas += Math.abs(r.taxas);
+      const mk = `${MONTH_NAMES[(r.month || 1) - 1]}/${r.year}`;
+      e.monthMap[mk] = (e.monthMap[mk] || 0) + r.valor;
+      if (e.monthMap[mk] > e.bestMonthVal) { e.bestMonthVal = e.monthMap[mk]; e.bestMonth = mk; }
+    });
+    return Object.values(map)
+      .map(e => ({ ...e, alunosCount: e.alunos.size }))
+      .sort((a, b) => b.valor - a.valor);
+  }, [eduzzData]);
+
+  // Eduzz: matriz de vendas por mês
+  const eduzzMatriz = useMemo(() => {
+    const filtered = eduzzData.filter(r => r.year === selectedEduzzYear);
+    const map: Record<string, { curso: string; months: number[]; items: EduzzRecord[][] }> = {};
+    filtered.forEach(r => {
+      if (!map[r.curso]) map[r.curso] = { curso: r.curso, months: Array(12).fill(0), items: Array.from({ length: 12 }, () => []) };
+      const mi = (r.month || 1) - 1;
+      map[r.curso].months[mi]++;
+      map[r.curso].items[mi].push(r);
+    });
+    return Object.values(map).sort((a, b) => b.months.reduce((s, v) => s + v, 0) - a.months.reduce((s, v) => s + v, 0));
+  }, [eduzzData, selectedEduzzYear]);
+
+  // Eduzz totals
+  const eduzzTotals = useMemo(() => ({
+    valor: eduzzData.reduce((s, r) => s + r.valor, 0),
+    valorLiquido: eduzzData.reduce((s, r) => s + r.valorLiquido, 0),
+    taxas: eduzzData.reduce((s, r) => s + Math.abs(r.taxas), 0),
+    alunos: new Set(eduzzData.map(r => r.aluno).filter(Boolean)).size,
+    vendas: eduzzData.length,
+  }), [eduzzData]);
+
+  // Eduzz years available
+  const eduzzYears = useMemo(() => [...new Set(eduzzData.map(r => r.year))].filter(Boolean).sort(), [eduzzData]);
 
   if (loading) {
     return (
@@ -413,6 +494,305 @@ const HistoricoAnual = () => {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {/* Aplicações/Rendimentos e Lucros Divididos */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-primary" />
+            Aplicações/Rendimentos e Lucros Divididos — 2024 vs 2025
+          </CardTitle>
+          <CardDescription>custoNum 07 e 21 — comparativo anual com detalhamento</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Categoria</TableHead>
+                <TableHead className="text-right">2024</TableHead>
+                <TableHead className="text-right">2025</TableHead>
+                <TableHead className="text-right">Variação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {aplicacoesLucros.map(g => (
+                <Collapsible key={g.label} asChild>
+                  <>
+                    <CollapsibleTrigger asChild>
+                      <TableRow className="cursor-pointer hover:bg-muted/50 transition-colors">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-1">
+                            <ChevronRight className="h-3 w-3" />
+                            {g.label}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{fmt(g.total2024)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmt(g.total2025)}</TableCell>
+                        <TableCell className={`text-right font-bold ${g.variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                          {g.variacao >= 0 ? '+' : ''}{g.variacao.toFixed(1)}%
+                        </TableCell>
+                      </TableRow>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent asChild>
+                      <tr>
+                        <td colSpan={4} className="p-0">
+                          <div className="bg-muted/20 px-4 py-3 border-y">
+                            <div className="grid grid-cols-2 gap-6">
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">2024 ({g.items2024.length} itens)</p>
+                                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                                  {g.items2024.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
+                                      <div className="flex gap-2 items-center">
+                                        <Minus className="h-2 w-2 text-muted-foreground" />
+                                        <span className="text-muted-foreground">{item.date}</span>
+                                        <span className="truncate max-w-[200px]">{item.descricao}</span>
+                                      </div>
+                                      <span className="font-medium tabular-nums">{fmt(item.valorLiquido)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">2025 ({g.items2025.length} itens)</p>
+                                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                                  {g.items2025.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
+                                      <div className="flex gap-2 items-center">
+                                        <Minus className="h-2 w-2 text-muted-foreground" />
+                                        <span className="text-muted-foreground">{item.date}</span>
+                                        <span className="truncate max-w-[200px]">{item.descricao}</span>
+                                      </div>
+                                      <span className="font-medium tabular-nums">{fmt(item.valorLiquido)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </CollapsibleContent>
+                  </>
+                </Collapsible>
+              ))}
+              {(() => {
+                const t2024 = aplicacoesLucros.reduce((s, g) => s + g.total2024, 0);
+                const t2025 = aplicacoesLucros.reduce((s, g) => s + g.total2025, 0);
+                const vt = t2024 !== 0 ? ((t2025 - t2024) / Math.abs(t2024)) * 100 : 0;
+                return (
+                  <TableRow className="bg-muted/50 font-bold border-t-2">
+                    <TableCell>TOTAL</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmt(t2024)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmt(t2025)}</TableCell>
+                    <TableCell className={`text-right ${vt >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                      {vt >= 0 ? '+' : ''}{vt.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })()}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Cursos Eduzz — Análise de Vendas */}
+      {eduzzData.length > 0 && (
+        <>
+          {/* Resumo Eduzz */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-primary" />
+                Cursos Eduzz — Análise de Vendas
+              </CardTitle>
+              <CardDescription>Dados consolidados de vendas na plataforma Eduzz</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Total Vendido</p>
+                  <p className="text-lg font-bold text-foreground">{fmt(eduzzTotals.valor)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Taxas</p>
+                  <p className="text-lg font-bold text-destructive">{fmt(eduzzTotals.taxas)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Líquido</p>
+                  <p className="text-lg font-bold text-emerald-600">{fmt(eduzzTotals.valorLiquido)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Vendas</p>
+                  <p className="text-lg font-bold text-foreground">{eduzzTotals.vendas}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Alunos</p>
+                  <p className="text-lg font-bold text-foreground">{eduzzTotals.alunos}</p>
+                </div>
+              </div>
+
+              {/* Ranking de Cursos */}
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Trophy className="h-4 w-4" /> Ranking de Cursos
+              </h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Curso</TableHead>
+                    <TableHead className="text-right">Vendas</TableHead>
+                    <TableHead className="text-right">Alunos</TableHead>
+                    <TableHead className="text-right">Valor Bruto</TableHead>
+                    <TableHead className="text-right">Taxas</TableHead>
+                    <TableHead className="text-right">Líquido</TableHead>
+                    <TableHead className="text-right">Melhor Mês</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {eduzzRanking.map((c, i) => (
+                    <Collapsible key={c.curso} open={expandedEduzzCurso === c.curso} asChild>
+                      <>
+                        <CollapsibleTrigger asChild>
+                          <TableRow
+                            className="cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => setExpandedEduzzCurso(expandedEduzzCurso === c.curso ? null : c.curso)}
+                          >
+                            <TableCell>
+                              {i === 0 ? <Badge className="bg-amber-500 text-white">🥇</Badge> :
+                               i === 1 ? <Badge variant="secondary">🥈</Badge> :
+                               i === 2 ? <Badge variant="outline">🥉</Badge> :
+                               <span className="text-muted-foreground">{i + 1}</span>}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-1">
+                                {expandedEduzzCurso === c.curso ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                {c.curso}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{c.vendas}</TableCell>
+                            <TableCell className="text-right tabular-nums">{c.alunosCount}</TableCell>
+                            <TableCell className="text-right tabular-nums">{fmt(c.valor)}</TableCell>
+                            <TableCell className="text-right text-destructive tabular-nums">{fmt(c.taxas)}</TableCell>
+                            <TableCell className="text-right text-emerald-600 font-semibold tabular-nums">{fmt(c.valorLiquido)}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline">{c.bestMonth}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent asChild>
+                          <tr>
+                            <td colSpan={8} className="p-0">
+                              <div className="bg-muted/20 px-4 py-3 border-y">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2 flex items-center gap-2">
+                                  <Users className="h-3 w-3" /> Alunos — {c.curso}
+                                </p>
+                                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                                  {eduzzData
+                                    .filter(r => r.curso === c.curso)
+                                    .sort((a, b) => {
+                                      if (a.year !== b.year) return b.year - a.year;
+                                      return b.month - a.month;
+                                    })
+                                    .map((item, idx) => (
+                                      <div key={idx} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
+                                        <div className="flex gap-3 items-center">
+                                          <Minus className="h-2 w-2 text-muted-foreground" />
+                                          <span className="text-muted-foreground w-20">{item.date}</span>
+                                          <span className="font-medium">{item.aluno}</span>
+                                        </div>
+                                        <div className="flex gap-4 items-center">
+                                          <span className="tabular-nums">{fmt(item.valor)}</span>
+                                          <span className="text-destructive tabular-nums text-xs">-{fmt(Math.abs(item.taxas))}</span>
+                                          <span className="text-emerald-600 font-medium tabular-nums">{fmt(item.valorLiquido)}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        </CollapsibleContent>
+                      </>
+                    </Collapsible>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Vendas Eduzz por Ano/Mês */}
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    Vendas Eduzz por Mês
+                  </CardTitle>
+                  <CardDescription>Quantidade de vendas por curso e mês</CardDescription>
+                </div>
+                <div className="flex gap-1">
+                  {eduzzYears.map(yr => (
+                    <Button
+                      key={yr}
+                      variant={selectedEduzzYear === yr ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedEduzzYear(yr)}
+                    >
+                      {yr}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="w-full">
+                <div className="min-w-[900px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="sticky left-0 bg-background z-10 min-w-[200px]">Curso</TableHead>
+                        {MONTH_NAMES.map(m => (
+                          <TableHead key={m} className="text-center min-w-[50px]">{m}</TableHead>
+                        ))}
+                        <TableHead className="text-center min-w-[60px] font-bold">TOTAL</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {eduzzMatriz.map(row => {
+                        const rowTotal = row.months.reduce((s, v) => s + v, 0);
+                        return (
+                          <TableRow key={row.curso}>
+                            <TableCell className="sticky left-0 bg-background z-10 font-medium text-sm">{row.curso}</TableCell>
+                            {row.months.map((v, i) => (
+                              <TableCell key={i} className="text-center tabular-nums text-sm">
+                                {v > 0 ? <span className="font-semibold">{v}</span> : <span className="text-muted-foreground">-</span>}
+                              </TableCell>
+                            ))}
+                            <TableCell className="text-center font-bold tabular-nums">{rowTotal}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="bg-muted/50 font-bold border-t-2">
+                        <TableCell className="sticky left-0 bg-muted/50 z-10">TOTAL</TableCell>
+                        {MONTH_NAMES.map((_, i) => {
+                          const t = eduzzMatriz.reduce((s, row) => s + row.months[i], 0);
+                          return <TableCell key={i} className="text-center tabular-nums">{t > 0 ? t : '-'}</TableCell>;
+                        })}
+                        <TableCell className="text-center tabular-nums">
+                          {eduzzMatriz.reduce((s, row) => s + row.months.reduce((a, b) => a + b, 0), 0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Comparative Table */}
       <Card>
