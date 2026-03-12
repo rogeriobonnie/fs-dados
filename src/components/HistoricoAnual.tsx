@@ -70,7 +70,7 @@ const HistoricoAnual = () => {
         GoogleSheetsService.fetchPagina6Data(),
       ]);
       setData(records);
-      setEduzzData(eduzz);
+      setEduzzData(eduzz.filter(r => r.year <= 2025));
     } catch (err) {
       setError('Erro ao carregar dados históricos');
       console.error(err);
