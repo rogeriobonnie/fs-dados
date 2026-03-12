@@ -118,15 +118,15 @@ const HistoricoAnual = () => {
       });
   }, [data]);
 
-  // Receitas consolidadas por centro de custo (2024 e 2025)
+  // Receitas operacionais por centro de custo (2024 e 2025) — exclui 07-Aplicação/Rendimento
   const receitasPorCusto = useMemo(() => {
-    const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && r.custoNum >= 1 && r.custoNum <= 10);
-    const map: Record<string, { custo: string; custoNum: number; total2024: number; total2025: number }> = {};
+    const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7);
+    const map: Record<string, { custo: string; custoNum: number; total2024: number; total2025: number; qtd2024: number; qtd2025: number }> = {};
     filtered.forEach(r => {
       const key = r.custo || `${r.custoNum}-Sem categoria`;
-      if (!map[key]) map[key] = { custo: key, custoNum: r.custoNum, total2024: 0, total2025: 0 };
-      if (r.year === 2024) map[key].total2024 += r.valorLiquido;
-      else map[key].total2025 += r.valorLiquido;
+      if (!map[key]) map[key] = { custo: key, custoNum: r.custoNum, total2024: 0, total2025: 0, qtd2024: 0, qtd2025: 0 };
+      if (r.year === 2024) { map[key].total2024 += r.valorLiquido; map[key].qtd2024++; }
+      else { map[key].total2025 += r.valorLiquido; map[key].qtd2025++; }
     });
     return Object.values(map).sort((a, b) => a.custoNum - b.custoNum);
   }, [data]);
