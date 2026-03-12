@@ -442,27 +442,78 @@ const HistoricoAnual = () => {
                   const variacao = r.total2024 !== 0 ? ((r.total2025 - r.total2024) / Math.abs(r.total2024)) * 100 : 0;
                   const barWidth2024 = (r.total2024 / maxVal) * 100;
                   const barWidth2025 = (r.total2025 / maxVal) * 100;
+                  const isExpanded = expandedReceitaCusto === r.custo;
+                  const detalhe = receitasDetalhe[r.custo];
                   return (
-                    <TableRow key={r.custo}>
-                      <TableCell className="font-medium">{r.custo}</TableCell>
-                      <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2024}</TableCell>
-                      <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2024)}</TableCell>
-                      <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2025}</TableCell>
-                      <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2025)}</TableCell>
-                      <TableCell className={`text-right font-bold tabular-nums ${variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
-                        {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-0.5">
-                          <div className="h-1.5 rounded-full bg-emerald-500/30">
-                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${barWidth2024}%` }} />
-                          </div>
-                          <div className="h-1.5 rounded-full bg-primary/20">
-                            <div className="h-full rounded-full bg-primary" style={{ width: `${barWidth2025}%` }} />
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <Collapsible key={r.custo} open={isExpanded} asChild>
+                      <>
+                        <CollapsibleTrigger asChild>
+                          <TableRow
+                            className="cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => setExpandedReceitaCusto(isExpanded ? null : r.custo)}
+                          >
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-1">
+                                {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                {r.custo}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2024}</TableCell>
+                            <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2024)}</TableCell>
+                            <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2025}</TableCell>
+                            <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2025)}</TableCell>
+                            <TableCell className={`text-right font-bold tabular-nums ${variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                              {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-0.5">
+                                <div className="h-1.5 rounded-full bg-emerald-500/30">
+                                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${barWidth2024}%` }} />
+                                </div>
+                                <div className="h-1.5 rounded-full bg-primary/20">
+                                  <div className="h-full rounded-full bg-primary" style={{ width: `${barWidth2025}%` }} />
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent asChild>
+                          <tr>
+                            <td colSpan={7} className="p-0">
+                              <div className="bg-muted/20 px-4 py-3 border-y">
+                                {detalhe && [2024, 2025].map(year => {
+                                  const months = detalhe[year] || Array(12).fill(0);
+                                  const yearTotal = months.reduce((s: number, v: number) => s + v, 0);
+                                  return (
+                                    <div key={year} className="mb-3 last:mb-0">
+                                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                                        {year} — Total: <span className="text-emerald-600">{fmt(yearTotal)}</span>
+                                      </p>
+                                      <div className="grid grid-cols-13 gap-1 text-xs">
+                                        {MONTH_NAMES.map((m, i) => (
+                                          <div key={m} className="text-center">
+                                            <div className="text-muted-foreground font-medium mb-0.5">{m}</div>
+                                            <div className={`tabular-nums py-1 px-1 rounded ${months[i] > 0 ? 'bg-emerald-500/10 text-emerald-600 font-medium' : 'text-muted-foreground'}`}>
+                                              {months[i] > 0 ? fmtCompact(months[i]) : '-'}
+                                            </div>
+                                          </div>
+                                        ))}
+                                        <div className="text-center">
+                                          <div className="text-muted-foreground font-bold mb-0.5">TOT</div>
+                                          <div className="tabular-nums py-1 px-1 rounded bg-emerald-500/20 text-emerald-600 font-bold">
+                                            {fmtCompact(yearTotal)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        </CollapsibleContent>
+                      </>
+                    </Collapsible>
                   );
                 });
               })()}
