@@ -734,6 +734,26 @@ const HistoricoAnual = () => {
 
               {/* Tab: Ranking with hierarchical drill-down */}
               <TabsContent value="ranking">
+                <div className="flex items-center gap-1 mb-3">
+                  <span className="text-sm text-muted-foreground mr-2">Ano:</span>
+                  <Button
+                    variant={eduzzRankingYear === 'todos' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => { setEduzzRankingYear('todos'); setExpandedEduzzCurso(null); }}
+                  >
+                    Todos
+                  </Button>
+                  {eduzzRankingYears.map(yr => (
+                    <Button
+                      key={yr}
+                      variant={eduzzRankingYear === yr ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => { setEduzzRankingYear(yr); setExpandedEduzzCurso(null); }}
+                    >
+                      {yr}
+                    </Button>
+                  ))}
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
