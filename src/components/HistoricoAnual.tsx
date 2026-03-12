@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { RefreshCw, TrendingUp, TrendingDown, ChevronDown, ChevronRight, BarChart3, Minus, DollarSign, Trophy, Users, ShoppingCart } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { RefreshCw, TrendingUp, TrendingDown, ChevronDown, ChevronRight, BarChart3, Minus, DollarSign, Trophy, Users, ShoppingCart, Star } from 'lucide-react';
 
 interface EduzzRecord {
   date: string;
