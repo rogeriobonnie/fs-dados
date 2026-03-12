@@ -118,15 +118,15 @@ const HistoricoAnual = () => {
       });
   }, [data]);
 
-  // Receitas consolidadas por centro de custo (2024 e 2025)
+  // Receitas operacionais por centro de custo (2024 e 2025) — exclui 07-Aplicação/Rendimento
   const receitasPorCusto = useMemo(() => {
-    const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && r.custoNum >= 1 && r.custoNum <= 10);
-    const map: Record<string, { custo: string; custoNum: number; total2024: number; total2025: number }> = {};
+    const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7);
+    const map: Record<string, { custo: string; custoNum: number; total2024: number; total2025: number; qtd2024: number; qtd2025: number }> = {};
     filtered.forEach(r => {
       const key = r.custo || `${r.custoNum}-Sem categoria`;
-      if (!map[key]) map[key] = { custo: key, custoNum: r.custoNum, total2024: 0, total2025: 0 };
-      if (r.year === 2024) map[key].total2024 += r.valorLiquido;
-      else map[key].total2025 += r.valorLiquido;
+      if (!map[key]) map[key] = { custo: key, custoNum: r.custoNum, total2024: 0, total2025: 0, qtd2024: 0, qtd2025: 0 };
+      if (r.year === 2024) { map[key].total2024 += r.valorLiquido; map[key].qtd2024++; }
+      else { map[key].total2025 += r.valorLiquido; map[key].qtd2025++; }
     });
     return Object.values(map).sort((a, b) => a.custoNum - b.custoNum);
   }, [data]);
@@ -170,10 +170,15 @@ const HistoricoAnual = () => {
     });
   }, [data]);
 
-  // Eduzz: ranking de cursos
+  // Eduzz: ranking year filter
+  const [eduzzRankingYear, setEduzzRankingYear] = useState<'todos' | number>('todos');
+  const eduzzRankingYears = useMemo(() => [...new Set(eduzzData.map(r => r.year))].filter(Boolean).sort(), [eduzzData]);
+
+  // Eduzz: ranking de cursos (filtrado por ano)
   const eduzzRanking = useMemo(() => {
+    const filtered = eduzzRankingYear === 'todos' ? eduzzData : eduzzData.filter(r => r.year === eduzzRankingYear);
     const map: Record<string, { curso: string; vendas: number; alunos: Set<string>; valor: number; valorLiquido: number; taxas: number; bestMonth: string; bestMonthVal: number; monthMap: Record<string, number> }> = {};
-    eduzzData.forEach(r => {
+    filtered.forEach(r => {
       if (!map[r.curso]) map[r.curso] = { curso: r.curso, vendas: 0, alunos: new Set(), valor: 0, valorLiquido: 0, taxas: 0, bestMonth: '', bestMonthVal: 0, monthMap: {} };
       const e = map[r.curso];
       e.vendas++;
@@ -188,7 +193,7 @@ const HistoricoAnual = () => {
     return Object.values(map)
       .map(e => ({ ...e, alunosCount: e.alunos.size }))
       .sort((a, b) => b.valor - a.valor);
-  }, [eduzzData]);
+  }, [eduzzData, eduzzRankingYear]);
 
   // Eduzz: matriz de vendas por mês
   const eduzzMatriz = useMemo(() => {
@@ -394,46 +399,69 @@ const HistoricoAnual = () => {
         })}
       </div>
 
-      {/* Receitas Consolidadas por Centro de Custo */}
+      {/* Receitas Operacionais por Centro de Custo */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-emerald-500" />
-            Receitas por Centro de Custo — 2024 vs 2025
+            Receitas Operacionais — Comparativo Anual
           </CardTitle>
-          <CardDescription>Consolidado sem detalhamento</CardDescription>
+          <CardDescription>Exclui aplicações/rendimentos (apresentados em seção própria)</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Centro de Custo</TableHead>
+                <TableHead className="text-right">Qtd 2024</TableHead>
                 <TableHead className="text-right">2024</TableHead>
+                <TableHead className="text-right">Qtd 2025</TableHead>
                 <TableHead className="text-right">2025</TableHead>
                 <TableHead className="text-right">Variação</TableHead>
+                <TableHead className="w-[120px]">Proporção</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {receitasPorCusto.map(r => {
-                const variacao = r.total2024 !== 0 ? ((r.total2025 - r.total2024) / Math.abs(r.total2024)) * 100 : 0;
-                return (
-                  <TableRow key={r.custo}>
-                    <TableCell className="font-medium">{r.custo}</TableCell>
-                    <TableCell className="text-right text-emerald-600">{fmt(r.total2024)}</TableCell>
-                    <TableCell className="text-right text-emerald-600">{fmt(r.total2025)}</TableCell>
-                    <TableCell className={`text-right font-bold ${variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
-                      {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {(() => {
+                const maxVal = Math.max(...receitasPorCusto.map(r => Math.max(r.total2024, r.total2025)), 1);
+                return receitasPorCusto.map(r => {
+                  const variacao = r.total2024 !== 0 ? ((r.total2025 - r.total2024) / Math.abs(r.total2024)) * 100 : 0;
+                  const barWidth2024 = (r.total2024 / maxVal) * 100;
+                  const barWidth2025 = (r.total2025 / maxVal) * 100;
+                  return (
+                    <TableRow key={r.custo}>
+                      <TableCell className="font-medium">{r.custo}</TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2024}</TableCell>
+                      <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2024)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2025}</TableCell>
+                      <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2025)}</TableCell>
+                      <TableCell className={`text-right font-bold tabular-nums ${variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                        {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="h-1.5 rounded-full bg-emerald-500/30">
+                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${barWidth2024}%` }} />
+                          </div>
+                          <div className="h-1.5 rounded-full bg-primary/20">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${barWidth2025}%` }} />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                });
+              })()}
               <TableRow className="bg-muted/50 font-bold border-t-2">
                 <TableCell>TOTAL</TableCell>
-                <TableCell className="text-right text-emerald-600">{fmt(totalRec2024)}</TableCell>
-                <TableCell className="text-right text-emerald-600">{fmt(totalRec2025)}</TableCell>
+                <TableCell className="text-right tabular-nums">{receitasPorCusto.reduce((s, r) => s + r.qtd2024, 0)}</TableCell>
+                <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(totalRec2024)}</TableCell>
+                <TableCell className="text-right tabular-nums">{receitasPorCusto.reduce((s, r) => s + r.qtd2025, 0)}</TableCell>
+                <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(totalRec2025)}</TableCell>
                 <TableCell className={`text-right ${varRecTotal >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                   {varRecTotal >= 0 ? '+' : ''}{varRecTotal.toFixed(1)}%
                 </TableCell>
+                <TableCell />
               </TableRow>
             </TableBody>
           </Table>
@@ -706,6 +734,26 @@ const HistoricoAnual = () => {
 
               {/* Tab: Ranking with hierarchical drill-down */}
               <TabsContent value="ranking">
+                <div className="flex items-center gap-1 mb-3">
+                  <span className="text-sm text-muted-foreground mr-2">Ano:</span>
+                  <Button
+                    variant={eduzzRankingYear === 'todos' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => { setEduzzRankingYear('todos'); setExpandedEduzzCurso(null); }}
+                  >
+                    Todos
+                  </Button>
+                  {eduzzRankingYears.map(yr => (
+                    <Button
+                      key={yr}
+                      variant={eduzzRankingYear === yr ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => { setEduzzRankingYear(yr); setExpandedEduzzCurso(null); }}
+                    >
+                      {yr}
+                    </Button>
+                  ))}
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
