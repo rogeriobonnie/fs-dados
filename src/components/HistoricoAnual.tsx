@@ -212,6 +212,72 @@ const HistoricoAnual = () => {
     vendas: eduzzData.length,
   }), [eduzzData]);
 
+  // Eduzz: hierarchical data (curso → ano → mês → items)
+  const eduzzHierarchy = useMemo(() => {
+    const map: Record<string, Record<number, Record<number, EduzzRecord[]>>> = {};
+    eduzzData.forEach(r => {
+      if (!map[r.curso]) map[r.curso] = {};
+      if (!map[r.curso][r.year]) map[r.curso][r.year] = {};
+      if (!map[r.curso][r.year][r.month]) map[r.curso][r.year][r.month] = [];
+      map[r.curso][r.year][r.month].push(r);
+    });
+    return map;
+  }, [eduzzData]);
+
+  // Eduzz: pivot vendas por ano (for "Vendas Ano/Mês" tab)
+  const eduzzVendasPivot = useMemo(() => {
+    const years = [...new Set(eduzzData.map(r => r.year))].filter(Boolean).sort();
+    const cursoMap: Record<string, Record<number, { vendas: number; valor: number; bestMonth: string; bestMonthVal: number }>> = {};
+    const totais: Record<number, { vendas: number; valor: number }> = {};
+    years.forEach(y => { totais[y] = { vendas: 0, valor: 0 }; });
+
+    eduzzData.forEach(r => {
+      if (!cursoMap[r.curso]) cursoMap[r.curso] = {};
+      if (!cursoMap[r.curso][r.year]) cursoMap[r.curso][r.year] = { vendas: 0, valor: 0, bestMonth: '', bestMonthVal: 0 };
+      const e = cursoMap[r.curso][r.year];
+      e.vendas++;
+      e.valor += r.valor;
+      totais[r.year].vendas++;
+      totais[r.year].valor += r.valor;
+    });
+
+    // Compute best month per curso per year
+    eduzzData.forEach(r => {
+      const key = `${r.month}`;
+      const e = cursoMap[r.curso]?.[r.year];
+      if (!e) return;
+      // We track per month
+      if (!e._monthMap) (e as any)._monthMap = {};
+      (e as any)._monthMap[key] = ((e as any)._monthMap[key] || 0) + r.valor;
+      if ((e as any)._monthMap[key] > e.bestMonthVal) {
+        e.bestMonthVal = (e as any)._monthMap[key];
+        e.bestMonth = `${MONTH_NAMES[r.month - 1]}/${r.year}`;
+      }
+    });
+
+    const cursos = Object.entries(cursoMap)
+      .map(([curso, yearData]) => ({ curso, yearData }))
+      .sort((a, b) => {
+        const totalA = Object.values(a.yearData).reduce((s, v) => s + v.valor, 0);
+        const totalB = Object.values(b.yearData).reduce((s, v) => s + v.valor, 0);
+        return totalB - totalA;
+      });
+
+    // Best seller per year
+    const bestPerYear: Record<number, { curso: string; month: string; valor: number }> = {};
+    years.forEach(y => {
+      let best = { curso: '', month: '', valor: 0 };
+      Object.entries(cursoMap).forEach(([curso, yd]) => {
+        if (yd[y] && yd[y].valor > best.valor) {
+          best = { curso, month: yd[y].bestMonth, valor: yd[y].valor };
+        }
+      });
+      bestPerYear[y] = best;
+    });
+
+    return { years, cursos, totais, bestPerYear };
+  }, [eduzzData]);
+
   // Eduzz years available
   const eduzzYears = useMemo(() => [...new Set(eduzzData.map(r => r.year))].filter(Boolean).sort(), [eduzzData]);
 
