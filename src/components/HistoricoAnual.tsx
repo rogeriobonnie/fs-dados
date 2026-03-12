@@ -7,8 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { RefreshCw, TrendingUp, TrendingDown, ChevronDown, ChevronRight, DollarSign, BarChart3, Minus } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Area } from 'recharts';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { RefreshCw, TrendingUp, TrendingDown, ChevronDown, ChevronRight, BarChart3, Minus } from 'lucide-react';
 
 interface YearSummary {
   year: number;
@@ -31,12 +31,16 @@ const fmtCompact = (v: number) => {
   return v.toFixed(0);
 };
 
+const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
 const HistoricoAnual = () => {
   const [data, setData] = useState<Pagina5Record[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [expandedCusto, setExpandedCusto] = useState<string | null>(null);
+  const [selectedDetailYear, setSelectedDetailYear] = useState<number>(2025);
+  const [expandedDespRow, setExpandedDespRow] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -79,7 +83,6 @@ const HistoricoAnual = () => {
         const resultado = receitas - despesas;
         const margem = receitas > 0 ? (resultado / receitas) * 100 : 0;
 
-        // Build cost center breakdown
         const custoMap: Record<string, { custo: string; custoNum: number; total: number; items: Pagina5Record[] }> = {};
         records.forEach(r => {
           const key = r.custo || `${r.custoNum}-Sem categoria`;
@@ -93,14 +96,40 @@ const HistoricoAnual = () => {
       });
   }, [data]);
 
-  const chartData = useMemo(() =>
-    yearSummaries.map(y => ({
-      ano: y.year.toString(),
-      Receitas: y.receitas,
-      Despesas: y.despesas,
-      Resultado: y.resultado,
-      'Dist. Lucros': y.distribuicao,
-    })), [yearSummaries]);
+  // Receitas consolidadas por centro de custo (2024 e 2025)
+  const receitasPorCusto = useMemo(() => {
+    const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && r.custoNum >= 1 && r.custoNum <= 10);
+    const map: Record<string, { custo: string; custoNum: number; total2024: number; total2025: number }> = {};
+    filtered.forEach(r => {
+      const key = r.custo || `${r.custoNum}-Sem categoria`;
+      if (!map[key]) map[key] = { custo: key, custoNum: r.custoNum, total2024: 0, total2025: 0 };
+      if (r.year === 2024) map[key].total2024 += r.valorLiquido;
+      else map[key].total2025 += r.valorLiquido;
+    });
+    return Object.values(map).sort((a, b) => a.custoNum - b.custoNum);
+  }, [data]);
+
+  // Despesas matriz: centro de custo × mês
+  const despesasMatriz = useMemo(() => {
+    const filtered = data.filter(r => r.year === selectedDetailYear && r.custoNum >= 11 && r.custoNum <= 20);
+    const map: Record<string, { custo: string; custoNum: number; months: number[]; items: Pagina5Record[][] }> = {};
+    filtered.forEach(r => {
+      const key = r.custo || `${r.custoNum}-Sem categoria`;
+      if (!map[key]) map[key] = { custo: key, custoNum: r.custoNum, months: Array(12).fill(0), items: Array.from({ length: 12 }, () => []) };
+      const mi = (r.month || 1) - 1;
+      map[key].months[mi] += Math.abs(r.valorLiquido);
+      map[key].items[mi].push(r);
+    });
+    return Object.values(map).sort((a, b) => a.custoNum - b.custoNum);
+  }, [data, selectedDetailYear]);
+
+  const despMonthTotals = useMemo(() => {
+    const totals = Array(12).fill(0);
+    despesasMatriz.forEach(row => {
+      row.months.forEach((v, i) => { totals[i] += v; });
+    });
+    return totals;
+  }, [despesasMatriz]);
 
   if (loading) {
     return (
@@ -128,6 +157,11 @@ const HistoricoAnual = () => {
       </Card>
     );
   }
+
+  const totalRec2024 = receitasPorCusto.reduce((s, r) => s + r.total2024, 0);
+  const totalRec2025 = receitasPorCusto.reduce((s, r) => s + r.total2025, 0);
+  const varRecTotal = totalRec2024 !== 0 ? ((totalRec2025 - totalRec2024) / Math.abs(totalRec2024)) * 100 : 0;
+  const totalDespGeral = despMonthTotals.reduce((s, v) => s + v, 0);
 
   return (
     <div className="space-y-8">
@@ -192,7 +226,6 @@ const HistoricoAnual = () => {
                   </div>
                 </div>
 
-                {/* Progress bar */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Desp/Rec</span>
@@ -214,69 +247,177 @@ const HistoricoAnual = () => {
         })}
       </div>
 
-      {/* Charts */}
-      {chartData.length > 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Bar Chart - Receitas vs Despesas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                Receitas vs Despesas
-              </CardTitle>
-              <CardDescription>Comparativo anual</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis dataKey="ano" />
-                    <YAxis tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: number) => fmt(v)} />
-                    <Legend />
-                    <Bar dataKey="Receitas" fill="hsl(142 76% 36%)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Despesas" fill="hsl(0 72% 51%)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Dist. Lucros" fill="hsl(38 92% 50%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Receitas Consolidadas por Centro de Custo */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-500" />
+            Receitas por Centro de Custo — 2024 vs 2025
+          </CardTitle>
+          <CardDescription>Consolidado sem detalhamento</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Centro de Custo</TableHead>
+                <TableHead className="text-right">2024</TableHead>
+                <TableHead className="text-right">2025</TableHead>
+                <TableHead className="text-right">Variação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {receitasPorCusto.map(r => {
+                const variacao = r.total2024 !== 0 ? ((r.total2025 - r.total2024) / Math.abs(r.total2024)) * 100 : 0;
+                return (
+                  <TableRow key={r.custo}>
+                    <TableCell className="font-medium">{r.custo}</TableCell>
+                    <TableCell className="text-right text-emerald-600">{fmt(r.total2024)}</TableCell>
+                    <TableCell className="text-right text-emerald-600">{fmt(r.total2025)}</TableCell>
+                    <TableCell className={`text-right font-bold ${variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                      {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              <TableRow className="bg-muted/50 font-bold border-t-2">
+                <TableCell>TOTAL</TableCell>
+                <TableCell className="text-right text-emerald-600">{fmt(totalRec2024)}</TableCell>
+                <TableCell className="text-right text-emerald-600">{fmt(totalRec2025)}</TableCell>
+                <TableCell className={`text-right ${varRecTotal >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                  {varRecTotal >= 0 ? '+' : ''}{varRecTotal.toFixed(1)}%
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-          {/* Line Chart - Evolução do Resultado */}
-          <Card>
-            <CardHeader>
+      {/* Despesas Matriz: Centro de Custo × Mês */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                Evolução do Resultado
+                <TrendingDown className="h-5 w-5 text-destructive" />
+                Despesas por Centro de Custo — Mensal
               </CardTitle>
-              <CardDescription>Resultado operacional ao longo dos anos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis dataKey="ano" />
-                    <YAxis tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: number) => fmt(v)} />
-                    <Legend />
-                    <Area dataKey="Resultado" fill="hsl(221 83% 53% / 0.15)" stroke="hsl(221 83% 53%)" strokeWidth={3} />
-                    <Line dataKey="Receitas" stroke="hsl(142 76% 36%)" strokeWidth={2} dot={{ r: 4 }} />
-                    <Line dataKey="Despesas" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={{ r: 4 }} strokeDasharray="5 5" />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <CardDescription>Clique em uma linha para ver o detalhamento</CardDescription>
+            </div>
+            <div className="flex gap-1">
+              {[2024, 2025].map(yr => (
+                <Button
+                  key={yr}
+                  variant={selectedDetailYear === yr ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setSelectedDetailYear(yr); setExpandedDespRow(null); }}
+                >
+                  {yr}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="w-full">
+            <div className="min-w-[900px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="sticky left-0 bg-background z-10 min-w-[180px]">Centro de Custo</TableHead>
+                    {MONTH_NAMES.map(m => (
+                      <TableHead key={m} className="text-right min-w-[80px]">{m}</TableHead>
+                    ))}
+                    <TableHead className="text-right min-w-[100px] font-bold">TOTAL</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {despesasMatriz.map(row => {
+                    const rowTotal = row.months.reduce((s, v) => s + v, 0);
+                    const isExpanded = expandedDespRow === row.custo;
+                    return (
+                      <Collapsible key={row.custo} open={isExpanded} asChild>
+                        <>
+                          <CollapsibleTrigger asChild>
+                            <TableRow
+                              className="cursor-pointer hover:bg-muted/50 transition-colors"
+                              onClick={() => setExpandedDespRow(isExpanded ? null : row.custo)}
+                            >
+                              <TableCell className="sticky left-0 bg-background z-10 font-medium">
+                                <div className="flex items-center gap-1">
+                                  {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                  {row.custo}
+                                </div>
+                              </TableCell>
+                              {row.months.map((v, i) => (
+                                <TableCell key={i} className="text-right text-sm tabular-nums">
+                                  {v > 0 ? fmt(v) : <span className="text-muted-foreground">-</span>}
+                                </TableCell>
+                              ))}
+                              <TableCell className="text-right font-bold text-destructive tabular-nums">
+                                {fmt(rowTotal)}
+                              </TableCell>
+                            </TableRow>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent asChild>
+                            <tr>
+                              <td colSpan={14} className="p-0">
+                                <div className="bg-muted/20 px-4 py-3 border-y">
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                    Detalhamento — {row.custo} — {selectedDetailYear}
+                                  </p>
+                                  <div className="space-y-0.5 max-h-64 overflow-y-auto">
+                                    {row.items.map((monthItems, mi) =>
+                                      monthItems.map((item, idx) => (
+                                        <div key={`${mi}-${idx}`} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
+                                          <div className="flex gap-3 items-center">
+                                            <Minus className="h-2 w-2 text-muted-foreground" />
+                                            <span className="text-muted-foreground w-8">{MONTH_NAMES[mi]}</span>
+                                            <span className="text-muted-foreground">{item.date}</span>
+                                            <span className="truncate max-w-[250px]">{item.descricao}</span>
+                                            {item.detalhamento && (
+                                              <span className="text-muted-foreground truncate max-w-[150px]">· {item.detalhamento}</span>
+                                            )}
+                                          </div>
+                                          <span className="font-medium text-destructive whitespace-nowrap">
+                                            {fmt(Math.abs(item.valorLiquido))}
+                                          </span>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          </CollapsibleContent>
+                        </>
+                      </Collapsible>
+                    );
+                  })}
+                  {/* Totals row */}
+                  <TableRow className="bg-muted/50 font-bold border-t-2">
+                    <TableCell className="sticky left-0 bg-muted/50 z-10">TOTAL</TableCell>
+                    {despMonthTotals.map((v, i) => (
+                      <TableCell key={i} className="text-right text-destructive tabular-nums">
+                        {v > 0 ? fmt(v) : '-'}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right text-destructive tabular-nums">
+                      {fmt(totalDespGeral)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </CardContent>
+      </Card>
 
       {/* Comparative Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Tabela Comparativa</CardTitle>
+          <CardTitle className="text-lg">Tabela Comparativa Anual</CardTitle>
           <CardDescription>Clique em um ano para ver o detalhamento por centro de custo</CardDescription>
         </CardHeader>
         <CardContent>
