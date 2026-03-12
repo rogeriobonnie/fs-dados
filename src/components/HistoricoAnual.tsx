@@ -5,10 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { RefreshCw, TrendingUp, TrendingDown, ChevronDown, ChevronRight, BarChart3, Minus } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, ChevronDown, ChevronRight, BarChart3, Minus, DollarSign, Trophy, Users, ShoppingCart } from 'lucide-react';
+
+interface EduzzRecord {
+  date: string;
+  curso: string;
+  aluno: string;
+  valor: number;
+  valorLiquido: number;
+  taxas: number;
+  month: number;
+  year: number;
+}
 
 interface YearSummary {
   year: number;
