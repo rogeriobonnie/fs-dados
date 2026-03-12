@@ -47,19 +47,26 @@ const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Se
 
 const HistoricoAnual = () => {
   const [data, setData] = useState<Pagina5Record[]>([]);
+  const [eduzzData, setEduzzData] = useState<EduzzRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [expandedCusto, setExpandedCusto] = useState<string | null>(null);
   const [selectedDetailYear, setSelectedDetailYear] = useState<number>(2025);
   const [expandedDespRow, setExpandedDespRow] = useState<string | null>(null);
+  const [selectedEduzzYear, setSelectedEduzzYear] = useState<number>(2025);
+  const [expandedEduzzCurso, setExpandedEduzzCurso] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const records = await GoogleSheetsService.fetchFluxoCaixaHistorico();
+      const [records, eduzz] = await Promise.all([
+        GoogleSheetsService.fetchFluxoCaixaHistorico(),
+        GoogleSheetsService.fetchPagina6Data(),
+      ]);
       setData(records);
+      setEduzzData(eduzz);
     } catch (err) {
       setError('Erro ao carregar dados históricos');
       console.error(err);
