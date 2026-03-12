@@ -150,6 +150,68 @@ const HistoricoAnual = () => {
     return totals;
   }, [despesasMatriz]);
 
+  // Aplicações/Rendimentos (custoNum 7) e Lucros Divididos (custoNum 21) — 2024 vs 2025
+  const aplicacoesLucros = useMemo(() => {
+    const groups = [
+      { label: '07-Aplicação/Rendimento', custoFilter: (n: number) => n === 7 },
+      { label: '21-Lucros Divididos', custoFilter: (n: number) => n === 21 },
+    ];
+    return groups.map(g => {
+      const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && g.custoFilter(r.custoNum));
+      const total2024 = filtered.filter(r => r.year === 2024).reduce((s, r) => s + r.valorLiquido, 0);
+      const total2025 = filtered.filter(r => r.year === 2025).reduce((s, r) => s + r.valorLiquido, 0);
+      const items2024 = filtered.filter(r => r.year === 2024);
+      const items2025 = filtered.filter(r => r.year === 2025);
+      const variacao = total2024 !== 0 ? ((total2025 - total2024) / Math.abs(total2024)) * 100 : 0;
+      return { label: g.label, total2024, total2025, variacao, items2024, items2025 };
+    });
+  }, [data]);
+
+  // Eduzz: ranking de cursos
+  const eduzzRanking = useMemo(() => {
+    const map: Record<string, { curso: string; vendas: number; alunos: Set<string>; valor: number; valorLiquido: number; taxas: number; bestMonth: string; bestMonthVal: number; monthMap: Record<string, number> }> = {};
+    eduzzData.forEach(r => {
+      if (!map[r.curso]) map[r.curso] = { curso: r.curso, vendas: 0, alunos: new Set(), valor: 0, valorLiquido: 0, taxas: 0, bestMonth: '', bestMonthVal: 0, monthMap: {} };
+      const e = map[r.curso];
+      e.vendas++;
+      if (r.aluno) e.alunos.add(r.aluno);
+      e.valor += r.valor;
+      e.valorLiquido += r.valorLiquido;
+      e.taxas += Math.abs(r.taxas);
+      const mk = `${MONTH_NAMES[(r.month || 1) - 1]}/${r.year}`;
+      e.monthMap[mk] = (e.monthMap[mk] || 0) + r.valor;
+      if (e.monthMap[mk] > e.bestMonthVal) { e.bestMonthVal = e.monthMap[mk]; e.bestMonth = mk; }
+    });
+    return Object.values(map)
+      .map(e => ({ ...e, alunosCount: e.alunos.size }))
+      .sort((a, b) => b.valor - a.valor);
+  }, [eduzzData]);
+
+  // Eduzz: matriz de vendas por mês
+  const eduzzMatriz = useMemo(() => {
+    const filtered = eduzzData.filter(r => r.year === selectedEduzzYear);
+    const map: Record<string, { curso: string; months: number[]; items: EduzzRecord[][] }> = {};
+    filtered.forEach(r => {
+      if (!map[r.curso]) map[r.curso] = { curso: r.curso, months: Array(12).fill(0), items: Array.from({ length: 12 }, () => []) };
+      const mi = (r.month || 1) - 1;
+      map[r.curso].months[mi]++;
+      map[r.curso].items[mi].push(r);
+    });
+    return Object.values(map).sort((a, b) => b.months.reduce((s, v) => s + v, 0) - a.months.reduce((s, v) => s + v, 0));
+  }, [eduzzData, selectedEduzzYear]);
+
+  // Eduzz totals
+  const eduzzTotals = useMemo(() => ({
+    valor: eduzzData.reduce((s, r) => s + r.valor, 0),
+    valorLiquido: eduzzData.reduce((s, r) => s + r.valorLiquido, 0),
+    taxas: eduzzData.reduce((s, r) => s + Math.abs(r.taxas), 0),
+    alunos: new Set(eduzzData.map(r => r.aluno).filter(Boolean)).size,
+    vendas: eduzzData.length,
+  }), [eduzzData]);
+
+  // Eduzz years available
+  const eduzzYears = useMemo(() => [...new Set(eduzzData.map(r => r.year))].filter(Boolean).sort(), [eduzzData]);
+
   if (loading) {
     return (
       <div className="space-y-6">
