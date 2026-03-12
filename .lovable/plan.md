@@ -1,66 +1,97 @@
 
 
-## Plano: Drill-down hierárquico nos Cursos Eduzz (Curso → Ano → Mês → Detalhe)
+## Painel Historico Anual - Nova Aba "Historico"
 
-### O que muda
+Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
 
-**1. Ranking de Cursos — drill-down em 3 níveis:**
+---
 
-Ao clicar num curso no ranking, em vez de mostrar lista flat de alunos, agora mostra:
+### O que sera construido
 
-- **Nível 1**: Linhas por ano (2024, 2025, etc.) com totais consolidados (vendas, valor bruto, taxas, líquido)
-- **Nível 2**: Ao clicar no ano, expande colunas por mês (Jan-Dez) com valores consolidados
-- **Nível 3**: Ao clicar no mês, expande lista de alunos com data, valor, taxa, líquido
+Uma pagina com 3 niveis de detalhe:
 
-**2. Nova sub-aba "Vendas por Ano/Mês" dentro do card Eduzz:**
+**Nivel 1 - Visao Macro (cards anuais)**
+- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
+  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
+  - Margem operacional (%)
+  - Barra de progresso visual comparando receita vs despesa
 
-Adicionar tabs internos no Card Eduzz: "Ranking" | "Vendas Ano/Mês"
+**Nivel 2 - Ao clicar no ano, expande:**
+- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
+- Grafico de barras empilhadas (Recharts) comparando todos os anos
+- Grafico de linha mostrando evolucao do resultado ao longo dos anos
 
-- **Aba "Ranking"**: mantém o ranking atual com o novo drill-down hierárquico
-- **Aba "Vendas Ano/Mês"**: tabela pivot com linhas = cursos, colunas = ano/mês, mostrando valores brutos consolidados. Destaca o mês mais vendido de cada curso. Inclui totais por linha e coluna.
+**Nivel 3 - Ao clicar em uma linha do ano, expande:**
+- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
+- Lista de itens individuais agrupados por categoria
 
-### States adicionais
+---
 
-- `expandedEduzzCursoYear: string | null` (ex: "Curso ABC-2024")
-- `expandedEduzzCursoMonth: string | null` (ex: "Curso ABC-2024-3")
-- `eduzzTab: 'ranking' | 'vendas'` (default 'ranking')
+### Estrutura tecnica
 
-### Layout do drill-down no Ranking
+**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
+- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
+- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
+
+**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
+- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
+- Agrupa por ano usando o campo `year` dos registros
+- Para cada ano calcula:
+  - Receitas: custoNum 1-10, soma de valorLiquido
+  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
+  - Resultado: Receitas - Despesas
+  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
+  - Margem: (Resultado / Receitas) * 100
+- Renderiza cards clicaveis por ano com Collapsible
+- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
+- Graficos comparativos usando Recharts (BarChart + LineChart)
+
+**3. Nova aba principal** (`src/pages/Index.tsx`)
+- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
+- Grid de 4 colunas no TabsList
+
+---
+
+### Layout visual da pagina
 
 ```text
-🥇 Curso ABC | 45 vendas | 38 alunos | R$ 50k | -R$ 5k | R$ 45k | Mar/2024
-   ▼ (clicou no curso)
-   ├─ 2024 | 30 vendas | R$ 35.000 | -R$ 3.500 | R$ 31.500
-   │    ▼ (clicou em 2024)
-   │    Jan | Fev | Mar | Abr | ... | Dez | TOTAL
-   │    R$2k| R$3k| R$8k| R$4k| ... | R$1k| R$35k
-   │         ▼ (clicou em Mar)
-   │         01/03 - Aluno X - R$ 500 - Taxa R$ 50 - Líq R$ 450
-   │         15/03 - Aluno Y - R$ 700 - Taxa R$ 70 - Líq R$ 630
-   │
-   ├─ 2025 | 15 vendas | R$ 15.000 | -R$ 1.500 | R$ 13.500
++--------------------------------------------------+
+|  HISTORICO FINANCEIRO           [Atualizar]       |
+|  Evolucao anual da empresa desde 2022             |
++--------------------------------------------------+
+
++----------+ +----------+ +----------+ +----------+
+| 2022     | | 2023     | | 2024     | | 2025     |
+| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
+| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
+| Res +40k | | Res +100k| | Res +160k| | Res +90k |
+| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
+| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
++----------+ +----------+ +----------+ +----------+
+
+[========= GRAFICO COMPARATIVO ANUAL =========]
+[  Barras: Receitas vs Despesas por ano        ]
+[  Linha: Evolucao do Resultado                ]
+[=============================================]
+
++--------------------------------------------------+
+| TABELA COMPARATIVA                                |
+| Ano | Receitas | Despesas | Result | Dist | Marg  |
+| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
+|  v  (clica para expandir por centro de custo)     |
+|     01-Cursos FS:        R$ 90.000               |
+|     05-Cursos Terceiros: R$ 30.000               |
+|     11-Fixas:           -R$ 50.000               |
+|     12-Variaveis:       -R$ 30.000               |
+|     21-Distribuicoes:   -R$ 20.000               |
++--------------------------------------------------+
 ```
 
-### Layout da aba "Vendas Ano/Mês"
+### Arquivos a criar/modificar
 
-```text
-[Ranking] [Vendas Ano/Mês]
-
-Curso        | 2024          | 2025          | TOTAL
-             | Vendas | Bruto| Vendas | Bruto|
-Curso ABC    |   30   | 35k  |   15   | 15k  | 45 | 50k
-Curso XYZ    |   12   | 14k  |   10   | 11k  | 22 | 25k
-TOTAL        |   42   | 49k  |   25   | 26k  | 67 | 75k
-
-★ Mais vendido 2024: Curso ABC (Mar/2024 — R$ 8k)
-★ Mais vendido 2025: Curso ABC (Jun/2025 — R$ 5k)
-```
-
-### Alterações em `src/components/HistoricoAnual.tsx`
-
-- Adicionar states: `eduzzTab`, `expandedEduzzCursoYear`, `expandedEduzzCursoMonth`
-- Novo `useMemo` — `eduzzPorAnoMes`: agrupa por curso → ano → { vendas, valor, taxas, líquido, melhorMes }
-- Substituir o conteúdo expandido do ranking (linhas 683-715) pelo drill-down hierárquico Ano → Mês → Detalhe
-- Adicionar Tabs dentro do Card Eduzz para alternar entre "Ranking" e "Vendas Ano/Mês"
-- Nova tabela pivot na aba "Vendas Ano/Mês" com destaque dos mais vendidos
+| Arquivo | Acao |
+|---------|------|
+| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
+| `src/components/HistoricoAnual.tsx` | Criar componente completo |
+| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
 
