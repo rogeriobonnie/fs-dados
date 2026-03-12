@@ -1,97 +1,56 @@
 
 
-## Painel Historico Anual - Nova Aba "Historico"
+## Plano: Reformular aba Histórico — Matriz de Despesas por Mês/Centro de Custo
 
-Uma nova aba principal no sistema que puxa dados da aba "FLUXO DE CAIXA" da planilha, consolida por ano, e apresenta um painel sensacional com visao macro da empresa desde 2022.
+### O que muda
 
----
+1. **Remover os dois gráficos** (linhas 217-274) — BarChart e ComposedChart.
 
-### O que sera construido
+2. **Nova seção acima da tabela comparativa** — "Análise Detalhada 2024-2025" com duas partes:
 
-Uma pagina com 3 niveis de detalhe:
+   **a) Receitas Consolidadas por Centro de Custo** (sem abrir detalhes)
+   - Filtra `custoNum 1-10` dos anos 2024 e 2025
+   - Tabela simples: Centro de Custo | 2024 | 2025 | Variação
+   - Uma linha por centro de custo, sem drill-down
 
-**Nivel 1 - Visao Macro (cards anuais)**
-- Cards grandes por ano (2022, 2023, 2024, 2025...) mostrando:
-  - Receita Total, Despesa Total, Resultado, Distribuicao de Lucros
-  - Margem operacional (%)
-  - Barra de progresso visual comparando receita vs despesa
+   **b) Despesas por Centro de Custo × Mês** (formato matriz/pivot)
+   - Filtra `custoNum 11-20` dos anos 2024 e 2025
+   - Tabela pivot: linhas = centro de custo, colunas = meses (Jan-Dez)
+   - Seletor de ano (2024/2025) acima da tabela
+   - Cada célula mostra o total daquele centro naquele mês
+   - Linha de TOTAL no final
+   - Coluna TOTAL à direita
+   - Ao clicar numa célula ou linha, expande detalhamento dos itens
 
-**Nivel 2 - Ao clicar no ano, expande:**
-- Tabela comparativa anual com colunas: Ano | Receitas | Despesas | Resultado | Dist. Lucros | Margem
-- Grafico de barras empilhadas (Recharts) comparando todos os anos
-- Grafico de linha mostrando evolucao do resultado ao longo dos anos
-
-**Nivel 3 - Ao clicar em uma linha do ano, expande:**
-- Breakdown por centro de custo (01-Cursos FS, 05-Cursos Terceiros, 11-Fixas, 12-Variaveis, etc.)
-- Lista de itens individuais agrupados por categoria
-
----
-
-### Estrutura tecnica
-
-**1. Novo metodo no servico** (`src/services/googleSheetsService.ts`)
-- `fetchFluxoCaixaHistorico()`: busca dados da aba `FLUXO DE CAIXA!A:O`
-- Reutiliza o parser `parsePagina5Data` (mesma estrutura de colunas)
-
-**2. Novo componente** (`src/components/HistoricoAnual.tsx`)
-- Busca dados ao montar via `GoogleSheetsService.fetchFluxoCaixaHistorico()`
-- Agrupa por ano usando o campo `year` dos registros
-- Para cada ano calcula:
-  - Receitas: custoNum 1-10, soma de valorLiquido
-  - Despesas: custoNum 11-20, soma de abs(valorLiquido)
-  - Resultado: Receitas - Despesas
-  - Distribuicoes: custoNum 21, soma de abs(valorLiquido)
-  - Margem: (Resultado / Receitas) * 100
-- Renderiza cards clicaveis por ano com Collapsible
-- Dentro de cada ano, sub-agrupamento por centro de custo com Collapsible
-- Graficos comparativos usando Recharts (BarChart + LineChart)
-
-**3. Nova aba principal** (`src/pages/Index.tsx`)
-- Adicionar 4a aba "Historico" com icone `TrendingUp` ao lado de "Painel Financeiro"
-- Grid de 4 colunas no TabsList
-
----
-
-### Layout visual da pagina
+### Layout visual
 
 ```text
-+--------------------------------------------------+
-|  HISTORICO FINANCEIRO           [Atualizar]       |
-|  Evolucao anual da empresa desde 2022             |
-+--------------------------------------------------+
+RECEITAS POR CENTRO DE CUSTO
+Centro de Custo          | 2024        | 2025        | Var %
+01-Cursos FS             | R$ 280.000  | R$ 150.000  | -46%
+05-Cursos Terceiros      | R$ 95.000   | R$ 48.000   | -49%
+TOTAL                    | R$ 375.000  | R$ 198.000  | -47%
 
-+----------+ +----------+ +----------+ +----------+
-| 2022     | | 2023     | | 2024     | | 2025     |
-| Rec 120k | | Rec 250k | | Rec 380k | | Rec 200k |
-| Desp 80k | | Desp 150k| | Desp 220k| | Desp 110k|
-| Res +40k | | Res +100k| | Res +160k| | Res +90k |
-| Dist 20k | | Dist 50k | | Dist 80k | | Dist 40k |
-| Mg 33.3% | | Mg 40.0% | | Mg 42.1% | | Mg 45.0% |
-+----------+ +----------+ +----------+ +----------+
-
-[========= GRAFICO COMPARATIVO ANUAL =========]
-[  Barras: Receitas vs Despesas por ano        ]
-[  Linha: Evolucao do Resultado                ]
-[=============================================]
-
-+--------------------------------------------------+
-| TABELA COMPARATIVA                                |
-| Ano | Receitas | Despesas | Result | Dist | Marg  |
-| 2022| R$120k   | R$80k    | +R$40k | R$20k| 33.3%|
-|  v  (clica para expandir por centro de custo)     |
-|     01-Cursos FS:        R$ 90.000               |
-|     05-Cursos Terceiros: R$ 30.000               |
-|     11-Fixas:           -R$ 50.000               |
-|     12-Variaveis:       -R$ 30.000               |
-|     21-Distribuicoes:   -R$ 20.000               |
-+--------------------------------------------------+
+DESPESAS POR CENTRO DE CUSTO    [2024 ▼] [2025]
+Centro Custo  | Jan    | Fev    | Mar   | ... | Dez   | TOTAL
+11-Fixas      | 8.500  | 8.200  | 8.800 | ... | 9.100 | 102k
+12-Variáveis  | 3.200  | 2.800  | 4.100 | ... | 3.500 | 40k
+13-Impostos   | 1.500  | 1.200  | 1.800 | ... | 1.600 | 18k
+TOTAL         | 13.200 | 12.200 | 14.700| ... | 14.200| 160k
 ```
 
-### Arquivos a criar/modificar
+### Alterações em `src/components/HistoricoAnual.tsx`
 
-| Arquivo | Acao |
-|---------|------|
-| `src/services/googleSheetsService.ts` | Adicionar `fetchFluxoCaixaHistorico()` |
-| `src/components/HistoricoAnual.tsx` | Criar componente completo |
-| `src/pages/Index.tsx` | Adicionar 4a aba "Historico" |
+**1. Novo state**: `selectedDetailYear` (default 2025) para o seletor da matriz de despesas.
+
+**2. Novo useMemo — `receitasPorCusto`**: Filtra anos 2024-2025, custoNum 1-10, agrupa por centro de custo e ano. Retorna array de `{ custo, total2024, total2025, variacao }`.
+
+**3. Novo useMemo — `despesasMatriz`**: Filtra o `selectedDetailYear`, custoNum 11-20, agrupa por centro de custo e mês. Retorna `Map<custo, number[12]>` (array de 12 meses). Calcula totais por linha e coluna.
+
+**4. JSX**: Remover bloco de gráficos (linhas 217-274). Inserir no mesmo local:
+- Card "Receitas por Centro de Custo" — tabela com 4 colunas
+- Card "Despesas por Centro de Custo" — botões 2024/2025 + tabela matriz 14 colunas (custo + 12 meses + total)
+- Células clicáveis que expandem detalhamento inline
+
+**5. Manter**: Year cards e tabela comparativa existentes abaixo.
 
