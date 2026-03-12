@@ -480,29 +480,30 @@ const HistoricoAnual = () => {
                         <CollapsibleContent asChild>
                           <tr>
                             <td colSpan={7} className="p-0">
-                              <div className="bg-muted/20 px-4 py-3 border-y">
-                                {detalhe && [2024, 2025].map(year => {
+                              <div className="bg-muted/20 px-4 py-3 border-y overflow-x-auto">
+                                {detalhe && [2024, 2025].map((year, yi) => {
                                   const months = detalhe[year] || Array(12).fill(0);
                                   const yearTotal = months.reduce((s: number, v: number) => s + v, 0);
                                   return (
-                                    <div key={year} className="mb-3 last:mb-0">
-                                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                                        {year} — Total: <span className="text-emerald-600">{fmt(yearTotal)}</span>
-                                      </p>
-                                      <div className="grid grid-cols-13 gap-1 text-xs">
-                                        {MONTH_NAMES.map((m, i) => (
-                                          <div key={m} className="text-center">
-                                            <div className="text-muted-foreground font-medium mb-0.5">{m}</div>
-                                            <div className={`tabular-nums py-1 px-1 rounded ${months[i] > 0 ? 'bg-emerald-500/10 text-emerald-600 font-medium' : 'text-muted-foreground'}`}>
-                                              {months[i] > 0 ? fmtCompact(months[i]) : '-'}
-                                            </div>
+                                    <div key={year} className={yi > 0 ? 'mt-2 pt-2 border-t border-border/50' : ''}>
+                                      <div style={{ display: 'grid', gridTemplateColumns: '50px repeat(12, 1fr) 70px', gap: '2px' }} className="text-xs">
+                                        {yi === 0 && (
+                                          <>
+                                            <div />
+                                            {MONTH_NAMES.map(m => (
+                                              <div key={m} className="text-center text-muted-foreground font-medium py-1">{m}</div>
+                                            ))}
+                                            <div className="text-center text-muted-foreground font-bold py-1">TOTAL</div>
+                                          </>
+                                        )}
+                                        <div className="font-bold text-primary flex items-center">{year}</div>
+                                        {months.map((v: number, i: number) => (
+                                          <div key={i} className={`text-center tabular-nums py-1.5 px-1 rounded ${v > 0 ? 'bg-emerald-500/10 text-emerald-600 font-medium' : 'text-muted-foreground'}`}>
+                                            {v > 0 ? fmtCompact(v) : '-'}
                                           </div>
                                         ))}
-                                        <div className="text-center">
-                                          <div className="text-muted-foreground font-bold mb-0.5">TOT</div>
-                                          <div className="tabular-nums py-1 px-1 rounded bg-emerald-500/20 text-emerald-600 font-bold">
-                                            {fmtCompact(yearTotal)}
-                                          </div>
+                                        <div className="text-center tabular-nums py-1.5 px-1 rounded bg-emerald-500/20 text-emerald-600 font-bold">
+                                          {fmtCompact(yearTotal)}
                                         </div>
                                       </div>
                                     </div>
