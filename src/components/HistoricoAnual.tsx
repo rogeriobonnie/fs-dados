@@ -241,16 +241,13 @@ const HistoricoAnual = () => {
       totais[r.year].valor += r.valor;
     });
 
-    // Compute best month per curso per year
     eduzzData.forEach(r => {
-      const key = `${r.month}`;
       const e = cursoMap[r.curso]?.[r.year];
       if (!e) return;
-      // We track per month
-      if (!e._monthMap) (e as any)._monthMap = {};
-      (e as any)._monthMap[key] = ((e as any)._monthMap[key] || 0) + r.valor;
-      if ((e as any)._monthMap[key] > e.bestMonthVal) {
-        e.bestMonthVal = (e as any)._monthMap[key];
+      const key = `${r.month}`;
+      e._monthMap[key] = (e._monthMap[key] || 0) + r.valor;
+      if (e._monthMap[key] > e.bestMonthVal) {
+        e.bestMonthVal = e._monthMap[key];
         e.bestMonth = `${MONTH_NAMES[r.month - 1]}/${r.year}`;
       }
     });
