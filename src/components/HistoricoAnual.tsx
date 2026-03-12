@@ -227,7 +227,7 @@ const HistoricoAnual = () => {
   // Eduzz: pivot vendas por ano (for "Vendas Ano/Mês" tab)
   const eduzzVendasPivot = useMemo(() => {
     const years = [...new Set(eduzzData.map(r => r.year))].filter(Boolean).sort();
-    const cursoMap: Record<string, Record<number, { vendas: number; valor: number; bestMonth: string; bestMonthVal: number }>> = {};
+    const cursoMap: Record<string, Record<number, { vendas: number; valor: number; bestMonth: string; bestMonthVal: number; _monthMap: Record<string, number> }>> = {};
     const totais: Record<number, { vendas: number; valor: number }> = {};
     years.forEach(y => { totais[y] = { vendas: 0, valor: 0 }; });
 
