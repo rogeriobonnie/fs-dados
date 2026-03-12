@@ -233,7 +233,7 @@ const HistoricoAnual = () => {
 
     eduzzData.forEach(r => {
       if (!cursoMap[r.curso]) cursoMap[r.curso] = {};
-      if (!cursoMap[r.curso][r.year]) cursoMap[r.curso][r.year] = { vendas: 0, valor: 0, bestMonth: '', bestMonthVal: 0 };
+      if (!cursoMap[r.curso][r.year]) cursoMap[r.curso][r.year] = { vendas: 0, valor: 0, bestMonth: '', bestMonthVal: 0, _monthMap: {} };
       const e = cursoMap[r.curso][r.year];
       e.vendas++;
       e.valor += r.valor;
