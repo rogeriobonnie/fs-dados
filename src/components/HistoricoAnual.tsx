@@ -399,46 +399,69 @@ const HistoricoAnual = () => {
         })}
       </div>
 
-      {/* Receitas Consolidadas por Centro de Custo */}
+      {/* Receitas Operacionais por Centro de Custo */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-emerald-500" />
-            Receitas por Centro de Custo — 2024 vs 2025
+            Receitas Operacionais — Comparativo Anual
           </CardTitle>
-          <CardDescription>Consolidado sem detalhamento</CardDescription>
+          <CardDescription>Exclui aplicações/rendimentos (apresentados em seção própria)</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Centro de Custo</TableHead>
+                <TableHead className="text-right">Qtd 2024</TableHead>
                 <TableHead className="text-right">2024</TableHead>
+                <TableHead className="text-right">Qtd 2025</TableHead>
                 <TableHead className="text-right">2025</TableHead>
                 <TableHead className="text-right">Variação</TableHead>
+                <TableHead className="w-[120px]">Proporção</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {receitasPorCusto.map(r => {
-                const variacao = r.total2024 !== 0 ? ((r.total2025 - r.total2024) / Math.abs(r.total2024)) * 100 : 0;
-                return (
-                  <TableRow key={r.custo}>
-                    <TableCell className="font-medium">{r.custo}</TableCell>
-                    <TableCell className="text-right text-emerald-600">{fmt(r.total2024)}</TableCell>
-                    <TableCell className="text-right text-emerald-600">{fmt(r.total2025)}</TableCell>
-                    <TableCell className={`text-right font-bold ${variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
-                      {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {(() => {
+                const maxVal = Math.max(...receitasPorCusto.map(r => Math.max(r.total2024, r.total2025)), 1);
+                return receitasPorCusto.map(r => {
+                  const variacao = r.total2024 !== 0 ? ((r.total2025 - r.total2024) / Math.abs(r.total2024)) * 100 : 0;
+                  const barWidth2024 = (r.total2024 / maxVal) * 100;
+                  const barWidth2025 = (r.total2025 / maxVal) * 100;
+                  return (
+                    <TableRow key={r.custo}>
+                      <TableCell className="font-medium">{r.custo}</TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2024}</TableCell>
+                      <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2024)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2025}</TableCell>
+                      <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2025)}</TableCell>
+                      <TableCell className={`text-right font-bold tabular-nums ${variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                        {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="h-1.5 rounded-full bg-emerald-500/30">
+                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${barWidth2024}%` }} />
+                          </div>
+                          <div className="h-1.5 rounded-full bg-primary/20">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${barWidth2025}%` }} />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                });
+              })()}
               <TableRow className="bg-muted/50 font-bold border-t-2">
                 <TableCell>TOTAL</TableCell>
-                <TableCell className="text-right text-emerald-600">{fmt(totalRec2024)}</TableCell>
-                <TableCell className="text-right text-emerald-600">{fmt(totalRec2025)}</TableCell>
+                <TableCell className="text-right tabular-nums">{receitasPorCusto.reduce((s, r) => s + r.qtd2024, 0)}</TableCell>
+                <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(totalRec2024)}</TableCell>
+                <TableCell className="text-right tabular-nums">{receitasPorCusto.reduce((s, r) => s + r.qtd2025, 0)}</TableCell>
+                <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(totalRec2025)}</TableCell>
                 <TableCell className={`text-right ${varRecTotal >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                   {varRecTotal >= 0 ? '+' : ''}{varRecTotal.toFixed(1)}%
                 </TableCell>
+                <TableCell />
               </TableRow>
             </TableBody>
           </Table>
