@@ -59,6 +59,7 @@ const HistoricoAnual = () => {
   const [expandedEduzzCurso, setExpandedEduzzCurso] = useState<string | null>(null);
   const [expandedEduzzCursoYear, setExpandedEduzzCursoYear] = useState<string | null>(null);
   const [expandedEduzzCursoMonth, setExpandedEduzzCursoMonth] = useState<string | null>(null);
+  const [expandedReceitaCusto, setExpandedReceitaCusto] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
