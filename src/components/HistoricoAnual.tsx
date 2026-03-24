@@ -1124,7 +1124,7 @@ const HistoricoAnual = () => {
                       </CollapsibleTrigger>
                       <CollapsibleContent asChild>
                         <tr>
-                          <td colSpan={7} className="p-0">
+                          <td colSpan={8} className="p-0">
                             <div className="bg-muted/30 px-6 py-4 space-y-2 border-y">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                                 Centros de Custo — {y.year}
