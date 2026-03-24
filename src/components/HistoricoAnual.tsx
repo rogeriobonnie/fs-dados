@@ -1080,8 +1080,7 @@ const HistoricoAnual = () => {
                 <TableHead className="text-right">Receitas</TableHead>
                 <TableHead className="text-right">Despesas</TableHead>
                 <TableHead className="text-right">Resultado</TableHead>
-                <TableHead className="text-right">07-Aplicação</TableHead>
-                <TableHead className="text-right">21-Dist. Lucros</TableHead>
+                <TableHead className="text-right">Dist. Lucros</TableHead>
                 <TableHead className="text-right">Margem</TableHead>
               </TableRow>
             </TableHeader>
@@ -1109,7 +1108,6 @@ const HistoricoAnual = () => {
                           <TableCell className={`text-right font-bold ${y.resultado >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                             {y.resultado >= 0 ? '+' : ''}{fmt(y.resultado)}
                           </TableCell>
-                          <TableCell className="text-right text-primary">{fmt(y.aplicacao)}</TableCell>
                           <TableCell className="text-right">{fmt(y.distribuicao)}</TableCell>
                           <TableCell className="text-right">
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${
@@ -1124,12 +1122,12 @@ const HistoricoAnual = () => {
                       </CollapsibleTrigger>
                       <CollapsibleContent asChild>
                         <tr>
-                          <td colSpan={8} className="p-0">
+                          <td colSpan={7} className="p-0">
                             <div className="bg-muted/30 px-6 py-4 space-y-2 border-y">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                                 Centros de Custo — {y.year}
                               </p>
-                              {y.centroCustoBreakdown.map(cc => {
+                              {y.centroCustoBreakdown.filter(cc => cc.custoNum !== 7 && cc.custoNum !== 21).map(cc => {
                                 const ccKey = `${y.year}-${cc.custo}`;
                                 const isCcExpanded = expandedCusto === ccKey;
                                 return (
@@ -1197,7 +1195,6 @@ const HistoricoAnual = () => {
                 const totRec = yearSummaries.reduce((s, y) => s + y.receitas, 0);
                 const totDesp = yearSummaries.reduce((s, y) => s + y.despesas, 0);
                 const totRes = totRec - totDesp;
-                const totAplic = yearSummaries.reduce((s, y) => s + y.aplicacao, 0);
                 const totDist = yearSummaries.reduce((s, y) => s + y.distribuicao, 0);
                 const totMarg = totRec > 0 ? (totRes / totRec) * 100 : 0;
                 return (
@@ -1209,7 +1206,6 @@ const HistoricoAnual = () => {
                     <TableCell className={`text-right ${totRes >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                       {totRes >= 0 ? '+' : ''}{fmt(totRes)}
                     </TableCell>
-                    <TableCell className="text-right text-primary">{fmt(totAplic)}</TableCell>
                     <TableCell className="text-right">{fmt(totDist)}</TableCell>
                     <TableCell className="text-right">{totMarg.toFixed(1)}%</TableCell>
                   </TableRow>
@@ -1217,6 +1213,44 @@ const HistoricoAnual = () => {
               })()}
             </TableBody>
           </Table>
+
+          {/* Informativo: 07 e 21 separados */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-muted-foreground mb-3">07 — Aplicação / Rendimento</p>
+              <div className="space-y-1.5">
+                {yearSummaries.map(y => (
+                  <div key={y.year} className="flex justify-between text-sm">
+                    <span className="font-medium text-primary">{y.year}</span>
+                    <span className={`font-bold tabular-nums ${y.aplicacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                      {fmt(y.aplicacao)}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-sm border-t pt-1.5 font-bold">
+                  <span>TOTAL</span>
+                  <span className="tabular-nums">{fmt(yearSummaries.reduce((s, y) => s + y.aplicacao, 0))}</span>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-muted-foreground mb-3">21 — Distribuição de Lucros</p>
+              <div className="space-y-1.5">
+                {yearSummaries.map(y => (
+                  <div key={y.year} className="flex justify-between text-sm">
+                    <span className="font-medium text-primary">{y.year}</span>
+                    <span className="font-bold tabular-nums text-destructive">
+                      {fmt(y.distribuicao)}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-sm border-t pt-1.5 font-bold">
+                  <span>TOTAL</span>
+                  <span className="tabular-nums">{fmt(yearSummaries.reduce((s, y) => s + y.distribuicao, 0))}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
