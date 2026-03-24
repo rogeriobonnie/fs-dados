@@ -96,11 +96,14 @@ const HistoricoAnual = () => {
       .map(year => {
         const records = byYear[year];
         const receitas = records
-          .filter(r => r.custoNum >= 1 && r.custoNum <= 10)
+          .filter(r => r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7)
           .reduce((s, r) => s + r.valorLiquido, 0);
         const despesas = records
           .filter(r => r.custoNum >= 11 && r.custoNum <= 20)
           .reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        const aplicacao = records
+          .filter(r => r.custoNum === 7)
+          .reduce((s, r) => s + r.valorLiquido, 0);
         const distribuicao = records
           .filter(r => r.custoNum === 21)
           .reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
@@ -116,7 +119,7 @@ const HistoricoAnual = () => {
         });
         const centroCustoBreakdown = Object.values(custoMap).sort((a, b) => a.custoNum - b.custoNum);
 
-        return { year, receitas, despesas, resultado, distribuicao, margem, records, centroCustoBreakdown };
+        return { year, receitas, despesas, resultado, aplicacao, distribuicao, margem, records, centroCustoBreakdown };
       });
   }, [data]);
 
