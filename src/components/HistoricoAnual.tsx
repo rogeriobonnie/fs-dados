@@ -1195,7 +1195,6 @@ const HistoricoAnual = () => {
                 const totRec = yearSummaries.reduce((s, y) => s + y.receitas, 0);
                 const totDesp = yearSummaries.reduce((s, y) => s + y.despesas, 0);
                 const totRes = totRec - totDesp;
-                const totAplic = yearSummaries.reduce((s, y) => s + y.aplicacao, 0);
                 const totDist = yearSummaries.reduce((s, y) => s + y.distribuicao, 0);
                 const totMarg = totRec > 0 ? (totRes / totRec) * 100 : 0;
                 return (
@@ -1207,7 +1206,6 @@ const HistoricoAnual = () => {
                     <TableCell className={`text-right ${totRes >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                       {totRes >= 0 ? '+' : ''}{fmt(totRes)}
                     </TableCell>
-                    <TableCell className="text-right text-primary">{fmt(totAplic)}</TableCell>
                     <TableCell className="text-right">{fmt(totDist)}</TableCell>
                     <TableCell className="text-right">{totMarg.toFixed(1)}%</TableCell>
                   </TableRow>
