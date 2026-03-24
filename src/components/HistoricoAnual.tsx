@@ -28,6 +28,7 @@ interface YearSummary {
   receitas: number;
   despesas: number;
   resultado: number;
+  aplicacao: number;
   distribuicao: number;
   margem: number;
   records: Pagina5Record[];
@@ -95,11 +96,14 @@ const HistoricoAnual = () => {
       .map(year => {
         const records = byYear[year];
         const receitas = records
-          .filter(r => r.custoNum >= 1 && r.custoNum <= 10)
+          .filter(r => r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7)
           .reduce((s, r) => s + r.valorLiquido, 0);
         const despesas = records
           .filter(r => r.custoNum >= 11 && r.custoNum <= 20)
           .reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        const aplicacao = records
+          .filter(r => r.custoNum === 7)
+          .reduce((s, r) => s + r.valorLiquido, 0);
         const distribuicao = records
           .filter(r => r.custoNum === 21)
           .reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
@@ -115,7 +119,7 @@ const HistoricoAnual = () => {
         });
         const centroCustoBreakdown = Object.values(custoMap).sort((a, b) => a.custoNum - b.custoNum);
 
-        return { year, receitas, despesas, resultado, distribuicao, margem, records, centroCustoBreakdown };
+        return { year, receitas, despesas, resultado, aplicacao, distribuicao, margem, records, centroCustoBreakdown };
       });
   }, [data]);
 
@@ -1076,7 +1080,8 @@ const HistoricoAnual = () => {
                 <TableHead className="text-right">Receitas</TableHead>
                 <TableHead className="text-right">Despesas</TableHead>
                 <TableHead className="text-right">Resultado</TableHead>
-                <TableHead className="text-right">Dist. Lucros</TableHead>
+                <TableHead className="text-right">07-Aplicação</TableHead>
+                <TableHead className="text-right">21-Dist. Lucros</TableHead>
                 <TableHead className="text-right">Margem</TableHead>
               </TableRow>
             </TableHeader>
@@ -1104,6 +1109,7 @@ const HistoricoAnual = () => {
                           <TableCell className={`text-right font-bold ${y.resultado >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                             {y.resultado >= 0 ? '+' : ''}{fmt(y.resultado)}
                           </TableCell>
+                          <TableCell className="text-right text-primary">{fmt(y.aplicacao)}</TableCell>
                           <TableCell className="text-right">{fmt(y.distribuicao)}</TableCell>
                           <TableCell className="text-right">
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${
@@ -1118,7 +1124,7 @@ const HistoricoAnual = () => {
                       </CollapsibleTrigger>
                       <CollapsibleContent asChild>
                         <tr>
-                          <td colSpan={7} className="p-0">
+                          <td colSpan={8} className="p-0">
                             <div className="bg-muted/30 px-6 py-4 space-y-2 border-y">
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                                 Centros de Custo — {y.year}
@@ -1191,6 +1197,7 @@ const HistoricoAnual = () => {
                 const totRec = yearSummaries.reduce((s, y) => s + y.receitas, 0);
                 const totDesp = yearSummaries.reduce((s, y) => s + y.despesas, 0);
                 const totRes = totRec - totDesp;
+                const totAplic = yearSummaries.reduce((s, y) => s + y.aplicacao, 0);
                 const totDist = yearSummaries.reduce((s, y) => s + y.distribuicao, 0);
                 const totMarg = totRec > 0 ? (totRes / totRec) * 100 : 0;
                 return (
@@ -1202,6 +1209,7 @@ const HistoricoAnual = () => {
                     <TableCell className={`text-right ${totRes >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                       {totRes >= 0 ? '+' : ''}{fmt(totRes)}
                     </TableCell>
+                    <TableCell className="text-right text-primary">{fmt(totAplic)}</TableCell>
                     <TableCell className="text-right">{fmt(totDist)}</TableCell>
                     <TableCell className="text-right">{totMarg.toFixed(1)}%</TableCell>
                   </TableRow>
