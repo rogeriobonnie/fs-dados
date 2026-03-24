@@ -1109,6 +1109,7 @@ const HistoricoAnual = () => {
                           <TableCell className={`text-right font-bold ${y.resultado >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                             {y.resultado >= 0 ? '+' : ''}{fmt(y.resultado)}
                           </TableCell>
+                          <TableCell className="text-right text-primary">{fmt(y.aplicacao)}</TableCell>
                           <TableCell className="text-right">{fmt(y.distribuicao)}</TableCell>
                           <TableCell className="text-right">
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${
