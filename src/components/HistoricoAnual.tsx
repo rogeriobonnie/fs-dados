@@ -1129,7 +1129,7 @@ const HistoricoAnual = () => {
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                                 Centros de Custo — {y.year}
                               </p>
-                              {y.centroCustoBreakdown.map(cc => {
+                              {y.centroCustoBreakdown.filter(cc => cc.custoNum !== 7 && cc.custoNum !== 21).map(cc => {
                                 const ccKey = `${y.year}-${cc.custo}`;
                                 const isCcExpanded = expandedCusto === ccKey;
                                 return (
