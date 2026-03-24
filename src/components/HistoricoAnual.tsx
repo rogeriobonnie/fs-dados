@@ -1080,7 +1080,8 @@ const HistoricoAnual = () => {
                 <TableHead className="text-right">Receitas</TableHead>
                 <TableHead className="text-right">Despesas</TableHead>
                 <TableHead className="text-right">Resultado</TableHead>
-                <TableHead className="text-right">Dist. Lucros</TableHead>
+                <TableHead className="text-right">07-Aplicação</TableHead>
+                <TableHead className="text-right">21-Dist. Lucros</TableHead>
                 <TableHead className="text-right">Margem</TableHead>
               </TableRow>
             </TableHeader>
