@@ -1213,6 +1213,44 @@ const HistoricoAnual = () => {
               })()}
             </TableBody>
           </Table>
+
+          {/* Informativo: 07 e 21 separados */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-muted-foreground mb-3">07 — Aplicação / Rendimento</p>
+              <div className="space-y-1.5">
+                {yearSummaries.map(y => (
+                  <div key={y.year} className="flex justify-between text-sm">
+                    <span className="font-medium text-primary">{y.year}</span>
+                    <span className={`font-bold tabular-nums ${y.aplicacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                      {fmt(y.aplicacao)}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-sm border-t pt-1.5 font-bold">
+                  <span>TOTAL</span>
+                  <span className="tabular-nums">{fmt(yearSummaries.reduce((s, y) => s + y.aplicacao, 0))}</span>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-muted-foreground mb-3">21 — Distribuição de Lucros</p>
+              <div className="space-y-1.5">
+                {yearSummaries.map(y => (
+                  <div key={y.year} className="flex justify-between text-sm">
+                    <span className="font-medium text-primary">{y.year}</span>
+                    <span className="font-bold tabular-nums text-destructive">
+                      {fmt(y.distribuicao)}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-sm border-t pt-1.5 font-bold">
+                  <span>TOTAL</span>
+                  <span className="tabular-nums">{fmt(yearSummaries.reduce((s, y) => s + y.distribuicao, 0))}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
