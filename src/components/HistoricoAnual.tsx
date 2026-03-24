@@ -28,6 +28,7 @@ interface YearSummary {
   receitas: number;
   despesas: number;
   resultado: number;
+  aplicacao: number;
   distribuicao: number;
   margem: number;
   records: Pagina5Record[];
