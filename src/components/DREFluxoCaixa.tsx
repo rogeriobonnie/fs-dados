@@ -782,7 +782,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       patrimonioRows.push(['(-) Provisão Lance a Dois (32)', `-${fmt(totalProvisao32PDF)}`]);
     }
     patrimonioRows.push(['= PATRIMÔNIO LÍQUIDO', fmt(patrimonioLiquidoPDF)]);
-    patrimonioRows.push([`(-) Investimento XP (10%)`, `-${fmt(investimentoXPpdf)}`]);
+    patrimonioRows.push([`(-) Investimento XP (${investimentoXPAtivo ? '10%' : '0%'})`, `-${fmt(investimentoXPpdf)}`]);
     patrimonioRows.push(['= PATRIMÔNIO FINAL', fmt(patrimonioFinalPDF)]);
 
     autoTable(doc, {
