@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Switch } from '@/components/ui/switch';
 import { Pagina5Record, FluxoCaixaBanco } from '@/types/pagina5';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
