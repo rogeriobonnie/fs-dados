@@ -1,3 +1,4 @@
+
 ## Plano: Remover Cards + Toggle Investimento XP
 
 ### 1. Remover os 4 cards de resumo do Painel Financeiro
