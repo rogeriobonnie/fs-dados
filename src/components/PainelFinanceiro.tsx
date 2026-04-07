@@ -120,36 +120,6 @@ const PainelFinanceiro = () => {
         <span className="text-xs text-muted-foreground">{filteredData.length} registros</span>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Saldo Inicial</p>
-            <p className="text-lg font-bold text-primary">{fmt(summary.totalSaldoInicial)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Receitas</p>
-            <p className="text-lg font-bold" style={{ color: 'hsl(var(--success))' }}>{fmt(summary.totalReceitas)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Despesas</p>
-            <p className="text-lg font-bold" style={{ color: 'hsl(var(--destructive))' }}>{fmt(summary.totalDespesas)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Resultado</p>
-            <p className={`text-lg font-bold ${summary.resultado >= 0 ? 'text-primary' : ''}`} style={summary.resultado < 0 ? { color: 'hsl(var(--destructive))' } : {}}>
-              {fmt(summary.resultado)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Sub-tabs */}
       <Tabs defaultValue="dre-fluxo" className="w-full">
         <TabsList className="grid w-full grid-cols-4">

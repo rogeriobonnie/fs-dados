@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Switch } from '@/components/ui/switch';
 import { Pagina5Record, FluxoCaixaBanco } from '@/types/pagina5';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
@@ -79,6 +80,7 @@ const calcSaldoInicialTransportado = (
 const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) => {
   const [selectedBanco, setSelectedBanco] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [investimentoXPAtivo, setInvestimentoXPAtivo] = useState(true);
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
   const [expandedFluxoRow, setExpandedFluxoRow] = useState<string | null>(null);
 
@@ -741,7 +743,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const patrimonioTotalPDF = saldoFinalBancosReaisPDF + totalInvestidoPDF;
     const totalProvisao32PDF = grouped.lanceADois.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
     const patrimonioLiquidoPDF = patrimonioTotalPDF - totalProvisao32PDF;
-    const investimentoXPpdf = patrimonioLiquidoPDF * 0.10;
+    const investimentoXPpdf = patrimonioLiquidoPDF * (investimentoXPAtivo ? 0.10 : 0);
     const patrimonioFinalPDF = patrimonioLiquidoPDF - investimentoXPpdf;
     const allDespSubPDF = Object.values(grouped.despMesSub).flat();
     const totalDespMesSubPDF = allDespSubPDF.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
@@ -780,7 +782,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       patrimonioRows.push(['(-) Provisão Lance a Dois (32)', `-${fmt(totalProvisao32PDF)}`]);
     }
     patrimonioRows.push(['= PATRIMÔNIO LÍQUIDO', fmt(patrimonioLiquidoPDF)]);
-    patrimonioRows.push([`(-) Investimento XP (10%)`, `-${fmt(investimentoXPpdf)}`]);
+    patrimonioRows.push([`(-) Investimento XP (${investimentoXPAtivo ? '10%' : '0%'})`, `-${fmt(investimentoXPpdf)}`]);
     patrimonioRows.push(['= PATRIMÔNIO FINAL', fmt(patrimonioFinalPDF)]);
 
     autoTable(doc, {
@@ -1560,7 +1562,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                   {(() => {
                     const totalProvisao32 = grouped.lanceADois.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
                     const patrimonioLiquido = patrimonioTotal - totalProvisao32;
-                    const investimentoXP = patrimonioLiquido * 0.10;
+                    const investimentoXP = patrimonioLiquido * (investimentoXPAtivo ? 0.10 : 0);
                     const patrimonioFinal = patrimonioLiquido - investimentoXP;
 
                     return (
@@ -1616,7 +1618,8 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                         <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 border-t border-border/30">
                           <div className="flex items-center gap-1.5">
                             <TrendingDown className="h-3 w-3" style={{ color: 'hsl(45 80% 50%)' }} />
-                            <span className="font-medium">(-) Investimento XP (10%)</span>
+                            <span className="font-medium">(-) Investimento XP ({investimentoXPAtivo ? '10%' : '0%'})</span>
+                            <Switch checked={investimentoXPAtivo} onCheckedChange={setInvestimentoXPAtivo} className="h-4 w-8 ml-1" />
                           </div>
                           <span className="font-semibold" style={{ color: 'hsl(45 80% 50%)' }}>-{fmt(investimentoXP)}</span>
                         </div>
