@@ -80,6 +80,7 @@ const calcSaldoInicialTransportado = (
 const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) => {
   const [selectedBanco, setSelectedBanco] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [investimentoXPAtivo, setInvestimentoXPAtivo] = useState(true);
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
   const [expandedFluxoRow, setExpandedFluxoRow] = useState<string | null>(null);
 
