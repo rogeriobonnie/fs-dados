@@ -164,7 +164,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     } else if (r.custoNum === 51 || r.custoNum === 52) {
         if (!reservas[r.custo]) reservas[r.custo] = [];
         reservas[r.custo].push(r);
-      } else if (r.custoNum === 97 || r.custoNum === 98) {
+      } else if (r.custoNum === 96 || r.custoNum === 97 || r.custoNum === 98) {
         if (!entradasCaixa[r.custo]) entradasCaixa[r.custo] = [];
         entradasCaixa[r.custo].push(r);
       }
