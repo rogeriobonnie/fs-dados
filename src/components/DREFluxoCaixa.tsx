@@ -164,7 +164,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     } else if (r.custoNum === 51 || r.custoNum === 52) {
         if (!reservas[r.custo]) reservas[r.custo] = [];
         reservas[r.custo].push(r);
-      } else if (r.custoNum === 97 || r.custoNum === 98) {
+      } else if (r.custoNum === 96 || r.custoNum === 97 || r.custoNum === 98) {
         if (!entradasCaixa[r.custo]) entradasCaixa[r.custo] = [];
         entradasCaixa[r.custo].push(r);
       }
@@ -243,7 +243,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       items.forEach(r => { totalSaidasCaixa += Math.abs(r.valorLiquido); });
     });
 
-    // Entradas de caixa (97, 98) - valores positivos
+    // Entradas de caixa (96, 97, 98) - valores positivos
     let totalEntradasCaixa = 0;
     Object.values(grouped.entradasCaixa).forEach(items => {
       items.forEach(r => { totalEntradasCaixa += Math.abs(r.valorLiquido); });
