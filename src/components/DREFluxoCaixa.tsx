@@ -243,7 +243,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       items.forEach(r => { totalSaidasCaixa += Math.abs(r.valorLiquido); });
     });
 
-    // Entradas de caixa (97, 98) - valores positivos
+    // Entradas de caixa (96, 97, 98) - valores positivos
     let totalEntradasCaixa = 0;
     Object.values(grouped.entradasCaixa).forEach(items => {
       items.forEach(r => { totalEntradasCaixa += Math.abs(r.valorLiquido); });
