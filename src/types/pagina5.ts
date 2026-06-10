@@ -18,6 +18,7 @@ export interface Pagina5Record {
   vrMkt: number;
   month: number;
   year: number;
+  evento: string;
 }
 
 export interface CursoAgrupado {
