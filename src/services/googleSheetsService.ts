@@ -869,6 +869,7 @@ export class GoogleSheetsService {
         vrMkt: 0,
         month,
         year,
+        evento: '',
       });
     }
     
@@ -886,7 +887,7 @@ export class GoogleSheetsService {
     }
 
     try {
-      const range = 'Página5!A:O';
+      const range = 'Página5!A:S';
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
       );
@@ -928,6 +929,7 @@ export class GoogleSheetsService {
       const vrVendedor = this.parseAmount(row[12] || '');
       const mkt = (row[13] || '').toString().trim();
       const vrMkt = this.parseAmount(row[14] || '');
+      const evento = (row[18] || '').toString().trim();
       
       if (!custo && !descricao && valorBruto === 0) continue;
       
@@ -974,6 +976,7 @@ export class GoogleSheetsService {
         vrMkt,
         month,
         year,
+        evento,
       });
     }
     
