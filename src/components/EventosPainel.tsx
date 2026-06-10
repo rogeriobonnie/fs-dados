@@ -3,8 +3,6 @@ import { Pagina5Record } from '@/types/pagina5';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { ArrowLeft, FileDown, CalendarDays } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -38,16 +36,9 @@ interface EventoAgrupado {
 }
 
 const EventosPainel = ({ data, allData, selectedMonth, selectedYear }: EventosPainelProps) => {
-  const [verAnoTodo, setVerAnoTodo] = useState(true);
   const [selecionado, setSelecionado] = useState<string | null>(null);
 
-  const baseData = useMemo(() => {
-    if (verAnoTodo) {
-      const y = parseInt(selectedYear);
-      return allData.filter((r) => r.year === y);
-    }
-    return data;
-  }, [verAnoTodo, allData, data, selectedYear]);
+  const baseData = allData;
 
   const eventos = useMemo<EventoAgrupado[]>(() => {
     const map = new Map<string, EventoAgrupado>();
@@ -398,12 +389,9 @@ const EventosPainel = ({ data, allData, selectedMonth, selectedYear }: EventosPa
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Switch id="ano-todo" checked={verAnoTodo} onCheckedChange={setVerAnoTodo} />
-          <Label htmlFor="ano-todo" className="text-sm">
-            Ver ano todo ({selectedYear})
-          </Label>
-        </div>
+        <span className="text-xs text-muted-foreground">
+          Mostrando todos os eventos da planilha (sem filtro de mês/ano)
+        </span>
         <span className="text-xs text-muted-foreground">
           {eventos.length} evento(s) encontrado(s)
         </span>
