@@ -1,52 +1,36 @@
+## Plano: Separar status "DISTRATO" e "EM NEGOCIAÇÃO" em nova aba
 
-## Plano: Aba "Eventos" no Painel Financeiro
+### 1. Reconhecer os novos status na origem dos dados
+- `src/types/financial.ts`: ampliar união do `status` para `'PAGO' | 'A PAGAR' | 'VENCIDO' | 'DISTRATO' | 'EM NEGOCIACAO'`.
+- `src/services/googleSheetsService.ts` (`parseStatus`, ~linha 764): normalizar string (uppercase + remover acentos) e devolver `DISTRATO` se contiver "DISTRATO" e `EM NEGOCIACAO` se contiver "NEGOCIA". Não promover a `VENCIDO` quando o status original for um desses dois.
 
-### 1. Ler coluna S (Evento) da planilha
-- Em `googleSheetsService.ts`, mudar o range de `Página5!A:O` para `Página5!A:S` em `fetchPagina5Data`.
-- No `parsePagina5Data`, ler `row[18]` como `evento` (trim, mantém case original) e ignorar colunas P/Q/R.
-- Adicionar `evento: string` em `Pagina5Record` (`src/types/pagina5.ts`).
+### 2. Excluir esses status da aba "Alunos" (e abas afins)
+- Em `src/pages/Index.tsx`, ao montar o dataset que alimenta `StudentsDirectory`, `MonthlyRevenue` e `FinancialTable` da Turma IV, filtrar fora registros cujo `status` seja `DISTRATO` ou `EM NEGOCIACAO`. Manter o `data` bruto para a nova aba.
+- Os dashboards/summary (`FinancialDashboard`) também passam a usar o conjunto filtrado, para não inflar previsão com valores perdidos/incertos.
 
-### 2. Criar componente `EventosPainel.tsx`
-- Recebe `data: Pagina5Record[]`, `selectedMonth`, `selectedYear` (usar `allData` do ano todo, pois eventos atravessam meses — manter padrão dos outros painéis aceitando `allData` também).
-- **Agrupar** registros com `evento` não-vazio por nome normalizado (uppercase + trim, sem acentos — reaproveitar padrão `normalizacao-chaves` já usado no projeto).
-- **Tela 1 — Índice**: lista/tabela de eventos com:
-  - Nome do evento
-  - Nº de lançamentos
-  - Receita Líquida total
-  - Despesa total
-  - Resultado (Receita − Despesa) colorido verde/vermelho
-  - Clicar abre a Tela 2.
-- **Tela 2 — Demonstrativo do evento** (modal ou view interna com botão "Voltar"):
-  - Cabeçalho: nome do evento, período (primeira→última data), totais.
-  - Bloco **Receitas** (custoNum 1–10): tabela com data, descrição, detalhamento, valor bruto, (−) impostos, (−) comissão vendedor, (−) comissão mkt, **valor líquido**.
-  - Total Receita Líquida = Σ (valorLiquido − vrImposto − vrVendedor − vrMkt), seguindo a mesma fórmula já usada em `PainelFinanceiro.tsx` linhas 78–80.
-  - Bloco **Despesas** (custoNum 11–20 e 21–30): tabela com data, descrição, detalhamento, banco, valor.
-  - **Resultado do Evento** = Receita Líquida − Despesas.
-  - Botão **"Exportar PDF"**.
+### 3. Nova aba "Distratos & Negociação"
+- Adicionar `TabsTrigger value="distratos"` no `Tabs` interno do `fs-turma` (ajustar `grid-cols-3` → `grid-cols-4`), com ícone `UserX` do lucide.
+- Novo componente `src/components/DistratosNegociacao.tsx`:
+  - Recebe `data: FinancialRecord[]` (dataset completo, sem o filtro acima).
+  - Filtra apenas registros com status `DISTRATO` ou `EM NEGOCIACAO`.
+  - **Cards de resumo** (separados em duas seções: Distrato / Em Negociação):
+    - Nº de alunos únicos
+    - Total contratado (Σ amount de todas parcelas do aluno)
+    - Total já recebido (Σ amount das parcelas com `status = PAGO` do mesmo aluno — buscar nas demais parcelas do aluno no dataset completo)
+    - Total **deixou de receber / previsão perdida** = contratado − recebido
+  - **Tabela de alunos** agrupando por `studentName`, colunas: Aluno, Consultora, Status, Parcelas (pagas/total), Valor contratado, Recebido, A perder/previsão, Data do contrato.
+  - Linha clicável abre `StudentDetailModal` existente (reaproveitar) para ver as parcelas.
+  - Toggle/segment para alternar entre "Distrato", "Em Negociação" e "Ambos".
 
-### 3. Exportação PDF A4
-- Usar `jspdf` + `jspdf-autotable` (já são padrão no projeto — mesmas libs do PDF do DRE em `DREFluxoCaixa.tsx`).
-- Layout A4 retrato:
-  - Cabeçalho com título "Demonstrativo de Evento — {NOME}", período e data de geração.
-  - Seção Receitas (tabela) → subtotais (Bruto, Impostos, Comissões, Líquido).
-  - Seção Despesas (tabela) → subtotal.
-  - Caixa final destacada com **Resultado do Evento**.
-  - Rodapé com numeração de página.
-- Fonte legível, cores consistentes com o restante (verde p/ receitas, vermelho p/ despesas, cinza p/ cabeçalhos).
-
-### 4. Integrar a aba
-- Em `PainelFinanceiro.tsx`, adicionar `TabsTrigger value="eventos"` **antes de "ranking"** com ícone (ex.: `CalendarDays` do lucide).
-- Trocar `grid-cols-4` por `grid-cols-5` no `TabsList`.
-- Renderizar `<EventosPainel data={filteredData} allData={data} selectedMonth={selectedMonth} selectedYear={selectedYear} />`.
-
-### 5. Decisão de escopo do filtro
-Por padrão a aba respeitará o filtro de mês/ano do topo (igual às outras abas), com um **toggle "Ver ano todo"** dentro da aba para casos onde o evento atravessa vários meses.
+### 4. Detalhes de cálculo
+- "Recebido" considera todas as parcelas do aluno (mesmo as com status normal) já pagas — útil quando o distrato ocorre no meio do contrato.
+- "Previsão (deixou de receber)" = soma das parcelas com status `DISTRATO`, `EM NEGOCIACAO`, `A PAGAR` ou `VENCIDO` desse aluno.
 
 ### Arquivos alterados
 
 | Arquivo | Ação |
-|---------|------|
-| `src/types/pagina5.ts` | Adicionar campo `evento` |
-| `src/services/googleSheetsService.ts` | Range A:S + parse coluna 18 |
-| `src/components/EventosPainel.tsx` | Novo componente (índice + demonstrativo + PDF) |
-| `src/components/PainelFinanceiro.tsx` | Adicionar aba "Eventos" antes de "Ranking" |
+|---|---|
+| `src/types/financial.ts` | Ampliar união de `status` |
+| `src/services/googleSheetsService.ts` | `parseStatus` reconhece DISTRATO e EM NEGOCIAÇÃO |
+| `src/pages/Index.tsx` | Filtrar status na aba Alunos + adicionar nova TabsTrigger/Content |
+| `src/components/DistratosNegociacao.tsx` | Novo componente (resumo + tabela + modal) |
