@@ -11,7 +11,7 @@ export interface FinancialRecord {
   fees?: number; // Taxas que descontam
   interest?: number; // Juros que aumentam
   paymentDate?: string;
-  status: 'PAGO' | 'A PAGAR' | 'VENCIDO';
+  status: 'PAGO' | 'A PAGAR' | 'VENCIDO' | 'DISTRATO' | 'EM NEGOCIACAO';
   invoice?: string;
   contractObservation?: string; // Observação do contrato
   scholarshipStudent?: boolean; // Derivado da condição especial
