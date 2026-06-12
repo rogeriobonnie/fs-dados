@@ -761,10 +761,13 @@ export class GoogleSheetsService {
     return parseFloat(cleanAmount) || 0;
   }
 
-  private static parseStatus(statusStr: string): 'PAGO' | 'A PAGAR' | 'VENCIDO' {
-    const status = statusStr?.toUpperCase();
+  private static parseStatus(statusStr: string): 'PAGO' | 'A PAGAR' | 'VENCIDO' | 'DISTRATO' | 'EM NEGOCIACAO' {
+    const raw = (statusStr || '').toString();
+    const status = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
     if (status === 'PAGO') return 'PAGO';
     if (status === 'VENCIDO') return 'VENCIDO';
+    if (status.includes('DISTRATO')) return 'DISTRATO';
+    if (status.includes('NEGOCIA')) return 'EM NEGOCIACAO';
     return 'A PAGAR';
   }
 

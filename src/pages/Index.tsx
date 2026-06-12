@@ -21,8 +21,9 @@ import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3 } from 'lucide-react';
+import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3, UserX } from 'lucide-react';
 import logoFS from '@/assets/logo-fs.png';
+import DistratosNegociacao from '@/components/DistratosNegociacao';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -130,8 +131,13 @@ const Index = () => {
     });
   }, [data, filters]);
 
-  const summary = useMemo(() => calculateFinancialSummary(filteredData), [filteredData]);
-  const consultantSummaries = useMemo(() => calculateConsultantSummaries(filteredData), [filteredData]);
+  // Excluir DISTRATO e EM NEGOCIAÇÃO da aba principal de Alunos/Dashboard
+  const mainFilteredData = useMemo(
+    () => filteredData.filter(r => r.status !== 'DISTRATO' && r.status !== 'EM NEGOCIACAO'),
+    [filteredData],
+  );
+  const summary = useMemo(() => calculateFinancialSummary(mainFilteredData), [mainFilteredData]);
+  const consultantSummaries = useMemo(() => calculateConsultantSummaries(mainFilteredData), [mainFilteredData]);
   const uniqueConsultants = useMemo(() => [...new Set(data.map(r => r.consultant))], [data]);
 
   const handleConnectionChange = (connected: boolean) => {
@@ -236,7 +242,7 @@ const Index = () => {
 
               {/* Nested Tabs for FS Turma IV content */}
               <Tabs defaultValue="students" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-3 text-xs">
+                <TabsList className="grid w-full grid-cols-4 text-xs">
                   <TabsTrigger value="students" className="flex items-center gap-1 px-2">
                     <Users className="h-3 w-3" />
                     Alunos
@@ -249,18 +255,26 @@ const Index = () => {
                     <Table2 className="h-3 w-3" />
                     Tabela
                   </TabsTrigger>
+                  <TabsTrigger value="distratos" className="flex items-center gap-1 px-2">
+                    <UserX className="h-3 w-3" />
+                    Distratos
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="students" className="space-y-6">
-                  <StudentsDirectory data={filteredData} />
+                  <StudentsDirectory data={mainFilteredData} />
                 </TabsContent>
 
                 <TabsContent value="monthly" className="space-y-6">
-                  <MonthlyRevenue data={filteredData} />
+                  <MonthlyRevenue data={mainFilteredData} />
                 </TabsContent>
 
                 <TabsContent value="table" className="space-y-6">
-                  <FinancialTable data={filteredData} />
+                  <FinancialTable data={mainFilteredData} />
+                </TabsContent>
+
+                <TabsContent value="distratos" className="space-y-6">
+                  <DistratosNegociacao data={filteredData} />
                 </TabsContent>
               </Tabs>
             </TabsContent>
