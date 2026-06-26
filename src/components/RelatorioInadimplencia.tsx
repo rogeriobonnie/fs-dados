@@ -314,7 +314,7 @@ const RelatorioInadimplencia = ({ data }: Props) => {
                   {key === 'PAGO'
                     ? `Recebido: ${formatCurrency(totals.received)}`
                     : key === 'DISTRATO'
-                    ? `Total (pago + aberto): ${formatCurrency(totals.contracted)}`
+                    ? `Recebido: ${formatCurrency(totals.received)} · Perdido: ${formatCurrency(totals.open)}`
                     : `Em aberto: ${formatCurrency(totals.open)}`}
                 </span>
               </CardTitle>
