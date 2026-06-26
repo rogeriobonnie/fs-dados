@@ -392,6 +392,21 @@ const RelatorioInadimplencia = ({ data }: Props) => {
                     </TableRow>
                   ))}
                 </TableBody>
+                <tfoot className="bg-muted/60 font-semibold border-t-2">
+                  <TableRow className="hover:bg-muted/60">
+                    <TableCell colSpan={3} className="text-right">
+                      Subtotal ({list.length} {list.length === 1 ? 'aluno' : 'alunos'})
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(totals.contracted)}</TableCell>
+                    <TableCell className="text-right text-green-700 dark:text-green-400">
+                      {formatCurrency(totals.received)}
+                    </TableCell>
+                    <TableCell className="text-right text-red-700 dark:text-red-400">
+                      {formatCurrency(totals.open)}
+                    </TableCell>
+                    <TableCell colSpan={showObs ? 3 : 2} />
+                  </TableRow>
+                </tfoot>
               </Table>
             </CardContent>
           </Card>
