@@ -113,6 +113,7 @@ export function exportInadimplenciaPDF(
       head: [[
         `${meta.title}  (${list.length})`,
         'Consultora',
+        'Condição',
         'Parc.',
         'Contratado',
         'Recebido',
@@ -124,6 +125,7 @@ export function exportInadimplenciaPDF(
       body: list.map(s => [
         s.name,
         s.consultant,
+        s.specialConditions.join(' · ') || '-',
         `${s.installmentsPaid}/${s.totalInstallments}`,
         formatCurrency(s.totalContracted),
         formatCurrency(s.totalReceived),
@@ -134,6 +136,7 @@ export function exportInadimplenciaPDF(
       ]),
       foot: [[
         'TOTAL',
+        '',
         '',
         '',
         formatCurrency(list.reduce((a, s) => a + s.totalContracted, 0)),
@@ -153,11 +156,12 @@ export function exportInadimplenciaPDF(
       footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [250, 250, 252] },
       columnStyles: {
-        2: { halign: 'center' },
-        3: { halign: 'right' },
-        4: { halign: 'right', textColor: [22, 101, 52] },
-        5: { halign: 'right', textColor: [153, 27, 27] },
-        6: { halign: 'center' },
+        2: { textColor: [88, 28, 135], fontStyle: 'bold' },
+        3: { halign: 'center' },
+        4: { halign: 'right' },
+        5: { halign: 'right', textColor: [22, 101, 52] },
+        6: { halign: 'right', textColor: [153, 27, 27] },
+        7: { halign: 'center' },
       },
     });
     // @ts-expect-error lastAutoTable injected by plugin
