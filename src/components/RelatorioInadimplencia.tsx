@@ -110,7 +110,13 @@ const RelatorioInadimplencia = ({ data }: Props) => {
       const obs = (r.contractObservation || '').trim();
       if (obs && !s.observations.includes(obs)) s.observations.push(obs);
       const sc = (r.specialCondition || '').trim();
-      if (sc && !s.specialConditions.includes(sc)) s.specialConditions.push(sc);
+      const scNorm = sc
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      if (sc && scNorm !== 'nao' && !s.specialConditions.includes(sc)) {
+        s.specialConditions.push(sc);
+      }
       s.totalInstallments++;
       const finalAmount = r.amount + (r.interest || 0) - (r.fees || 0);
       s.totalContracted += finalAmount;
