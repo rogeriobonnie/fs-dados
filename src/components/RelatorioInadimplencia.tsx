@@ -172,8 +172,8 @@ const RelatorioInadimplencia = ({ data }: Props) => {
       totalReceived: sum(list, 'totalReceived'),
       totalOpen: sum(list, 'totalOpen'),
       totalOverdue: sum(groups.VENCIDO, 'totalOpen'),
-      // Distrato considera valores pagos + em aberto (contratado total)
-      totalLost: sum(groups.DISTRATO, 'totalContracted'),
+      // Perdido = apenas o que ficou em aberto nos distratos (o pago já foi recebido)
+      totalLost: sum(groups.DISTRATO, 'totalOpen'),
       inadimplenciaPct: 0,
       byGroup: {
         VENCIDO: { count: groups.VENCIDO.length, total: sum(groups.VENCIDO, 'totalOpen') },
@@ -181,7 +181,7 @@ const RelatorioInadimplencia = ({ data }: Props) => {
           count: groups.EM_NEGOCIACAO.length,
           total: sum(groups.EM_NEGOCIACAO, 'totalOpen'),
         },
-        DISTRATO: { count: groups.DISTRATO.length, total: sum(groups.DISTRATO, 'totalContracted') },
+        DISTRATO: { count: groups.DISTRATO.length, total: sum(groups.DISTRATO, 'totalOpen') },
         A_PAGAR: { count: groups.A_PAGAR.length, total: sum(groups.A_PAGAR, 'totalOpen') },
         PAGO: { count: groups.PAGO.length, total: sum(groups.PAGO, 'totalReceived') },
       },
