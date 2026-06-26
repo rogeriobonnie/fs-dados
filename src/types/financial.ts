@@ -15,6 +15,7 @@ export interface FinancialRecord {
   invoice?: string;
   contractObservation?: string; // Observação do contrato
   scholarshipStudent?: boolean; // Derivado da condição especial
+  isDistrato?: boolean; // Coluna P - "SIM" indica que o aluno fez distrato
 }
 
 export interface FinancialSummary {
