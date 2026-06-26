@@ -62,7 +62,7 @@ export class GoogleSheetsService {
 
     try {
       // Fetch data from the specific range that contains the financial data
-      const range = 'A:O'; // Adjust based on your sheet structure
+      const range = 'A:P'; // Adjust based on your sheet structure
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
       );
@@ -681,6 +681,7 @@ export class GoogleSheetsService {
       let status = this.parseStatus(row[12] || ''); // Status - Coluna M
       const invoice = row[13] || ''; // Número da nota fiscal - Coluna N
       const contractObservation = row[14] || ''; // Observação do contrato - Coluna O
+      const isDistrato = this.parseBoolean((row[15] || '').toString()); // Coluna P - SIM = distrato
       
       // Determinar se tem bolsa baseado na condição especial
       const scholarshipStudent = this.parseScholarship(specialCondition);
@@ -718,6 +719,7 @@ export class GoogleSheetsService {
           invoice,
           contractObservation,
           scholarshipStudent,
+          isDistrato,
         });
         validRecords++;
       } else {
