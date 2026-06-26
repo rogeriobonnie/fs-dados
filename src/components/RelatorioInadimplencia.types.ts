@@ -18,4 +18,5 @@ export interface StudentAggregate {
   hasDistrato: boolean;
   records: FinancialRecord[];
   observations: string[];
+  specialConditions: string[];
 }
