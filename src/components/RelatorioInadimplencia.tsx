@@ -304,6 +304,8 @@ const RelatorioInadimplencia = ({ data }: Props) => {
                 <span className="text-sm font-normal">
                   {key === 'PAGO'
                     ? `Recebido: ${formatCurrency(totals.received)}`
+                    : key === 'DISTRATO'
+                    ? `Total (pago + aberto): ${formatCurrency(totals.contracted)}`
                     : `Em aberto: ${formatCurrency(totals.open)}`}
                 </span>
               </CardTitle>
