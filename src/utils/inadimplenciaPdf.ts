@@ -125,7 +125,7 @@ export function exportInadimplenciaPDF(
       body: list.map(s => [
         s.name,
         s.consultant,
-        s.specialConditions.join(' · ') || '-',
+        s.specialConditions.join(' · '),
         `${s.installmentsPaid}/${s.totalInstallments}`,
         formatCurrency(s.totalContracted),
         formatCurrency(s.totalReceived),
@@ -134,6 +134,15 @@ export function exportInadimplenciaPDF(
         s.contractDate ? formatDateBR(s.contractDate) : '-',
         ...(showObs ? [s.observations.join(' · ') || '-'] : []),
       ]),
+      didParseCell: (data) => {
+        if (data.section === 'body') {
+          const row = list[data.row.index];
+          if (row && row.specialConditions.length > 0) {
+            data.cell.styles.fillColor = [243, 232, 255];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
       foot: [[
         'TOTAL',
         '',
