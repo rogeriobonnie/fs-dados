@@ -332,13 +332,17 @@ const RelatorioInadimplencia = ({ data }: Props) => {
                   {list.map(s => (
                     <TableRow
                       key={s.name}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={`cursor-pointer hover:bg-muted/50 ${
+                        s.specialConditions.length > 0
+                          ? 'bg-purple-50 dark:bg-purple-950/30 border-l-4 border-l-purple-500 font-medium'
+                          : ''
+                      }`}
                       onClick={() => setSelected(s)}
                     >
                       <TableCell className="font-medium">
                         {s.name}
                         {s.specialConditions.length > 0 && (
-                          <Badge className="ml-2 text-[10px] bg-purple-600 hover:bg-purple-600">
+                          <Badge className="ml-2 text-[10px] bg-purple-600 hover:bg-purple-600 text-white">
                             {s.specialConditions.join(' · ')}
                           </Badge>
                         )}
