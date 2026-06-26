@@ -101,10 +101,13 @@ const RelatorioInadimplencia = ({ data }: Props) => {
           hasNegociacao: false,
           hasDistrato: false,
           records: [],
+          observations: [],
         });
       }
       const s = map.get(r.studentName)!;
       s.records.push(r);
+      const obs = (r.contractObservation || '').trim();
+      if (obs && !s.observations.includes(obs)) s.observations.push(obs);
       s.totalInstallments++;
       const finalAmount = r.amount + (r.interest || 0) - (r.fees || 0);
       s.totalContracted += finalAmount;
