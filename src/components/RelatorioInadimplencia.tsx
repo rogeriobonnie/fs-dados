@@ -126,15 +126,15 @@ const RelatorioInadimplencia = ({ data }: Props) => {
         }
       }
       if (r.status === 'EM NEGOCIACAO') s.hasNegociacao = true;
-      if (r.status === 'DISTRATO') s.hasDistrato = true;
+      if (r.isDistrato) s.hasDistrato = true;
     });
 
-    // Decide worst status (priority: VENCIDO > EM_NEGOCIACAO > DISTRATO > A_PAGAR > PAGO)
+    // Decide worst status (priority: DISTRATO > VENCIDO > EM_NEGOCIACAO > A_PAGAR > PAGO)
     const list = Array.from(map.values());
     list.forEach(s => {
-      if (s.hasOverdue) s.worstStatus = 'VENCIDO';
+      if (s.hasDistrato) s.worstStatus = 'DISTRATO';
+      else if (s.hasOverdue) s.worstStatus = 'VENCIDO';
       else if (s.hasNegociacao) s.worstStatus = 'EM_NEGOCIACAO';
-      else if (s.hasDistrato) s.worstStatus = 'DISTRATO';
       else if (s.totalOpen > 0) s.worstStatus = 'A_PAGAR';
       else s.worstStatus = 'PAGO';
     });
@@ -163,7 +163,8 @@ const RelatorioInadimplencia = ({ data }: Props) => {
       totalReceived: sum(list, 'totalReceived'),
       totalOpen: sum(list, 'totalOpen'),
       totalOverdue: sum(groups.VENCIDO, 'totalOpen'),
-      totalLost: sum(groups.DISTRATO, 'totalOpen'),
+      // Distrato considera valores pagos + em aberto (contratado total)
+      totalLost: sum(groups.DISTRATO, 'totalContracted'),
       inadimplenciaPct: 0,
       byGroup: {
         VENCIDO: { count: groups.VENCIDO.length, total: sum(groups.VENCIDO, 'totalOpen') },
@@ -171,7 +172,7 @@ const RelatorioInadimplencia = ({ data }: Props) => {
           count: groups.EM_NEGOCIACAO.length,
           total: sum(groups.EM_NEGOCIACAO, 'totalOpen'),
         },
-        DISTRATO: { count: groups.DISTRATO.length, total: sum(groups.DISTRATO, 'totalOpen') },
+        DISTRATO: { count: groups.DISTRATO.length, total: sum(groups.DISTRATO, 'totalContracted') },
         A_PAGAR: { count: groups.A_PAGAR.length, total: sum(groups.A_PAGAR, 'totalOpen') },
         PAGO: { count: groups.PAGO.length, total: sum(groups.PAGO, 'totalReceived') },
       },
@@ -303,6 +304,8 @@ const RelatorioInadimplencia = ({ data }: Props) => {
                 <span className="text-sm font-normal">
                   {key === 'PAGO'
                     ? `Recebido: ${formatCurrency(totals.received)}`
+                    : key === 'DISTRATO'
+                    ? `Total (pago + aberto): ${formatCurrency(totals.contracted)}`
                     : `Em aberto: ${formatCurrency(totals.open)}`}
                 </span>
               </CardTitle>

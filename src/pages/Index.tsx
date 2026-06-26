@@ -134,7 +134,7 @@ const Index = () => {
 
   // Excluir DISTRATO e EM NEGOCIAÇÃO da aba principal de Alunos/Dashboard
   const mainFilteredData = useMemo(
-    () => filteredData.filter(r => r.status !== 'DISTRATO' && r.status !== 'EM NEGOCIACAO'),
+    () => filteredData.filter(r => !r.isDistrato && r.status !== 'EM NEGOCIACAO'),
     [filteredData],
   );
   const summary = useMemo(() => calculateFinancialSummary(mainFilteredData), [mainFilteredData]);

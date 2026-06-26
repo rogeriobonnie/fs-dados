@@ -38,7 +38,7 @@ const DistratosNegociacao = ({ data }: Props) => {
   const students = useMemo<StudentAgg[]>(() => {
     const flaggedNames = new Set(
       data
-        .filter(r => r.status === 'DISTRATO' || r.status === 'EM NEGOCIACAO')
+        .filter(r => r.isDistrato || r.status === 'EM NEGOCIACAO')
         .map(r => r.studentName),
     );
 
@@ -72,15 +72,12 @@ const DistratosNegociacao = ({ data }: Props) => {
       }
     });
 
-    // Determinar status agregado: priorizar o tipo das parcelas marcadas
+    // Determinar status agregado a partir da flag isDistrato (coluna P) + status
     map.forEach(s => {
-      const flags = new Set(
-        s.records
-          .filter(r => r.status === 'DISTRATO' || r.status === 'EM NEGOCIACAO')
-          .map(r => r.status),
-      );
-      if (flags.size > 1) s.status = 'MISTO';
-      else if (flags.has('DISTRATO')) s.status = 'DISTRATO';
+      const hasDistrato = s.records.some(r => r.isDistrato);
+      const hasNegoc = s.records.some(r => r.status === 'EM NEGOCIACAO');
+      if (hasDistrato && hasNegoc) s.status = 'MISTO';
+      else if (hasDistrato) s.status = 'DISTRATO';
       else s.status = 'EM NEGOCIACAO';
     });
 
