@@ -105,6 +105,7 @@ export function exportInadimplenciaPDF(
     const list = groups[key];
     if (!list || list.length === 0) return;
     const meta = GROUP_META[key];
+    const showObs = key === 'VENCIDO' || key === 'DISTRATO';
 
     autoTable(doc, {
       startY: y,
@@ -118,6 +119,7 @@ export function exportInadimplenciaPDF(
         'Em aberto',
         'Atraso',
         'Contrato',
+        ...(showObs ? ['Observação'] : []),
       ]],
       body: list.map(s => [
         s.name,
@@ -128,6 +130,7 @@ export function exportInadimplenciaPDF(
         formatCurrency(s.totalOpen),
         s.maxDaysOverdue > 0 ? `${s.maxDaysOverdue}d` : '-',
         s.contractDate ? formatDateBR(s.contractDate) : '-',
+        ...(showObs ? [s.observations.join(' · ') || '-'] : []),
       ]),
       foot: [[
         'TOTAL',
@@ -138,6 +141,7 @@ export function exportInadimplenciaPDF(
         formatCurrency(list.reduce((a, s) => a + s.totalOpen, 0)),
         '',
         '',
+        ...(showObs ? [''] : []),
       ]],
       styles: { fontSize: 7.5, cellPadding: 1.6 },
       headStyles: {

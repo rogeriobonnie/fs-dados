@@ -101,10 +101,13 @@ const RelatorioInadimplencia = ({ data }: Props) => {
           hasNegociacao: false,
           hasDistrato: false,
           records: [],
+          observations: [],
         });
       }
       const s = map.get(r.studentName)!;
       s.records.push(r);
+      const obs = (r.contractObservation || '').trim();
+      if (obs && !s.observations.includes(obs)) s.observations.push(obs);
       s.totalInstallments++;
       const finalAmount = r.amount + (r.interest || 0) - (r.fees || 0);
       s.totalContracted += finalAmount;
@@ -277,6 +280,7 @@ const RelatorioInadimplencia = ({ data }: Props) => {
         const list = groups[key];
         if (list.length === 0) return null;
         const meta = GROUP_META[key];
+        const showObs = key === 'VENCIDO' || key === 'DISTRATO';
         const totals = {
           contracted: list.reduce((a, s) => a + s.totalContracted, 0),
           received: list.reduce((a, s) => a + s.totalReceived, 0),
@@ -315,6 +319,7 @@ const RelatorioInadimplencia = ({ data }: Props) => {
                     <TableHead className="text-right">Em aberto</TableHead>
                     <TableHead className="text-center">Atraso</TableHead>
                     <TableHead>Contrato</TableHead>
+                    {showObs && <TableHead>Observação</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -358,6 +363,11 @@ const RelatorioInadimplencia = ({ data }: Props) => {
                       <TableCell>
                         {s.contractDate ? formatDateBR(s.contractDate) : '-'}
                       </TableCell>
+                      {showObs && (
+                        <TableCell className="text-xs text-muted-foreground max-w-[260px]">
+                          {s.observations.length > 0 ? s.observations.join(' · ') : '-'}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

@@ -17,4 +17,5 @@ export interface StudentAggregate {
   hasNegociacao: boolean;
   hasDistrato: boolean;
   records: FinancialRecord[];
+  observations: string[];
 }
