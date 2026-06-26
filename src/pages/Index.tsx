@@ -21,9 +21,10 @@ import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3, UserX } from 'lucide-react';
+import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3, UserX, AlertTriangle } from 'lucide-react';
 import logoFS from '@/assets/logo-fs.png';
 import DistratosNegociacao from '@/components/DistratosNegociacao';
+import RelatorioInadimplencia from '@/components/RelatorioInadimplencia';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -242,7 +243,7 @@ const Index = () => {
 
               {/* Nested Tabs for FS Turma IV content */}
               <Tabs defaultValue="students" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-4 text-xs">
+                <TabsList className="grid w-full grid-cols-5 text-xs">
                   <TabsTrigger value="students" className="flex items-center gap-1 px-2">
                     <Users className="h-3 w-3" />
                     Alunos
@@ -254,6 +255,10 @@ const Index = () => {
                   <TabsTrigger value="table" className="flex items-center gap-1 px-2">
                     <Table2 className="h-3 w-3" />
                     Tabela
+                  </TabsTrigger>
+                  <TabsTrigger value="inadimplencia" className="flex items-center gap-1 px-2">
+                    <AlertTriangle className="h-3 w-3" />
+                    Inadimplência
                   </TabsTrigger>
                   <TabsTrigger value="distratos" className="flex items-center gap-1 px-2">
                     <UserX className="h-3 w-3" />
@@ -271,6 +276,10 @@ const Index = () => {
 
                 <TabsContent value="table" className="space-y-6">
                   <FinancialTable data={mainFilteredData} />
+                </TabsContent>
+
+                <TabsContent value="inadimplencia" className="space-y-6">
+                  <RelatorioInadimplencia data={filteredData} />
                 </TabsContent>
 
                 <TabsContent value="distratos" className="space-y-6">
