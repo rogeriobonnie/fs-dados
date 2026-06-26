@@ -102,12 +102,15 @@ const RelatorioInadimplencia = ({ data }: Props) => {
           hasDistrato: false,
           records: [],
           observations: [],
+          specialConditions: [],
         });
       }
       const s = map.get(r.studentName)!;
       s.records.push(r);
       const obs = (r.contractObservation || '').trim();
       if (obs && !s.observations.includes(obs)) s.observations.push(obs);
+      const sc = (r.specialCondition || '').trim();
+      if (sc && !s.specialConditions.includes(sc)) s.specialConditions.push(sc);
       s.totalInstallments++;
       const finalAmount = r.amount + (r.interest || 0) - (r.fees || 0);
       s.totalContracted += finalAmount;
@@ -334,6 +337,11 @@ const RelatorioInadimplencia = ({ data }: Props) => {
                     >
                       <TableCell className="font-medium">
                         {s.name}
+                        {s.specialConditions.length > 0 && (
+                          <Badge className="ml-2 text-[10px] bg-purple-600 hover:bg-purple-600">
+                            {s.specialConditions.join(' · ')}
+                          </Badge>
+                        )}
                         {key !== 'VENCIDO' && s.hasOverdue && (
                           <Badge variant="destructive" className="ml-2 text-[10px]">
                             tem atraso
