@@ -80,7 +80,7 @@ const calcSaldoInicialTransportado = (
 const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) => {
   const [selectedBanco, setSelectedBanco] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-  const [investimentoXPAtivo, setInvestimentoXPAtivo] = useState(true);
+  const [investimentoXPAtivo, setInvestimentoXPAtivo] = useState(false);
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
   const [expandedFluxoRow, setExpandedFluxoRow] = useState<string | null>(null);
 
@@ -145,8 +145,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
         if (!receitas[r.custo]) receitas[r.custo] = [];
         receitas[r.custo].push(r);
       } else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO') {
-        if (!despesas[r.custo]) despesas[r.custo] = [];
-        despesas[r.custo].push(r);
+        // Aglutina 15.x dentro de "15-CURSOS"
+        const key = r.custoNum === 15 ? '15-CURSOS' : r.custo;
+        if (!despesas[key]) despesas[key] = [];
+        despesas[key].push(r);
       } else if (r.custoNum >= 21 && r.custoNum <= 30) {
         if (!saidasCaixa[r.custo]) saidasCaixa[r.custo] = [];
         saidasCaixa[r.custo].push(r);
