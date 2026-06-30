@@ -394,7 +394,29 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0 px-4 pb-4">{renderItemList(items)}</CardContent>
+            <CardContent className="pt-0 px-4 pb-4">
+              {(() => {
+                const subCustos = Array.from(new Set(items.map(i => i.custo)));
+                if (subCustos.length <= 1) return renderItemList(items);
+                return (
+                  <div className="space-y-4">
+                    {subCustos.sort().map(sc => {
+                      const subItems = items.filter(i => i.custo === sc);
+                      const subTotal = subItems.reduce((s, r) => s + Math.abs(r.valorBruto), 0);
+                      return (
+                        <div key={sc} className="border rounded-md p-2">
+                          <div className="flex items-center justify-between mb-1 px-1">
+                            <span className="text-xs font-semibold">{sc}</span>
+                            <span className="text-xs font-bold">-{fmt(subTotal)}</span>
+                          </div>
+                          {renderItemList(subItems)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </CardContent>
           </CollapsibleContent>
         </Collapsible>
       </Card>
