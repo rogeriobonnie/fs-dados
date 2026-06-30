@@ -981,7 +981,20 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       doc.setFont('helvetica', 'bold');
       doc.text(custo, 14, y);
       y += 5;
-      const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]);
+      const subCustos = Array.from(new Set(items.map(i => i.custo)));
+      const rows: any[] = [];
+      const subtotalRowIdx: number[] = [];
+      if (subCustos.length > 1) {
+        subCustos.sort().forEach(sc => {
+          const subItems = items.filter(i => i.custo === sc);
+          subItems.forEach(r => rows.push([r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]));
+          const subTot = subItems.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+          rows.push(['', '', `Subtotal ${sc}`, fmt(subTot), '']);
+          subtotalRowIdx.push(rows.length - 1);
+        });
+      } else {
+        items.forEach(r => rows.push([r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]));
+      }
       const total = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
       rows.push(['', '', 'TOTAL', fmt(total), '']);
       autoTable(doc, {
@@ -994,6 +1007,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.row.index === rows.length - 1) {
             data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [240, 220, 220];
+          } else if (data.section === 'body' && subtotalRowIdx.includes(data.row.index)) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [250, 240, 240];
           }
         },
       });
