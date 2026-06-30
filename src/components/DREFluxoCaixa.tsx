@@ -80,7 +80,7 @@ const calcSaldoInicialTransportado = (
 const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) => {
   const [selectedBanco, setSelectedBanco] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-  const [investimentoXPAtivo, setInvestimentoXPAtivo] = useState(true);
+  const [investimentoXPAtivo, setInvestimentoXPAtivo] = useState(false);
   const [openCourses, setOpenCourses] = useState<Record<string, boolean>>({});
   const [expandedFluxoRow, setExpandedFluxoRow] = useState<string | null>(null);
 
@@ -145,8 +145,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
         if (!receitas[r.custo]) receitas[r.custo] = [];
         receitas[r.custo].push(r);
       } else if (r.custoNum >= 11 && r.custoNum <= 20 && (r.banco || '').toUpperCase() !== 'PAGO') {
-        if (!despesas[r.custo]) despesas[r.custo] = [];
-        despesas[r.custo].push(r);
+        // Aglutina 15.x dentro de "15-CURSOS"
+        const key = r.custoNum === 15 ? '15-CURSOS' : r.custo;
+        if (!despesas[key]) despesas[key] = [];
+        despesas[key].push(r);
       } else if (r.custoNum >= 21 && r.custoNum <= 30) {
         if (!saidasCaixa[r.custo]) saidasCaixa[r.custo] = [];
         saidasCaixa[r.custo].push(r);
@@ -392,7 +394,29 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0 px-4 pb-4">{renderItemList(items)}</CardContent>
+            <CardContent className="pt-0 px-4 pb-4">
+              {(() => {
+                const subCustos = Array.from(new Set(items.map(i => i.custo)));
+                if (subCustos.length <= 1) return renderItemList(items);
+                return (
+                  <div className="space-y-4">
+                    {subCustos.sort().map(sc => {
+                      const subItems = items.filter(i => i.custo === sc);
+                      const subTotal = subItems.reduce((s, r) => s + Math.abs(r.valorBruto), 0);
+                      return (
+                        <div key={sc} className="border rounded-md p-2">
+                          <div className="flex items-center justify-between mb-1 px-1">
+                            <span className="text-xs font-semibold">{sc}</span>
+                            <span className="text-xs font-bold">-{fmt(subTotal)}</span>
+                          </div>
+                          {renderItemList(subItems)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </CardContent>
           </CollapsibleContent>
         </Collapsible>
       </Card>
@@ -957,7 +981,20 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       doc.setFont('helvetica', 'bold');
       doc.text(custo, 14, y);
       y += 5;
-      const rows = items.map(r => [r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]);
+      const subCustos = Array.from(new Set(items.map(i => i.custo)));
+      const rows: any[] = [];
+      const subtotalRowIdx: number[] = [];
+      if (subCustos.length > 1) {
+        subCustos.sort().forEach(sc => {
+          const subItems = items.filter(i => i.custo === sc);
+          subItems.forEach(r => rows.push([r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]));
+          const subTot = subItems.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+          rows.push(['', '', `Subtotal ${sc}`, fmt(subTot), '']);
+          subtotalRowIdx.push(rows.length - 1);
+        });
+      } else {
+        items.forEach(r => rows.push([r.date, r.descricao, r.detalhamento, fmt(Math.abs(r.valorLiquido)), r.banco]));
+      }
       const total = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
       rows.push(['', '', 'TOTAL', fmt(total), '']);
       autoTable(doc, {
@@ -970,6 +1007,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
         didParseCell: (data: any) => {
           if (data.section === 'body' && data.row.index === rows.length - 1) {
             data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [240, 220, 220];
+          } else if (data.section === 'body' && subtotalRowIdx.includes(data.row.index)) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [250, 240, 240];
           }
         },
       });
