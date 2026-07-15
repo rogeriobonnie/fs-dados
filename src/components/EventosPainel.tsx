@@ -207,6 +207,8 @@ const EventosPainel = ({ data, allData, selectedMonth, selectedYear }: EventosPa
     doc.setTextColor(153, 27, 27);
     doc.text('Despesas', marginX, y);
 
+    const subtotalRowsIdx = new Set<number>();
+
     autoTable(doc, {
       startY: y + 2,
       head: [['Data', 'Descrição', 'Detalhamento', 'Centro de Custo', 'Banco', 'Valor']],
