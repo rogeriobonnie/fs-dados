@@ -1,57 +1,23 @@
-## Relatório de Inadimplência (FS Turma IV)
+## Melhorar PDF de Eventos — agrupamento de despesas
 
-Nova aba **"Inadimplência"** dentro de FS Turma IV, agrupando todos os alunos por status com totalizadores, visual colorido/profissional e exportação em PDF A4.
+Ajustar `src/components/EventosPainel.tsx` (função `exportPDF`) para reorganizar a seção **Despesas** do PDF, mantendo Receitas como estão.
 
-### 1. Nova aba na navegação interna
-- Em `src/pages/Index.tsx`, alterar `grid-cols-4` → `grid-cols-5` nas tabs internas e adicionar `TabsTrigger value="inadimplencia"` (ícone `AlertTriangle`) antes de "Distratos".
-- Passa `filteredData` completo (incluindo DISTRATO/EM NEGOCIACAO) para o novo componente.
+### Mudanças
 
-### 2. Novo componente `src/components/RelatorioInadimplencia.tsx`
-Estrutura visual:
+1. **Agrupar despesas por Descrição normalizada** (sem acentos, sem espaços extras, uppercase — mesmo padrão já usado no arquivo em `normalize()`).
+2. **Ordenar** os grupos por valor total (maior → menor) para leitura mais útil.
+3. **Dentro de cada grupo**: manter todas as linhas detalhadas (data, detalhamento, centro de custo, banco, valor) ordenadas por data.
+4. **Linha de subtotal** ao final de cada grupo: `Subtotal — {Descrição} ({N} lançamentos)` com valor à direita, destacada com fundo cinza-claro.
+5. **Total geral** de despesas permanece no `foot` da tabela (já existe).
+6. **Corrigir "linhas faltando"**: garantir que autoTable use `showHead: 'everyPage'` e não force `pageBreak` cortando grupos. Grupos são renderizados como um único `body` contínuo (não múltiplas tabelas), evitando header órfão. A separação visual entre grupos vem apenas do estilo da linha de subtotal.
 
-**Cabeçalho com 5 cards coloridos (resumo geral):**
-- 🟢 Pagos (verde) — qtd alunos, total recebido
-- 🟡 Em dia / A pagar (azul) — qtd, valor a receber
-- 🟠 Em Negociação / Acordo (âmbar) — qtd, valor em acordo
-- 🔴 Vencidos / Em atraso (vermelho) — qtd, valor em atraso, dias médios
-- ⚫ Distratos (cinza-escuro) — qtd, valor perdido
+### Detalhes técnicos
 
-**Card geral consolidado:**
-Total contratado | Total recebido | Total a receber | Total em atraso | Total perdido (distrato) | % inadimplência
+- Construir `body` como array plano intercalando linhas normais e linhas-subtotal.
+- Usar `didParseCell` para pintar as linhas de subtotal (`fillColor: [243, 244, 246]`, `fontStyle: 'bold'`) identificando-as por um `Set<number>` de índices.
+- A coluna "Descrição" da linha subtotal usa `colSpan` para ocupar da col 0 até col 4, valor fica na col 5 (alinhado à direita).
+- Nada muda em Receitas nem na tela (só no PDF exportado).
 
-**Seções (uma por status, cada uma colapsável/Card):**
-Para cada grupo, tabela com colunas:
-`Aluno | Consultora | Parcelas (pagas/total) | Contratado | Recebido | Em aberto | Atraso (dias) | Última atualização`
+### Arquivo afetado
 
-Grupos:
-1. **Em Atraso** (status VENCIDO) — ordenado por dias de atraso desc, linha vermelha
-2. **Em Negociação / Acordo** (EM NEGOCIACAO) — laranja
-3. **Distratos** (DISTRATO) — cinza
-4. **A Pagar** (parcelas futuras pendentes) — azul
-5. **Pagos / Adimplentes** (alunos 100% quitados) — verde
-
-Agrupamento: somar parcelas por `studentName`; classificar aluno pelo "pior" status presente (vencido > negociação > distrato > a pagar > pago) — mas exibir também nas seções específicas conforme houver parcelas naquele status. Padrão: aluno aparece em UMA seção principal (pior status). Toggle "Ver detalhe de parcelas" abre modal `StudentDetailModal`.
-
-Cálculos:
-- `valorFinal = amount + interest - fees`
-- `recebido` = soma de parcelas PAGAS
-- `emAberto` = soma de parcelas não pagas
-- `diasAtraso` = max dos dias entre hoje e dueDate das parcelas vencidas
-
-### 3. Exportação PDF A4
-Botão "Exportar PDF" no topo direito. Usa `jsPDF` + `jspdf-autotable` (já instalado no projeto — confirmar; se não, adicionar).
-- Formato A4 retrato, margens 15mm
-- Cabeçalho: logo FS + título "Relatório de Inadimplência — FS Turma IV" + data de geração
-- Bloco de resumo (5 mini-cards coloridos via `doc.rect` + texto)
-- Uma tabela por status, com cabeçalho colorido conforme o status (verde/azul/laranja/vermelho/cinza), zebra striping, totais ao fim de cada tabela
-- Rodapé com paginação "Página X de Y"
-- Nome do arquivo: `Inadimplencia_FS_Turma_IV_YYYY-MM-DD.pdf`
-
-### Arquivos
-- editar: `src/pages/Index.tsx`
-- criar: `src/components/RelatorioInadimplencia.tsx`
-- criar (helper): `src/utils/inadimplenciaPdf.ts`
-
-### Dúvidas rápidas
-1. Aluno deve aparecer em **uma só seção** (pelo pior status) ou em **todas as seções** onde tenha parcelas? Sugestão: pior status, com badge mostrando se também tem parcelas em outros estados.
-2. "Pagos" deve listar **apenas alunos 100% quitados** ou também as parcelas pagas de quem ainda deve? Sugestão: só 100% quitados (para ficar limpo).
+- `src/components/EventosPainel.tsx` (apenas função `exportPDF`)

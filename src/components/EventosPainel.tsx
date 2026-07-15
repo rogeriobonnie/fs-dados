@@ -210,20 +210,49 @@ const EventosPainel = ({ data, allData, selectedMonth, selectedYear }: EventosPa
     autoTable(doc, {
       startY: y + 2,
       head: [['Data', 'Descrição', 'Detalhamento', 'Centro de Custo', 'Banco', 'Valor']],
-      body: despesasDoEvento.map((r) => [
-        r.date,
-        r.descricao,
-        r.detalhamento,
-        r.custo,
-        r.banco,
-        fmt(Math.abs(r.valorLiquido)),
-      ]),
+      body: (() => {
+        const groupsMap = new Map<string, { nome: string; itens: typeof despesasDoEvento; total: number }>();
+        for (const r of despesasDoEvento) {
+          const key = normalize(r.descricao || '(sem descrição)');
+          if (!groupsMap.has(key)) {
+            groupsMap.set(key, { nome: (r.descricao || '(sem descrição)').trim(), itens: [], total: 0 });
+          }
+          const g = groupsMap.get(key)!;
+          g.itens.push(r);
+          g.total += Math.abs(r.valorLiquido);
+        }
+        const grupos = Array.from(groupsMap.values()).sort((a, b) => b.total - a.total);
+        const rows: any[] = [];
+        subtotalRowsIdx.clear();
+        let idx = 0;
+        for (const g of grupos) {
+          const itens = [...g.itens].sort((a, b) => a.date.localeCompare(b.date));
+          for (const r of itens) {
+            rows.push([r.date, r.descricao, r.detalhamento, r.custo, r.banco, fmt(Math.abs(r.valorLiquido))]);
+            idx++;
+          }
+          rows.push([
+            { content: `Subtotal — ${g.nome} (${itens.length} lanç.)`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: fmt(g.total), styles: { halign: 'right', fontStyle: 'bold' } },
+          ]);
+          subtotalRowsIdx.add(idx);
+          idx++;
+        }
+        return rows;
+      })(),
       foot: [['TOTAL', '', '', '', '', fmt(totalDespesas)]],
       styles: { fontSize: 8, cellPadding: 1.8 },
       headStyles: { fillColor: [153, 27, 27], textColor: 255 },
       footStyles: { fillColor: [254, 226, 226], textColor: [153, 27, 27], fontStyle: 'bold' },
       columnStyles: { 5: { halign: 'right' } },
       margin: { left: marginX, right: marginX },
+      showHead: 'everyPage',
+      didParseCell: (data) => {
+        if (data.section === 'body' && subtotalRowsIdx.has(data.row.index)) {
+          data.cell.styles.fillColor = [243, 244, 246];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
     });
 
     y = (doc as any).lastAutoTable.finalY + 10;
