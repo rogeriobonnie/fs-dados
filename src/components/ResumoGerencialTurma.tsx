@@ -11,16 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatCurrency } from '@/utils/financialCalculations';
-import {
-  Users,
-  UserX,
-  AlertTriangle,
-  Handshake,
-  CheckCircle2,
-  Clock,
-  Wallet,
-  TrendingUp,
-} from 'lucide-react';
+import { Wallet, TrendingUp } from 'lucide-react';
 
 interface Props {
   data: FinancialRecord[];
@@ -136,51 +127,6 @@ const ResumoGerencialTurma = ({ data }: Props) => {
     ? (resumo.totalRecebido / resumo.totalContratado) * 100
     : 0;
 
-  const cards = [
-    {
-      label: 'Alunos no curso',
-      value: String(resumo.alunos.length),
-      sub: `${resumo.parcelas} parcelas • ${resumo.parcelasPagas} pagas`,
-      icon: Users,
-      className: 'text-primary',
-    },
-    {
-      label: 'Alunos quitados',
-      value: String(resumo.quitados.length),
-      sub: formatCurrency(resumo.quitados.reduce((t, a) => t + a.totalReceived, 0)),
-      icon: CheckCircle2,
-      className: 'text-green-600 dark:text-green-400',
-    },
-    {
-      label: 'Em dia (a pagar)',
-      value: String(resumo.emDia.length),
-      sub: formatCurrency(resumo.emDia.reduce((t, a) => t + a.totalOpen, 0)) + ' a receber',
-      icon: Clock,
-      className: 'text-blue-600 dark:text-blue-400',
-    },
-    {
-      label: 'Alunos em atraso',
-      value: String(resumo.atrasados.length),
-      sub: formatCurrency(resumo.totalVencido) + ' vencido',
-      icon: AlertTriangle,
-      className: 'text-red-600 dark:text-red-400',
-    },
-    {
-      label: 'Em negociação',
-      value: String(resumo.negociacao.length),
-      sub: formatCurrency(resumo.negociacao.reduce((t, a) => t + a.totalOpen, 0)) + ' em aberto',
-      icon: Handshake,
-      className: 'text-orange-600 dark:text-orange-400',
-    },
-    {
-      label: 'Distratos',
-      value: String(resumo.distratos.length),
-      sub: formatCurrency(resumo.perdidoDistrato) + ' perdido',
-      icon: UserX,
-      className: 'text-zinc-600 dark:text-zinc-300',
-    },
-  ];
-
   return (
     <div className="space-y-6">
       <Card>
@@ -191,19 +137,6 @@ const ResumoGerencialTurma = ({ data }: Props) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6 space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {cards.map(c => (
-              <div key={c.label} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{c.label}</span>
-                  <c.icon className={`h-4 w-4 ${c.className}`} />
-                </div>
-                <div className={`text-2xl font-bold mt-1 ${c.className}`}>{c.value}</div>
-                <div className="text-xs text-muted-foreground mt-1">{c.sub}</div>
-              </div>
-            ))}
-          </div>
-
           <div className="grid gap-4 md:grid-cols-4">
             <div className="rounded-lg border p-4">
               <div className="text-xs text-muted-foreground">Total contratado</div>
