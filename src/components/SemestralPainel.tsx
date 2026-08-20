@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight, Wallet, TrendingUp, TrendingDown, Landmark, FileText, CalendarRange } from 'lucide-react';
+import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Landmark, FileText, CalendarRange } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -143,7 +143,40 @@ const SemestralPainel = ({ allData }: Props) => {
   const totalDestinacoes = useMemo(() => sumAbs(Object.values(grouped.destinacoes).flat()), [grouped]);
   const totalOutrasSaidas = useMemo(() => sumAbs(Object.values(grouped.outrasSaidas).flat()), [grouped]);
   const totalProvisoes = useMemo(() => sumAbs(Object.values(grouped.provisoes).flat()), [grouped]);
-  const totalSaidas = totalDespesas + totalDestinacoes + totalOutrasSaidas;
+  const totalSaidas = totalDespesas + totalDestinacoes;
+
+  // ── Receitas consolidadas por curso (igual DRE) ──
+  const receitasPorCurso = useMemo(() => {
+    const map = new Map<string, {
+      nome: string; qtd: number; bruto: number; taxas: number; acrescimos: number;
+      liquido: number; impostos: number; comVendedor: number; resultado: number; vendas: Pagina5Record[];
+    }>();
+    Object.values(grouped.receitas).flat().forEach(r => {
+      const key = r.descricao || 'Sem descrição';
+      if (!map.has(key)) map.set(key, { nome: key, qtd: 0, bruto: 0, taxas: 0, acrescimos: 0, liquido: 0, impostos: 0, comVendedor: 0, resultado: 0, vendas: [] });
+      const c = map.get(key)!;
+      c.qtd++;
+      c.bruto += r.valorBruto;
+      c.taxas += r.taxas;
+      c.acrescimos += r.acrescimos;
+      c.liquido += r.valorLiquido;
+      c.impostos += r.vrImposto;
+      c.comVendedor += r.vendedor ? r.vrVendedor : 0;
+      c.vendas.push(r);
+    });
+    map.forEach(c => { c.resultado = c.liquido - c.impostos - c.comVendedor; });
+    return Array.from(map.values()).sort((a, b) => b.bruto - a.bruto);
+  }, [grouped.receitas]);
+
+  const receitasTotais = useMemo(() => receitasPorCurso.reduce((acc, c) => ({
+    bruto: acc.bruto + c.bruto,
+    taxas: acc.taxas + c.taxas,
+    acrescimos: acc.acrescimos + c.acrescimos,
+    liquido: acc.liquido + c.liquido,
+    impostos: acc.impostos + c.impostos,
+    comVendedor: acc.comVendedor + c.comVendedor,
+    resultado: acc.resultado + c.resultado,
+  }), { bruto: 0, taxas: 0, acrescimos: 0, liquido: 0, impostos: 0, comVendedor: 0, resultado: 0 }), [receitasPorCurso]);
 
   const resultado = totalEntradas - totalSaidas;
   const saldoFinal = saldoInicialTotal + resultado;
@@ -167,28 +200,6 @@ const SemestralPainel = ({ allData }: Props) => {
 
     return { receitas, despesasItems, bruto, taxas, impostos, comVendedor, comMkt, liquido, despesas, resultado: liquido - despesas };
   }, [semData]);
-
-  // ── Mês a mês ──
-  const mensal = useMemo(() => {
-    let acumulado = saldoInicialTotal;
-    return months.map(m => {
-      const md = semData.filter(r => r.month === m);
-      let entradas = 0;
-      let saidas = 0;
-      md.forEach(r => {
-        const cn = r.custoNum;
-        if (cn === 0 || cn === 99) return;
-        if ((cn >= 1 && cn <= 10) || cn === 96 || cn === 97 || cn === 98) entradas += r.valorLiquido;
-        else if (cn >= 11 && cn <= 20) {
-          if ((r.banco || '').toUpperCase() !== 'PAGO') saidas += Math.abs(r.valorLiquido);
-        } else if (cn === 31 && (r.banco || '').toUpperCase() === 'PROVISAO') return;
-        else saidas += Math.abs(r.valorLiquido);
-      });
-      const res = entradas - saidas;
-      acumulado += res;
-      return { month: m, entradas, saidas, resultado: res, acumulado };
-    });
-  }, [semData, months, saldoInicialTotal]);
 
   // ── Bancos ──
   const bancos = useMemo(() => {
@@ -333,23 +344,19 @@ const SemestralPainel = ({ allData }: Props) => {
       margin: { left: 14, right: 14 },
     });
 
-    const monthRows = mensal.map(m => [
-      MONTH_SHORT[m.month - 1],
-      fmt(m.entradas),
-      fmt(m.saidas),
-      fmt(m.resultado),
-      fmt(m.acumulado),
-    ]);
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 8,
-      head: [['Mês', 'Entradas', 'Saídas', 'Resultado', 'Saldo Acum.']],
-      body: monthRows,
-      foot: [['Total', fmt(totalEntradas), fmt(totalSaidas), fmt(resultado), fmt(saldoFinal)]],
+      head: [['Curso / Receita', 'Qtd', 'Bruto', 'Taxas', 'Líquido', 'Impostos', 'Com.Vend', 'Resultado']],
+      body: receitasPorCurso.map(c => [
+        c.nome, String(c.qtd), fmt(c.bruto), `-${fmt(c.taxas)}`, fmt(c.liquido),
+        `-${fmt(c.impostos)}`, `-${fmt(c.comVendedor)}`, fmt(c.resultado),
+      ]),
+      foot: [['TOTAL', '', fmt(receitasTotais.bruto), `-${fmt(receitasTotais.taxas)}`, fmt(receitasTotais.liquido), `-${fmt(receitasTotais.impostos)}`, `-${fmt(receitasTotais.comVendedor)}`, fmt(receitasTotais.resultado)]],
       theme: 'grid',
-      headStyles: { fillColor: [30, 64, 175], fontSize: 8 },
+      headStyles: { fillColor: [16, 122, 87], fontSize: 8 },
       footStyles: { fillColor: [226, 232, 240], textColor: 20, fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 8 },
-      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+      bodyStyles: { fontSize: 7 },
+      columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } },
       margin: { left: 14, right: 14 },
     });
 
@@ -459,66 +466,84 @@ const SemestralPainel = ({ allData }: Props) => {
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {[
-          { label: 'Saldo Inicial', value: saldoInicialTotal, icon: Wallet, color: 'text-sky-600' },
-          { label: 'Entradas', value: totalEntradas, icon: TrendingUp, color: 'text-emerald-600' },
-          { label: 'Saídas', value: totalSaidas, icon: TrendingDown, color: 'text-red-600' },
-          { label: 'Resultado', value: resultado, icon: TrendingUp, color: resultado >= 0 ? 'text-emerald-600' : 'text-red-600' },
-          { label: 'Saldo Final', value: saldoFinal, icon: Landmark, color: 'text-sky-600' },
-        ].map(c => (
-          <Card key={c.label}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{c.label}</span>
-                <c.icon className={`h-4 w-4 ${c.color}`} />
-              </div>
-              <div className={`mt-1 text-lg font-bold ${c.color}`}>{fmt(c.value)}</div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* RECEITAS consolidadas */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-emerald-600" />
+          <h3 className="text-lg font-bold">RECEITAS</h3>
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Curso / Receita</TableHead>
+                    <TableHead className="text-xs text-center">Qtd</TableHead>
+                    <TableHead className="text-xs text-right">Bruto</TableHead>
+                    <TableHead className="text-xs text-right">Taxas</TableHead>
+                    <TableHead className="text-xs text-right">Acrésc.</TableHead>
+                    <TableHead className="text-xs text-right">Líquido</TableHead>
+                    <TableHead className="text-xs text-right">Impostos</TableHead>
+                    <TableHead className="text-xs text-right">Com. Vend.</TableHead>
+                    <TableHead className="text-xs text-right">Resultado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {receitasPorCurso.map(c => {
+                    const isOpen = !!openSections['curso-' + c.nome];
+                    return (
+                      <>
+                        <TableRow key={c.nome} className="cursor-pointer hover:bg-muted/50" onClick={() => toggle('curso-' + c.nome)}>
+                          <TableCell className="text-xs font-medium">
+                            <div className="flex items-center gap-1">
+                              {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                              {c.nome}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-center">{c.qtd}</TableCell>
+                          <TableCell className="text-xs text-right">{fmt(c.bruto)}</TableCell>
+                          <TableCell className="text-xs text-right text-red-600">-{fmt(c.taxas)}</TableCell>
+                          <TableCell className="text-xs text-right text-emerald-600">{c.acrescimos > 0 ? `+${fmt(c.acrescimos)}` : '-'}</TableCell>
+                          <TableCell className="text-xs text-right font-semibold">{fmt(c.liquido)}</TableCell>
+                          <TableCell className="text-xs text-right text-red-600">-{fmt(c.impostos)}</TableCell>
+                          <TableCell className="text-xs text-right text-red-600">-{fmt(c.comVendedor)}</TableCell>
+                          <TableCell className="text-xs text-right font-bold text-primary">{fmt(c.resultado)}</TableCell>
+                        </TableRow>
+                        {isOpen && c.vendas.slice().sort((a, b) => a.month - b.month).map(v => (
+                          <TableRow key={v.id} className="bg-muted/20">
+                            <TableCell className="pl-8 text-xs">{v.date} - {v.detalhamento}</TableCell>
+                            <TableCell className="text-xs text-center">{v.vendedor || '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{fmt(v.valorBruto)}</TableCell>
+                            <TableCell className="text-xs text-right">{v.taxas > 0 ? `-${fmt(v.taxas)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{v.acrescimos > 0 ? `+${fmt(v.acrescimos)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{fmt(v.valorLiquido)}</TableCell>
+                            <TableCell className="text-xs text-right">{v.vrImposto > 0 ? `-${fmt(v.vrImposto)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{v.vrVendedor > 0 ? `-${fmt(v.vrVendedor)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{fmt(v.valorLiquido - v.vrImposto - v.vrVendedor)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </>
+                    );
+                  })}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell className="text-xs font-bold" colSpan={2}>TOTAL RECEITAS</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(receitasTotais.bruto)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(receitasTotais.taxas)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-emerald-600">{receitasTotais.acrescimos > 0 ? `+${fmt(receitasTotais.acrescimos)}` : '-'}</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(receitasTotais.liquido)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(receitasTotais.impostos)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(receitasTotais.comVendedor)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-primary">{fmt(receitasTotais.resultado)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-
-      {/* Mês a mês */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Evolução mês a mês</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mês</TableHead>
-                <TableHead className="text-right">Entradas</TableHead>
-                <TableHead className="text-right">Saídas</TableHead>
-                <TableHead className="text-right">Resultado</TableHead>
-                <TableHead className="text-right">Saldo Acumulado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mensal.map(m => (
-                <TableRow key={m.month}>
-                  <TableCell className="font-medium">{MONTH_SHORT[m.month - 1]}</TableCell>
-                  <TableCell className="text-right text-emerald-600">{fmt(m.entradas)}</TableCell>
-                  <TableCell className="text-right text-red-600">{fmt(m.saidas)}</TableCell>
-                  <TableCell className={`text-right font-medium ${m.resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(m.resultado)}</TableCell>
-                  <TableCell className="text-right">{fmt(m.acumulado)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell className="font-bold">Total</TableCell>
-                <TableCell className="text-right font-bold text-emerald-600">{fmt(totalEntradas)}</TableCell>
-                <TableCell className="text-right font-bold text-red-600">{fmt(totalSaidas)}</TableCell>
-                <TableCell className={`text-right font-bold ${resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(resultado)}</TableCell>
-                <TableCell className="text-right font-bold">{fmt(saldoFinal)}</TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </CardContent>
-      </Card>
 
       {/* Fluxo de caixa */}
       <div className="grid gap-4 lg:grid-cols-2">
