@@ -546,7 +546,7 @@ const SemestralPainel = ({ allData }: Props) => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {renderGroupTable('Receitas (1-10)', grouped.receitas, 'green', 'rec-')}
+            {renderGroupTable('Receitas (1-10)', grouped.receitas, 'green', 'rec-', true)}
             {renderGroupTable('Outras entradas (96/97/98)', grouped.outrasEntradas, 'green', 'oe-')}
           </CardContent>
         </Card>
