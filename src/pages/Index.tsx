@@ -25,6 +25,7 @@ import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3, Us
 import logoFS from '@/assets/logo-fs.png';
 import DistratosNegociacao from '@/components/DistratosNegociacao';
 import RelatorioInadimplencia from '@/components/RelatorioInadimplencia';
+import ResumoGerencialTurma from '@/components/ResumoGerencialTurma';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -242,8 +243,12 @@ const Index = () => {
               />
 
               {/* Nested Tabs for FS Turma IV content */}
-              <Tabs defaultValue="students" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-5 text-xs">
+              <Tabs defaultValue="resumo" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-6 text-xs">
+                  <TabsTrigger value="resumo" className="flex items-center gap-1 px-2">
+                    <BarChart3 className="h-3 w-3" />
+                    Resumo Gerencial
+                  </TabsTrigger>
                   <TabsTrigger value="students" className="flex items-center gap-1 px-2">
                     <Users className="h-3 w-3" />
                     Alunos
@@ -265,6 +270,10 @@ const Index = () => {
                     Distratos
                   </TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="resumo" className="space-y-6">
+                  <ResumoGerencialTurma data={filteredData} />
+                </TabsContent>
 
                 <TabsContent value="students" className="space-y-6">
                   <StudentsDirectory data={mainFilteredData} />
