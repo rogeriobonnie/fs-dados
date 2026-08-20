@@ -1572,10 +1572,9 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
               const saldoFinalBancosReais = fluxoBancos.filter(b => !['INVEST', 'L2', 'PROVISAO'].includes(b.banco.toUpperCase())).reduce((s, b) => s + b.saldoFinal, 0);
               const patrimonioTotal = saldoFinalBancosReais + totalInvestido;
 
-              if (grouped.investimentos.length === 0 && totalInvestido === 0) return null;
-
               return (
                 <div className="border-b border-border">
+                  {grouped.investimentos.length > 0 && (
                   <Collapsible>
                     <CollapsibleTrigger className="w-full">
                       <div className="flex justify-between items-center py-2.5 px-4 hover:bg-muted/30 transition-colors cursor-pointer" style={{ backgroundColor: 'hsl(45 80% 50% / 0.05)' }}>
@@ -1599,6 +1598,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
+                  )}
                   {/* Patrimônio Total */}
                   {(() => {
                     const totalProvisao32 = grouped.lanceADois.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
