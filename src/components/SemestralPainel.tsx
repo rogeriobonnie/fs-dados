@@ -506,11 +506,123 @@ const SemestralPainel = ({ allData }: Props) => {
           <CardContent className="space-y-4">
             {renderGroupTable('Despesas (11-20)', grouped.despesas, 'red', 'des-')}
             {renderGroupTable('Destinações (21-30)', grouped.destinacoes, 'red', 'dest-')}
-            {renderGroupTable('Outras saídas (32/33/50/51/52)', grouped.outrasSaidas, 'red', 'os-')}
-            {renderGroupTable('Provisões (31) — não afetam o caixa', grouped.provisoes, 'red', 'prov-')}
           </CardContent>
         </Card>
       </div>
+
+      {/* Quadro 01-CURSOS */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">01-CURSOS — Receitas e Despesas do semestre</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell>Receita Bruta</TableCell>
+                <TableCell className="text-right text-emerald-600">{fmt(cursos01.bruto)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>(-) Taxas</TableCell>
+                <TableCell className="text-right text-red-600">{fmt(cursos01.taxas)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>(-) Impostos</TableCell>
+                <TableCell className="text-right text-red-600">{fmt(cursos01.impostos)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>(-) Comissões Vendedor</TableCell>
+                <TableCell className="text-right text-red-600">{fmt(cursos01.comVendedor)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>(-) Comissões MKT</TableCell>
+                <TableCell className="text-right text-red-600">{fmt(cursos01.comMkt)}</TableCell>
+              </TableRow>
+              <TableRow className="bg-muted/40">
+                <TableCell className="font-semibold">(=) Receita Líquida</TableCell>
+                <TableCell className="text-right font-semibold text-emerald-600">{fmt(cursos01.liquido)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>(-) Despesas (15-CURSOS)</TableCell>
+                <TableCell className="text-right text-red-600">{fmt(cursos01.despesas)}</TableCell>
+              </TableRow>
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="font-bold">(=) Resultado 01-CURSOS</TableCell>
+                <TableCell className={`text-right font-bold ${cursos01.resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(cursos01.resultado)}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+
+          {cursos01.receitas.length > 0 && (
+            <div>
+              <div className="mb-1 text-sm font-semibold">Receitas</div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Data</TableHead>
+                    <TableHead className="text-xs">Descrição</TableHead>
+                    <TableHead className="text-right text-xs">Bruto</TableHead>
+                    <TableHead className="text-right text-xs">Taxas</TableHead>
+                    <TableHead className="text-right text-xs">Impostos</TableHead>
+                    <TableHead className="text-right text-xs">Comissões</TableHead>
+                    <TableHead className="text-right text-xs">Líquido</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cursos01.receitas.map(r => {
+                    const com = (r.vendedor ? r.vrVendedor : 0) + r.vrMkt;
+                    return (
+                      <TableRow key={r.id}>
+                        <TableCell className="py-1 text-xs">{r.date}</TableCell>
+                        <TableCell className="py-1 text-xs">{r.descricao}</TableCell>
+                        <TableCell className="py-1 text-right text-xs">{fmt(r.valorBruto)}</TableCell>
+                        <TableCell className="py-1 text-right text-xs">{fmt(Math.abs(r.taxas))}</TableCell>
+                        <TableCell className="py-1 text-right text-xs">{fmt(r.vrImposto)}</TableCell>
+                        <TableCell className="py-1 text-right text-xs">{fmt(com)}</TableCell>
+                        <TableCell className="py-1 text-right text-xs font-medium">{fmt(r.valorLiquido - r.vrImposto - com)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {cursos01.despesasItems.length > 0 && (
+            <div>
+              <div className="mb-1 text-sm font-semibold">Despesas (15-CURSOS)</div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Data</TableHead>
+                    <TableHead className="text-xs">Descrição</TableHead>
+                    <TableHead className="text-xs">Detalhamento</TableHead>
+                    <TableHead className="text-right text-xs">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cursos01.despesasItems.map(r => (
+                    <TableRow key={r.id}>
+                      <TableCell className="py-1 text-xs">{r.date}</TableCell>
+                      <TableCell className="py-1 text-xs">{r.descricao}</TableCell>
+                      <TableCell className="py-1 text-xs">{r.detalhamento}</TableCell>
+                      <TableCell className="py-1 text-right text-xs text-red-600">{fmt(Math.abs(r.valorLiquido))}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Bancos */}
       <Card>
