@@ -143,7 +143,40 @@ const SemestralPainel = ({ allData }: Props) => {
   const totalDestinacoes = useMemo(() => sumAbs(Object.values(grouped.destinacoes).flat()), [grouped]);
   const totalOutrasSaidas = useMemo(() => sumAbs(Object.values(grouped.outrasSaidas).flat()), [grouped]);
   const totalProvisoes = useMemo(() => sumAbs(Object.values(grouped.provisoes).flat()), [grouped]);
-  const totalSaidas = totalDespesas + totalDestinacoes + totalOutrasSaidas;
+  const totalSaidas = totalDespesas + totalDestinacoes;
+
+  // ── Receitas consolidadas por curso (igual DRE) ──
+  const receitasPorCurso = useMemo(() => {
+    const map = new Map<string, {
+      nome: string; qtd: number; bruto: number; taxas: number; acrescimos: number;
+      liquido: number; impostos: number; comVendedor: number; resultado: number; vendas: Pagina5Record[];
+    }>();
+    Object.values(grouped.receitas).flat().forEach(r => {
+      const key = r.descricao || 'Sem descrição';
+      if (!map.has(key)) map.set(key, { nome: key, qtd: 0, bruto: 0, taxas: 0, acrescimos: 0, liquido: 0, impostos: 0, comVendedor: 0, resultado: 0, vendas: [] });
+      const c = map.get(key)!;
+      c.qtd++;
+      c.bruto += r.valorBruto;
+      c.taxas += r.taxas;
+      c.acrescimos += r.acrescimos;
+      c.liquido += r.valorLiquido;
+      c.impostos += r.vrImposto;
+      c.comVendedor += r.vendedor ? r.vrVendedor : 0;
+      c.vendas.push(r);
+    });
+    map.forEach(c => { c.resultado = c.liquido - c.impostos - c.comVendedor; });
+    return Array.from(map.values()).sort((a, b) => b.bruto - a.bruto);
+  }, [grouped.receitas]);
+
+  const receitasTotais = useMemo(() => receitasPorCurso.reduce((acc, c) => ({
+    bruto: acc.bruto + c.bruto,
+    taxas: acc.taxas + c.taxas,
+    acrescimos: acc.acrescimos + c.acrescimos,
+    liquido: acc.liquido + c.liquido,
+    impostos: acc.impostos + c.impostos,
+    comVendedor: acc.comVendedor + c.comVendedor,
+    resultado: acc.resultado + c.resultado,
+  }), { bruto: 0, taxas: 0, acrescimos: 0, liquido: 0, impostos: 0, comVendedor: 0, resultado: 0 }), [receitasPorCurso]);
 
   const resultado = totalEntradas - totalSaidas;
   const saldoFinal = saldoInicialTotal + resultado;
