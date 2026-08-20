@@ -181,26 +181,6 @@ const SemestralPainel = ({ allData }: Props) => {
   const resultado = totalEntradas - totalSaidas;
   const saldoFinal = saldoInicialTotal + resultado;
 
-  // ── Quadro 01-CURSOS ──
-  const cursos01 = useMemo(() => {
-    const receitas = semData
-      .filter(r => r.custoNum === 1)
-      .sort((a, b) => a.month - b.month);
-    const despesasItems = semData
-      .filter(r => r.custoNum === 15 && (r.banco || '').toUpperCase() !== 'PAGO')
-      .sort((a, b) => a.month - b.month);
-
-    const bruto = receitas.reduce((s, r) => s + r.valorBruto, 0);
-    const taxas = receitas.reduce((s, r) => s + Math.abs(r.taxas), 0);
-    const impostos = receitas.reduce((s, r) => s + r.vrImposto, 0);
-    const comVendedor = receitas.reduce((s, r) => s + (r.vendedor ? r.vrVendedor : 0), 0);
-    const comMkt = receitas.reduce((s, r) => s + r.vrMkt, 0);
-    const liquido = receitas.reduce((s, r) => s + r.valorLiquido, 0) - impostos - comVendedor - comMkt;
-    const despesas = despesasItems.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-
-    return { receitas, despesasItems, bruto, taxas, impostos, comVendedor, comMkt, liquido, despesas, resultado: liquido - despesas };
-  }, [semData]);
-
   // ── Bancos ──
   const bancos = useMemo(() => {
     const map: Record<string, { banco: string; saldoInicial: number; entradas: number; saidas: number }> = {};
@@ -242,6 +222,7 @@ const SemestralPainel = ({ allData }: Props) => {
     groups: Record<string, Pagina5Record[]>,
     tone: 'green' | 'red',
     prefix: string,
+    byCourse = false,
   ) => {
     const entries = Object.entries(groups).sort(
       (a, b) => sumAbs(b[1]) - sumAbs(a[1]),
@@ -280,6 +261,36 @@ const SemestralPainel = ({ allData }: Props) => {
                       ))}
                     </div>
                   )}
+                  {byCourse ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="py-1 text-xs">Curso</TableHead>
+                          <TableHead className="py-1 text-right text-xs">Qtd</TableHead>
+                          <TableHead className="py-1 text-right text-xs">Valor</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(
+                          items.reduce((acc: Record<string, { qtd: number; valor: number }>, r) => {
+                            const k = r.descricao || 'Sem descrição';
+                            if (!acc[k]) acc[k] = { qtd: 0, valor: 0 };
+                            acc[k].qtd++;
+                            acc[k].valor += Math.abs(r.valorLiquido);
+                            return acc;
+                          }, {}),
+                        )
+                          .sort((a, b) => b[1].valor - a[1].valor)
+                          .map(([nome, v]) => (
+                            <TableRow key={nome}>
+                              <TableCell className="py-1 text-xs">{nome}</TableCell>
+                              <TableCell className="py-1 text-right text-xs">{v.qtd}</TableCell>
+                              <TableCell className="py-1 text-right text-xs font-medium">{fmt(v.valor)}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -305,6 +316,7 @@ const SemestralPainel = ({ allData }: Props) => {
                         ))}
                     </TableBody>
                   </Table>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
             );
@@ -403,27 +415,6 @@ const SemestralPainel = ({ allData }: Props) => {
     sectionTable('Entradas — Outras', grouped.outrasEntradas, [16, 122, 87]);
     sectionTable('Saídas — Despesas', grouped.despesas, [185, 28, 28]);
     sectionTable('Saídas — Destinações', grouped.destinacoes, [185, 28, 28]);
-
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 8,
-      head: [['01-CURSOS', 'Valor']],
-      body: [
-        ['Receita Bruta', fmt(cursos01.bruto)],
-        ['(-) Taxas', fmt(cursos01.taxas)],
-        ['(-) Impostos', fmt(cursos01.impostos)],
-        ['(-) Comissões Vendedor', fmt(cursos01.comVendedor)],
-        ['(-) Comissões MKT', fmt(cursos01.comMkt)],
-        ['(=) Receita Líquida', fmt(cursos01.liquido)],
-        ['(-) Despesas (15-CURSOS)', fmt(cursos01.despesas)],
-      ],
-      foot: [['(=) Resultado 01-CURSOS', fmt(cursos01.resultado)]],
-      theme: 'grid',
-      headStyles: { fillColor: [14, 165, 233], fontSize: 9 },
-      footStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold', fontSize: 9 },
-      bodyStyles: { fontSize: 8 },
-      columnStyles: { 1: { halign: 'right' } },
-      margin: { left: 14, right: 14 },
-    });
 
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 8,
@@ -555,7 +546,7 @@ const SemestralPainel = ({ allData }: Props) => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {renderGroupTable('Receitas (1-10)', grouped.receitas, 'green', 'rec-')}
+            {renderGroupTable('Receitas (1-10)', grouped.receitas, 'green', 'rec-', true)}
             {renderGroupTable('Outras entradas (96/97/98)', grouped.outrasEntradas, 'green', 'oe-')}
           </CardContent>
         </Card>
@@ -573,120 +564,6 @@ const SemestralPainel = ({ allData }: Props) => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Quadro 01-CURSOS */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">01-CURSOS — Receitas e Despesas do semestre</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell>Receita Bruta</TableCell>
-                <TableCell className="text-right text-emerald-600">{fmt(cursos01.bruto)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>(-) Taxas</TableCell>
-                <TableCell className="text-right text-red-600">{fmt(cursos01.taxas)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>(-) Impostos</TableCell>
-                <TableCell className="text-right text-red-600">{fmt(cursos01.impostos)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>(-) Comissões Vendedor</TableCell>
-                <TableCell className="text-right text-red-600">{fmt(cursos01.comVendedor)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>(-) Comissões MKT</TableCell>
-                <TableCell className="text-right text-red-600">{fmt(cursos01.comMkt)}</TableCell>
-              </TableRow>
-              <TableRow className="bg-muted/40">
-                <TableCell className="font-semibold">(=) Receita Líquida</TableCell>
-                <TableCell className="text-right font-semibold text-emerald-600">{fmt(cursos01.liquido)}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>(-) Despesas (15-CURSOS)</TableCell>
-                <TableCell className="text-right text-red-600">{fmt(cursos01.despesas)}</TableCell>
-              </TableRow>
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell className="font-bold">(=) Resultado 01-CURSOS</TableCell>
-                <TableCell className={`text-right font-bold ${cursos01.resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(cursos01.resultado)}</TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-
-          {cursos01.receitas.length > 0 && (
-            <div>
-              <div className="mb-1 text-sm font-semibold">Receitas</div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Data</TableHead>
-                    <TableHead className="text-xs">Descrição</TableHead>
-                    <TableHead className="text-right text-xs">Bruto</TableHead>
-                    <TableHead className="text-right text-xs">Taxas</TableHead>
-                    <TableHead className="text-right text-xs">Impostos</TableHead>
-                    <TableHead className="text-right text-xs">Comissões</TableHead>
-                    <TableHead className="text-right text-xs">Líquido</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cursos01.receitas.map(r => {
-                    const com = (r.vendedor ? r.vrVendedor : 0) + r.vrMkt;
-                    return (
-                      <TableRow key={r.id}>
-                        <TableCell className="py-1 text-xs">{r.date}</TableCell>
-                        <TableCell className="py-1 text-xs">{r.descricao}</TableCell>
-                        <TableCell className="py-1 text-right text-xs">{fmt(r.valorBruto)}</TableCell>
-                        <TableCell className="py-1 text-right text-xs">{fmt(Math.abs(r.taxas))}</TableCell>
-                        <TableCell className="py-1 text-right text-xs">{fmt(r.vrImposto)}</TableCell>
-                        <TableCell className="py-1 text-right text-xs">{fmt(com)}</TableCell>
-                        <TableCell className="py-1 text-right text-xs font-medium">{fmt(r.valorLiquido - r.vrImposto - com)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {cursos01.despesasItems.length > 0 && (
-            <div>
-              <div className="mb-1 text-sm font-semibold">Despesas (15-CURSOS)</div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Data</TableHead>
-                    <TableHead className="text-xs">Descrição</TableHead>
-                    <TableHead className="text-xs">Detalhamento</TableHead>
-                    <TableHead className="text-right text-xs">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cursos01.despesasItems.map(r => (
-                    <TableRow key={r.id}>
-                      <TableCell className="py-1 text-xs">{r.date}</TableCell>
-                      <TableCell className="py-1 text-xs">{r.descricao}</TableCell>
-                      <TableCell className="py-1 text-xs">{r.detalhamento}</TableCell>
-                      <TableCell className="py-1 text-right text-xs text-red-600">{fmt(Math.abs(r.valorLiquido))}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Bancos */}
       <Card>
