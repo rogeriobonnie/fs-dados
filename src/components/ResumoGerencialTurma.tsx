@@ -191,19 +191,6 @@ const ResumoGerencialTurma = ({ data }: Props) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6 space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {cards.map(c => (
-              <div key={c.label} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{c.label}</span>
-                  <c.icon className={`h-4 w-4 ${c.className}`} />
-                </div>
-                <div className={`text-2xl font-bold mt-1 ${c.className}`}>{c.value}</div>
-                <div className="text-xs text-muted-foreground mt-1">{c.sub}</div>
-              </div>
-            ))}
-          </div>
-
           <div className="grid gap-4 md:grid-cols-4">
             <div className="rounded-lg border p-4">
               <div className="text-xs text-muted-foreground">Total contratado</div>
