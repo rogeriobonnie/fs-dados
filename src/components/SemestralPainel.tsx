@@ -181,26 +181,6 @@ const SemestralPainel = ({ allData }: Props) => {
   const resultado = totalEntradas - totalSaidas;
   const saldoFinal = saldoInicialTotal + resultado;
 
-  // ── Quadro 01-CURSOS ──
-  const cursos01 = useMemo(() => {
-    const receitas = semData
-      .filter(r => r.custoNum === 1)
-      .sort((a, b) => a.month - b.month);
-    const despesasItems = semData
-      .filter(r => r.custoNum === 15 && (r.banco || '').toUpperCase() !== 'PAGO')
-      .sort((a, b) => a.month - b.month);
-
-    const bruto = receitas.reduce((s, r) => s + r.valorBruto, 0);
-    const taxas = receitas.reduce((s, r) => s + Math.abs(r.taxas), 0);
-    const impostos = receitas.reduce((s, r) => s + r.vrImposto, 0);
-    const comVendedor = receitas.reduce((s, r) => s + (r.vendedor ? r.vrVendedor : 0), 0);
-    const comMkt = receitas.reduce((s, r) => s + r.vrMkt, 0);
-    const liquido = receitas.reduce((s, r) => s + r.valorLiquido, 0) - impostos - comVendedor - comMkt;
-    const despesas = despesasItems.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-
-    return { receitas, despesasItems, bruto, taxas, impostos, comVendedor, comMkt, liquido, despesas, resultado: liquido - despesas };
-  }, [semData]);
-
   // ── Bancos ──
   const bancos = useMemo(() => {
     const map: Record<string, { banco: string; saldoInicial: number; entradas: number; saidas: number }> = {};
