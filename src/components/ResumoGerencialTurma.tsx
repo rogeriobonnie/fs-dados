@@ -127,51 +127,6 @@ const ResumoGerencialTurma = ({ data }: Props) => {
     ? (resumo.totalRecebido / resumo.totalContratado) * 100
     : 0;
 
-  const cards = [
-    {
-      label: 'Alunos no curso',
-      value: String(resumo.alunos.length),
-      sub: `${resumo.parcelas} parcelas • ${resumo.parcelasPagas} pagas`,
-      icon: Users,
-      className: 'text-primary',
-    },
-    {
-      label: 'Alunos quitados',
-      value: String(resumo.quitados.length),
-      sub: formatCurrency(resumo.quitados.reduce((t, a) => t + a.totalReceived, 0)),
-      icon: CheckCircle2,
-      className: 'text-green-600 dark:text-green-400',
-    },
-    {
-      label: 'Em dia (a pagar)',
-      value: String(resumo.emDia.length),
-      sub: formatCurrency(resumo.emDia.reduce((t, a) => t + a.totalOpen, 0)) + ' a receber',
-      icon: Clock,
-      className: 'text-blue-600 dark:text-blue-400',
-    },
-    {
-      label: 'Alunos em atraso',
-      value: String(resumo.atrasados.length),
-      sub: formatCurrency(resumo.totalVencido) + ' vencido',
-      icon: AlertTriangle,
-      className: 'text-red-600 dark:text-red-400',
-    },
-    {
-      label: 'Em negociação',
-      value: String(resumo.negociacao.length),
-      sub: formatCurrency(resumo.negociacao.reduce((t, a) => t + a.totalOpen, 0)) + ' em aberto',
-      icon: Handshake,
-      className: 'text-orange-600 dark:text-orange-400',
-    },
-    {
-      label: 'Distratos',
-      value: String(resumo.distratos.length),
-      sub: formatCurrency(resumo.perdidoDistrato) + ' perdido',
-      icon: UserX,
-      className: 'text-zinc-600 dark:text-zinc-300',
-    },
-  ];
-
   return (
     <div className="space-y-6">
       <Card>
