@@ -492,66 +492,84 @@ const SemestralPainel = ({ allData }: Props) => {
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {[
-          { label: 'Saldo Inicial', value: saldoInicialTotal, icon: Wallet, color: 'text-sky-600' },
-          { label: 'Entradas', value: totalEntradas, icon: TrendingUp, color: 'text-emerald-600' },
-          { label: 'Saídas', value: totalSaidas, icon: TrendingDown, color: 'text-red-600' },
-          { label: 'Resultado', value: resultado, icon: TrendingUp, color: resultado >= 0 ? 'text-emerald-600' : 'text-red-600' },
-          { label: 'Saldo Final', value: saldoFinal, icon: Landmark, color: 'text-sky-600' },
-        ].map(c => (
-          <Card key={c.label}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{c.label}</span>
-                <c.icon className={`h-4 w-4 ${c.color}`} />
-              </div>
-              <div className={`mt-1 text-lg font-bold ${c.color}`}>{fmt(c.value)}</div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* RECEITAS consolidadas */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-emerald-600" />
+          <h3 className="text-lg font-bold">RECEITAS</h3>
+        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Curso / Receita</TableHead>
+                    <TableHead className="text-xs text-center">Qtd</TableHead>
+                    <TableHead className="text-xs text-right">Bruto</TableHead>
+                    <TableHead className="text-xs text-right">Taxas</TableHead>
+                    <TableHead className="text-xs text-right">Acrésc.</TableHead>
+                    <TableHead className="text-xs text-right">Líquido</TableHead>
+                    <TableHead className="text-xs text-right">Impostos</TableHead>
+                    <TableHead className="text-xs text-right">Com. Vend.</TableHead>
+                    <TableHead className="text-xs text-right">Resultado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {receitasPorCurso.map(c => {
+                    const isOpen = !!openSections['curso-' + c.nome];
+                    return (
+                      <>
+                        <TableRow key={c.nome} className="cursor-pointer hover:bg-muted/50" onClick={() => toggle('curso-' + c.nome)}>
+                          <TableCell className="text-xs font-medium">
+                            <div className="flex items-center gap-1">
+                              {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                              {c.nome}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-center">{c.qtd}</TableCell>
+                          <TableCell className="text-xs text-right">{fmt(c.bruto)}</TableCell>
+                          <TableCell className="text-xs text-right text-red-600">-{fmt(c.taxas)}</TableCell>
+                          <TableCell className="text-xs text-right text-emerald-600">{c.acrescimos > 0 ? `+${fmt(c.acrescimos)}` : '-'}</TableCell>
+                          <TableCell className="text-xs text-right font-semibold">{fmt(c.liquido)}</TableCell>
+                          <TableCell className="text-xs text-right text-red-600">-{fmt(c.impostos)}</TableCell>
+                          <TableCell className="text-xs text-right text-red-600">-{fmt(c.comVendedor)}</TableCell>
+                          <TableCell className="text-xs text-right font-bold text-primary">{fmt(c.resultado)}</TableCell>
+                        </TableRow>
+                        {isOpen && c.vendas.slice().sort((a, b) => a.month - b.month).map(v => (
+                          <TableRow key={v.id} className="bg-muted/20">
+                            <TableCell className="pl-8 text-xs">{v.date} - {v.detalhamento}</TableCell>
+                            <TableCell className="text-xs text-center">{v.vendedor || '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{fmt(v.valorBruto)}</TableCell>
+                            <TableCell className="text-xs text-right">{v.taxas > 0 ? `-${fmt(v.taxas)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{v.acrescimos > 0 ? `+${fmt(v.acrescimos)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{fmt(v.valorLiquido)}</TableCell>
+                            <TableCell className="text-xs text-right">{v.vrImposto > 0 ? `-${fmt(v.vrImposto)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{v.vrVendedor > 0 ? `-${fmt(v.vrVendedor)}` : '-'}</TableCell>
+                            <TableCell className="text-xs text-right">{fmt(v.valorLiquido - v.vrImposto - v.vrVendedor)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </>
+                    );
+                  })}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell className="text-xs font-bold" colSpan={2}>TOTAL RECEITAS</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(receitasTotais.bruto)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(receitasTotais.taxas)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-emerald-600">{receitasTotais.acrescimos > 0 ? `+${fmt(receitasTotais.acrescimos)}` : '-'}</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(receitasTotais.liquido)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(receitasTotais.impostos)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(receitasTotais.comVendedor)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-primary">{fmt(receitasTotais.resultado)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-
-      {/* Mês a mês */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Evolução mês a mês</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mês</TableHead>
-                <TableHead className="text-right">Entradas</TableHead>
-                <TableHead className="text-right">Saídas</TableHead>
-                <TableHead className="text-right">Resultado</TableHead>
-                <TableHead className="text-right">Saldo Acumulado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mensal.map(m => (
-                <TableRow key={m.month}>
-                  <TableCell className="font-medium">{MONTH_SHORT[m.month - 1]}</TableCell>
-                  <TableCell className="text-right text-emerald-600">{fmt(m.entradas)}</TableCell>
-                  <TableCell className="text-right text-red-600">{fmt(m.saidas)}</TableCell>
-                  <TableCell className={`text-right font-medium ${m.resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(m.resultado)}</TableCell>
-                  <TableCell className="text-right">{fmt(m.acumulado)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell className="font-bold">Total</TableCell>
-                <TableCell className="text-right font-bold text-emerald-600">{fmt(totalEntradas)}</TableCell>
-                <TableCell className="text-right font-bold text-red-600">{fmt(totalSaidas)}</TableCell>
-                <TableCell className={`text-right font-bold ${resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(resultado)}</TableCell>
-                <TableCell className="text-right font-bold">{fmt(saldoFinal)}</TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </CardContent>
-      </Card>
 
       {/* Fluxo de caixa */}
       <div className="grid gap-4 lg:grid-cols-2">
