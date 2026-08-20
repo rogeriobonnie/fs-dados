@@ -11,16 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatCurrency } from '@/utils/financialCalculations';
-import {
-  Users,
-  UserX,
-  AlertTriangle,
-  Handshake,
-  CheckCircle2,
-  Clock,
-  Wallet,
-  TrendingUp,
-} from 'lucide-react';
+import { Wallet, TrendingUp } from 'lucide-react';
 
 interface Props {
   data: FinancialRecord[];
