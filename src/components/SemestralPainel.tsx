@@ -222,6 +222,7 @@ const SemestralPainel = ({ allData }: Props) => {
     groups: Record<string, Pagina5Record[]>,
     tone: 'green' | 'red',
     prefix: string,
+    byCourse = false,
   ) => {
     const entries = Object.entries(groups).sort(
       (a, b) => sumAbs(b[1]) - sumAbs(a[1]),
@@ -260,6 +261,36 @@ const SemestralPainel = ({ allData }: Props) => {
                       ))}
                     </div>
                   )}
+                  {byCourse ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="py-1 text-xs">Curso</TableHead>
+                          <TableHead className="py-1 text-right text-xs">Qtd</TableHead>
+                          <TableHead className="py-1 text-right text-xs">Valor</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(
+                          items.reduce((acc: Record<string, { qtd: number; valor: number }>, r) => {
+                            const k = r.descricao || 'Sem descrição';
+                            if (!acc[k]) acc[k] = { qtd: 0, valor: 0 };
+                            acc[k].qtd++;
+                            acc[k].valor += Math.abs(r.valorLiquido);
+                            return acc;
+                          }, {}),
+                        )
+                          .sort((a, b) => b[1].valor - a[1].valor)
+                          .map(([nome, v]) => (
+                            <TableRow key={nome}>
+                              <TableCell className="py-1 text-xs">{nome}</TableCell>
+                              <TableCell className="py-1 text-right text-xs">{v.qtd}</TableCell>
+                              <TableCell className="py-1 text-right text-xs font-medium">{fmt(v.valor)}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -285,6 +316,7 @@ const SemestralPainel = ({ allData }: Props) => {
                         ))}
                     </TableBody>
                   </Table>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
             );
