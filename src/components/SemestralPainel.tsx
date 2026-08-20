@@ -148,6 +148,26 @@ const SemestralPainel = ({ allData }: Props) => {
   const resultado = totalEntradas - totalSaidas;
   const saldoFinal = saldoInicialTotal + resultado;
 
+  // ── Quadro 01-CURSOS ──
+  const cursos01 = useMemo(() => {
+    const receitas = semData
+      .filter(r => r.custoNum === 1)
+      .sort((a, b) => a.month - b.month);
+    const despesasItems = semData
+      .filter(r => r.custoNum === 15 && (r.banco || '').toUpperCase() !== 'PAGO')
+      .sort((a, b) => a.month - b.month);
+
+    const bruto = receitas.reduce((s, r) => s + r.valorBruto, 0);
+    const taxas = receitas.reduce((s, r) => s + Math.abs(r.taxas), 0);
+    const impostos = receitas.reduce((s, r) => s + r.vrImposto, 0);
+    const comVendedor = receitas.reduce((s, r) => s + (r.vendedor ? r.vrVendedor : 0), 0);
+    const comMkt = receitas.reduce((s, r) => s + r.vrMkt, 0);
+    const liquido = receitas.reduce((s, r) => s + r.valorLiquido, 0) - impostos - comVendedor - comMkt;
+    const despesas = despesasItems.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+
+    return { receitas, despesasItems, bruto, taxas, impostos, comVendedor, comMkt, liquido, despesas, resultado: liquido - despesas };
+  }, [semData]);
+
   // ── Mês a mês ──
   const mensal = useMemo(() => {
     let acumulado = saldoInicialTotal;
@@ -305,7 +325,6 @@ const SemestralPainel = ({ allData }: Props) => {
         ['(-) Total de Saídas', fmt(totalSaidas)],
         ['(=) Resultado do Semestre', fmt(resultado)],
         ['(=) Saldo Final', fmt(saldoFinal)],
-        ['Provisões (não afetam caixa)', fmt(totalProvisoes)],
       ],
       theme: 'grid',
       headStyles: { fillColor: [14, 165, 233], fontSize: 9 },
@@ -377,7 +396,27 @@ const SemestralPainel = ({ allData }: Props) => {
     sectionTable('Entradas — Outras', grouped.outrasEntradas, [16, 122, 87]);
     sectionTable('Saídas — Despesas', grouped.despesas, [185, 28, 28]);
     sectionTable('Saídas — Destinações', grouped.destinacoes, [185, 28, 28]);
-    sectionTable('Saídas — Outros', grouped.outrasSaidas, [185, 28, 28]);
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 8,
+      head: [['01-CURSOS', 'Valor']],
+      body: [
+        ['Receita Bruta', fmt(cursos01.bruto)],
+        ['(-) Taxas', fmt(cursos01.taxas)],
+        ['(-) Impostos', fmt(cursos01.impostos)],
+        ['(-) Comissões Vendedor', fmt(cursos01.comVendedor)],
+        ['(-) Comissões MKT', fmt(cursos01.comMkt)],
+        ['(=) Receita Líquida', fmt(cursos01.liquido)],
+        ['(-) Despesas (15-CURSOS)', fmt(cursos01.despesas)],
+      ],
+      foot: [['(=) Resultado 01-CURSOS', fmt(cursos01.resultado)]],
+      theme: 'grid',
+      headStyles: { fillColor: [14, 165, 233], fontSize: 9 },
+      footStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 1: { halign: 'right' } },
+      margin: { left: 14, right: 14 },
+    });
 
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 8,
