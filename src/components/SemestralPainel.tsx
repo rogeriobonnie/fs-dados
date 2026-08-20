@@ -366,23 +366,19 @@ const SemestralPainel = ({ allData }: Props) => {
       margin: { left: 14, right: 14 },
     });
 
-    const monthRows = mensal.map(m => [
-      MONTH_SHORT[m.month - 1],
-      fmt(m.entradas),
-      fmt(m.saidas),
-      fmt(m.resultado),
-      fmt(m.acumulado),
-    ]);
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 8,
-      head: [['Mês', 'Entradas', 'Saídas', 'Resultado', 'Saldo Acum.']],
-      body: monthRows,
-      foot: [['Total', fmt(totalEntradas), fmt(totalSaidas), fmt(resultado), fmt(saldoFinal)]],
+      head: [['Curso / Receita', 'Qtd', 'Bruto', 'Taxas', 'Líquido', 'Impostos', 'Com.Vend', 'Resultado']],
+      body: receitasPorCurso.map(c => [
+        c.nome, String(c.qtd), fmt(c.bruto), `-${fmt(c.taxas)}`, fmt(c.liquido),
+        `-${fmt(c.impostos)}`, `-${fmt(c.comVendedor)}`, fmt(c.resultado),
+      ]),
+      foot: [['TOTAL', '', fmt(receitasTotais.bruto), `-${fmt(receitasTotais.taxas)}`, fmt(receitasTotais.liquido), `-${fmt(receitasTotais.impostos)}`, `-${fmt(receitasTotais.comVendedor)}`, fmt(receitasTotais.resultado)]],
       theme: 'grid',
-      headStyles: { fillColor: [30, 64, 175], fontSize: 8 },
+      headStyles: { fillColor: [16, 122, 87], fontSize: 8 },
       footStyles: { fillColor: [226, 232, 240], textColor: 20, fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 8 },
-      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+      bodyStyles: { fontSize: 7 },
+      columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } },
       margin: { left: 14, right: 14 },
     });
 
