@@ -5,13 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { RefreshCw, BarChart3, Users, BookOpen, Trophy, CalendarDays } from 'lucide-react';
+import { RefreshCw, BarChart3, Users, BookOpen, Trophy, CalendarDays, CalendarRange } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import DREFluxoCaixa from './DREFluxoCaixa';
 import ComissoesPainel from './ComissoesPainel';
 import CursosTerceiros from './CursosTerceirosPainel';
 import RankingProdutos from './RankingProdutos';
 import EventosPainel from './EventosPainel';
+import SemestralPainel from './SemestralPainel';
 
 const MONTHS = [
   { value: '1', label: 'Janeiro' },
@@ -123,7 +124,11 @@ const PainelFinanceiro = () => {
 
       {/* Sub-tabs */}
       <Tabs defaultValue="dre-fluxo" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="semestral" className="flex items-center gap-1">
+            <CalendarRange className="h-4 w-4" />
+            Semestral
+          </TabsTrigger>
           <TabsTrigger value="dre-fluxo" className="flex items-center gap-1">
             <BarChart3 className="h-4 w-4" />
             DRE + Fluxo
@@ -145,6 +150,9 @@ const PainelFinanceiro = () => {
             Ranking
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="semestral">
+          <SemestralPainel allData={data} />
+        </TabsContent>
         <TabsContent value="dre-fluxo">
           <DREFluxoCaixa data={filteredData} allData={data} selectedMonth={selectedMonth} selectedYear={selectedYear} />
         </TabsContent>
