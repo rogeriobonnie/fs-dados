@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight, Wallet, TrendingUp, TrendingDown, Landmark, FileText, CalendarRange } from 'lucide-react';
+import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Landmark, FileText, CalendarRange } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -200,28 +200,6 @@ const SemestralPainel = ({ allData }: Props) => {
 
     return { receitas, despesasItems, bruto, taxas, impostos, comVendedor, comMkt, liquido, despesas, resultado: liquido - despesas };
   }, [semData]);
-
-  // ── Mês a mês ──
-  const mensal = useMemo(() => {
-    let acumulado = saldoInicialTotal;
-    return months.map(m => {
-      const md = semData.filter(r => r.month === m);
-      let entradas = 0;
-      let saidas = 0;
-      md.forEach(r => {
-        const cn = r.custoNum;
-        if (cn === 0 || cn === 99) return;
-        if ((cn >= 1 && cn <= 10) || cn === 96 || cn === 97 || cn === 98) entradas += r.valorLiquido;
-        else if (cn >= 11 && cn <= 20) {
-          if ((r.banco || '').toUpperCase() !== 'PAGO') saidas += Math.abs(r.valorLiquido);
-        } else if (cn === 31 && (r.banco || '').toUpperCase() === 'PROVISAO') return;
-        else saidas += Math.abs(r.valorLiquido);
-      });
-      const res = entradas - saidas;
-      acumulado += res;
-      return { month: m, entradas, saidas, resultado: res, acumulado };
-    });
-  }, [semData, months, saldoInicialTotal]);
 
   // ── Bancos ──
   const bancos = useMemo(() => {
