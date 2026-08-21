@@ -399,7 +399,9 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-muted-foreground">
-          Rateio de despesas (11, 12, 14, 17, 18 e 15 sem curso definido): <strong>{fmt(calc.totalRateio)}</strong> distribuído pela receita bruta dos cursos.
+          Rateio por receita bruta — total <strong>{fmt(calc.totalRateio)}</strong>:{' '}
+          {RATEIO_COLS.map(c => `${c.label} ${fmt(calc.totalPorCentro[c.cn] || 0)}`).join(' · ')}. Com. MKT = comissão Lance a Dois já apurada por curso; 13-Vendas fora (já em Com. Vend.).
+
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setView(v => (v === 'lista' ? 'meses' : 'lista'))}>
