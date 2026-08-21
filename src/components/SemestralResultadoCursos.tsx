@@ -377,7 +377,13 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comVendedor)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comMkt)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta)}</TableCell>
+                  {RATEIO_COLS.map(c => (
+                    <TableCell key={c.cn} className="text-xs text-right font-bold text-red-500">
+                      {t.rateioCols[c.cn] ? `-${fmt(t.rateioCols[c.cn])}` : '-'}
+                    </TableCell>
+                  ))}
                   <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.rateio)}</TableCell>
+
                   <TableCell className="text-xs text-right font-bold">{fmt(t.liquido)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-primary">{fmt(t.resultado)}</TableCell>
                 </TableRow>
