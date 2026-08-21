@@ -268,9 +268,13 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableHead className="text-xs text-right">Taxas</TableHead>
                   <TableHead className="text-xs text-right">Impostos</TableHead>
                   <TableHead className="text-xs text-right">Com. Vend.</TableHead>
-                  <TableHead className="text-xs text-right">Com. MKT</TableHead>
+                  <TableHead className="text-xs text-right">Com. MKT (L2)</TableHead>
                   <TableHead className="text-xs text-right">Desp. direta</TableHead>
-                  <TableHead className="text-xs text-right">Rateio</TableHead>
+                  {RATEIO_COLS.map(c => (
+                    <TableHead key={c.cn} className="text-xs text-right whitespace-nowrap">{c.label}</TableHead>
+                  ))}
+                  <TableHead className="text-xs text-right">Rateio total</TableHead>
+
                   <TableHead className="text-xs text-right">Líquido</TableHead>
                   <TableHead className="text-xs text-right">Resultado</TableHead>
                 </TableRow>
