@@ -303,13 +303,19 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                         <TableCell className="text-xs text-right text-red-600">{l.comVendedor ? `-${fmt(l.comVendedor)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right text-red-600">{l.comMkt ? `-${fmt(l.comMkt)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right text-red-600">{l.despDireta ? `-${fmt(l.despDireta)}` : '-'}</TableCell>
+                        {RATEIO_COLS.map(c => (
+                          <TableCell key={c.cn} className="text-xs text-right text-red-500">
+                            {l.rateioCols[c.cn] ? `-${fmt(l.rateioCols[c.cn])}` : '-'}
+                          </TableCell>
+                        ))}
                         <TableCell className="text-xs text-right text-red-600">{l.rateio ? `-${fmt(l.rateio)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right font-semibold">{fmt(l.liquido)}</TableCell>
                         <TableCell className={`text-xs text-right font-bold ${l.resultado >= 0 ? 'text-primary' : 'text-red-600'}`}>{fmt(l.resultado)}</TableCell>
                       </TableRow>
                       {isOpen && (
                         <TableRow key={bloco.key + l.nome + '-det'} className="bg-muted/20">
-                          <TableCell colSpan={12} className="p-0">
+                          <TableCell colSpan={12 + RATEIO_COLS.length} className="p-0">
+
                             <Table>
                               <TableHeader>
                                 <TableRow>
