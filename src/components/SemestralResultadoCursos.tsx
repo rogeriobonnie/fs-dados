@@ -34,6 +34,15 @@ const isHandsOn = (r: Pagina5Record) =>
 
 // Despesas rateáveis por receita
 const RATEAVEIS = [11, 12, 14, 17, 18];
+// Colunas de rateio detalhadas (15 = despesas de curso sem curso definido)
+const RATEIO_COLS: { cn: number; label: string }[] = [
+  { cn: 11, label: '11-Adm' },
+  { cn: 12, label: '12-Mkt' },
+  { cn: 14, label: '14-Plataf.' },
+  { cn: 15, label: '15-Cursos' },
+  { cn: 17, label: '17-Congr.' },
+  { cn: 18, label: '18-Desp.Cur.' },
+];
 
 interface Linha {
   nome: string;
@@ -46,6 +55,7 @@ interface Linha {
   comMkt: number;
   despDireta: number;
   rateio: number;
+  rateioCols: Record<number, number>;
   liquido: number;
   resultado: number;
   porMes: number[];
@@ -55,7 +65,7 @@ interface Linha {
 
 const emptyLinha = (nome: string, nMeses: number): Linha => ({
   nome, qtd: 0, bruto: 0, taxas: 0, acrescimos: 0, impostos: 0, comVendedor: 0, comMkt: 0,
-  despDireta: 0, rateio: 0, liquido: 0, resultado: 0, porMes: Array(nMeses).fill(0), vendas: [], despesas: [],
+  despDireta: 0, rateio: 0, rateioCols: {}, liquido: 0, resultado: 0, porMes: Array(nMeses).fill(0), vendas: [], despesas: [],
 });
 
 const totalize = (linhas: Linha[]) =>
@@ -69,11 +79,16 @@ const totalize = (linhas: Linha[]) =>
       comMkt: a.comMkt + l.comMkt,
       despDireta: a.despDireta + l.despDireta,
       rateio: a.rateio + l.rateio,
+      rateioCols: RATEIO_COLS.reduce((acc, c) => {
+        acc[c.cn] = (a.rateioCols[c.cn] || 0) + (l.rateioCols[c.cn] || 0);
+        return acc;
+      }, {} as Record<number, number>),
       liquido: a.liquido + l.liquido,
       resultado: a.resultado + l.resultado,
     }),
-    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, liquido: 0, resultado: 0 },
+    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, rateioCols: {} as Record<number, number>, liquido: 0, resultado: 0 },
   );
+
 
 const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
   const [open, setOpen] = useState<Record<string, boolean>>({});
