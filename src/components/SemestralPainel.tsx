@@ -5,7 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import SemestralResultadoCursos from './SemestralResultadoCursos';
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Landmark, FileText, CalendarRange } from 'lucide-react';
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -457,6 +460,17 @@ const SemestralPainel = ({ allData }: Props) => {
         </div>
       </div>
 
+      <Tabs defaultValue="fluxo" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
+          <TabsTrigger value="cursos">Resultado por Curso</TabsTrigger>
+        </TabsList>
+        <TabsContent value="cursos" className="mt-4">
+          <SemestralResultadoCursos semData={semData} months={months} year={year} semNum={semNum} />
+        </TabsContent>
+        <TabsContent value="fluxo" className="mt-4 space-y-6">
+
+
       {/* RECEITAS consolidadas */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
@@ -604,7 +618,10 @@ const SemestralPainel = ({ allData }: Props) => {
           </Table>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
+
   );
 };
 
