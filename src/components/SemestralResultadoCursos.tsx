@@ -34,6 +34,15 @@ const isHandsOn = (r: Pagina5Record) =>
 
 // Despesas rateáveis por receita
 const RATEAVEIS = [11, 12, 14, 17, 18];
+// Colunas de rateio detalhadas (15 = despesas de curso sem curso definido)
+const RATEIO_COLS: { cn: number; label: string }[] = [
+  { cn: 11, label: '11-Adm' },
+  { cn: 12, label: '12-Mkt' },
+  { cn: 14, label: '14-Plataf.' },
+  { cn: 15, label: '15-Cursos' },
+  { cn: 17, label: '17-Congr.' },
+  { cn: 18, label: '18-Desp.Cur.' },
+];
 
 interface Linha {
   nome: string;
@@ -46,6 +55,7 @@ interface Linha {
   comMkt: number;
   despDireta: number;
   rateio: number;
+  rateioCols: Record<number, number>;
   liquido: number;
   resultado: number;
   porMes: number[];
@@ -55,7 +65,7 @@ interface Linha {
 
 const emptyLinha = (nome: string, nMeses: number): Linha => ({
   nome, qtd: 0, bruto: 0, taxas: 0, acrescimos: 0, impostos: 0, comVendedor: 0, comMkt: 0,
-  despDireta: 0, rateio: 0, liquido: 0, resultado: 0, porMes: Array(nMeses).fill(0), vendas: [], despesas: [],
+  despDireta: 0, rateio: 0, rateioCols: {}, liquido: 0, resultado: 0, porMes: Array(nMeses).fill(0), vendas: [], despesas: [],
 });
 
 const totalize = (linhas: Linha[]) =>
@@ -69,11 +79,16 @@ const totalize = (linhas: Linha[]) =>
       comMkt: a.comMkt + l.comMkt,
       despDireta: a.despDireta + l.despDireta,
       rateio: a.rateio + l.rateio,
+      rateioCols: RATEIO_COLS.reduce((acc, c) => {
+        acc[c.cn] = (a.rateioCols[c.cn] || 0) + (l.rateioCols[c.cn] || 0);
+        return acc;
+      }, {} as Record<number, number>),
       liquido: a.liquido + l.liquido,
       resultado: a.resultado + l.resultado,
     }),
-    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, liquido: 0, resultado: 0 },
+    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, rateioCols: {} as Record<number, number>, liquido: 0, resultado: 0 },
   );
+
 
 const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -155,8 +170,20 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     });
 
     const totalRateio = rateaveis.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+    const totalPorCentro: Record<number, number> = {};
+    RATEIO_COLS.forEach(c => { totalPorCentro[c.cn] = 0; });
+    rateaveis.forEach(r => {
+      const cn = Math.floor(r.custoNum);
+      totalPorCentro[cn] = (totalPorCentro[cn] || 0) + Math.abs(r.valorLiquido);
+    });
+
     cursos.forEach(l => {
-      l.rateio = brutoCursos > 0 ? (l.bruto / brutoCursos) * totalRateio : 0;
+      const peso = brutoCursos > 0 ? l.bruto / brutoCursos : 0;
+      l.rateio = peso * totalRateio;
+      l.rateioCols = RATEIO_COLS.reduce((acc, c) => {
+        acc[c.cn] = peso * (totalPorCentro[c.cn] || 0);
+        return acc;
+      }, {} as Record<number, number>);
     });
 
     const finish = (m: Map<string, Linha>) => {
@@ -172,6 +199,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       turmas: finish(turmas),
       outras: finish(outras),
       totalRateio,
+      totalPorCentro,
       rateaveis,
     };
   }, [semData, months]);
@@ -205,12 +233,14 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       comMkt: l.comMkt,
       despDireta: l.despDireta,
       rateio: l.rateio,
+      rateioCols: RATEIO_COLS.map(c => l.rateioCols[c.cn] || 0),
       liquido: l.liquido,
       resultado: l.resultado,
     });
     exportResultadoCursosPDF({
       periodo: `${year}/${semNum}`,
       blocos: blocos.map(b => ({ titulo: b.titulo, cor: b.cor, linhas: b.linhas.map(toPdf) })),
+      rateioLabels: RATEIO_COLS.map(c => c.label),
       matriz,
       mesesLabels: months.map(m => MONTH_SHORT[m - 1]),
       resultadoSemestre: geral.resultado,
@@ -238,9 +268,13 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableHead className="text-xs text-right">Taxas</TableHead>
                   <TableHead className="text-xs text-right">Impostos</TableHead>
                   <TableHead className="text-xs text-right">Com. Vend.</TableHead>
-                  <TableHead className="text-xs text-right">Com. MKT</TableHead>
+                  <TableHead className="text-xs text-right">Com. MKT (L2)</TableHead>
                   <TableHead className="text-xs text-right">Desp. direta</TableHead>
-                  <TableHead className="text-xs text-right">Rateio</TableHead>
+                  {RATEIO_COLS.map(c => (
+                    <TableHead key={c.cn} className="text-xs text-right whitespace-nowrap">{c.label}</TableHead>
+                  ))}
+                  <TableHead className="text-xs text-right">Rateio total</TableHead>
+
                   <TableHead className="text-xs text-right">Líquido</TableHead>
                   <TableHead className="text-xs text-right">Resultado</TableHead>
                 </TableRow>
@@ -269,13 +303,19 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                         <TableCell className="text-xs text-right text-red-600">{l.comVendedor ? `-${fmt(l.comVendedor)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right text-red-600">{l.comMkt ? `-${fmt(l.comMkt)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right text-red-600">{l.despDireta ? `-${fmt(l.despDireta)}` : '-'}</TableCell>
+                        {RATEIO_COLS.map(c => (
+                          <TableCell key={c.cn} className="text-xs text-right text-red-500">
+                            {l.rateioCols[c.cn] ? `-${fmt(l.rateioCols[c.cn])}` : '-'}
+                          </TableCell>
+                        ))}
                         <TableCell className="text-xs text-right text-red-600">{l.rateio ? `-${fmt(l.rateio)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right font-semibold">{fmt(l.liquido)}</TableCell>
                         <TableCell className={`text-xs text-right font-bold ${l.resultado >= 0 ? 'text-primary' : 'text-red-600'}`}>{fmt(l.resultado)}</TableCell>
                       </TableRow>
                       {isOpen && (
                         <TableRow key={bloco.key + l.nome + '-det'} className="bg-muted/20">
-                          <TableCell colSpan={12} className="p-0">
+                          <TableCell colSpan={12 + RATEIO_COLS.length} className="p-0">
+
                             <Table>
                               <TableHeader>
                                 <TableRow>
@@ -337,7 +377,13 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comVendedor)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comMkt)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta)}</TableCell>
+                  {RATEIO_COLS.map(c => (
+                    <TableCell key={c.cn} className="text-xs text-right font-bold text-red-500">
+                      {t.rateioCols[c.cn] ? `-${fmt(t.rateioCols[c.cn])}` : '-'}
+                    </TableCell>
+                  ))}
                   <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.rateio)}</TableCell>
+
                   <TableCell className="text-xs text-right font-bold">{fmt(t.liquido)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-primary">{fmt(t.resultado)}</TableCell>
                 </TableRow>
@@ -353,7 +399,9 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-muted-foreground">
-          Rateio de despesas (11, 12, 14, 17, 18 e 15 sem curso definido): <strong>{fmt(calc.totalRateio)}</strong> distribuído pela receita bruta dos cursos.
+          Rateio por receita bruta — total <strong>{fmt(calc.totalRateio)}</strong>:{' '}
+          {RATEIO_COLS.map(c => `${c.label} ${fmt(calc.totalPorCentro[c.cn] || 0)}`).join(' · ')}. Com. MKT = comissão Lance a Dois já apurada por curso; 13-Vendas fora (já em Com. Vend.).
+
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setView(v => (v === 'lista' ? 'meses' : 'lista'))}>
