@@ -12,6 +12,7 @@ export interface CursoLinhaPDF {
   comMkt: number;
   despDireta: number;
   rateio: number;
+  rateioCols: number[];
   liquido: number;
   resultado: number;
 }
@@ -35,21 +36,23 @@ const totalize = (linhas: CursoLinhaPDF[]) =>
       comMkt: a.comMkt + l.comMkt,
       despDireta: a.despDireta + l.despDireta,
       rateio: a.rateio + l.rateio,
+      rateioCols: l.rateioCols.map((v, i) => (a.rateioCols[i] || 0) + v),
       liquido: a.liquido + l.liquido,
       resultado: a.resultado + l.resultado,
     }),
-    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, liquido: 0, resultado: 0 },
+    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, rateioCols: [] as number[], liquido: 0, resultado: 0 },
   );
 
 export function exportResultadoCursosPDF(params: {
   periodo: string;
   blocos: BlocoPDF[];
+  rateioLabels: string[];
   matriz: { nome: string; meses: number[]; total: number }[];
   mesesLabels: string[];
   resultadoSemestre: number;
   liquidoSemestre: number;
 }) {
-  const { periodo, blocos, matriz, mesesLabels, resultadoSemestre, liquidoSemestre } = params;
+  const { periodo, blocos, rateioLabels, matriz, mesesLabels, resultadoSemestre, liquidoSemestre } = params;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -70,8 +73,9 @@ export function exportResultadoCursosPDF(params: {
 
   const head = [[
     'Curso / Receita', 'Qtd', 'Bruto', 'Vlr médio', 'Taxas', 'Impostos',
-    'Com. Vend.', 'Com. MKT', 'Desp. direta', 'Rateio', 'Líquido', 'Resultado',
+    'Com. Vend.', 'Com. MKT (L2)', 'Desp. direta', ...rateioLabels, 'Rateio total', 'Líquido', 'Resultado',
   ]];
+  const RC = rateioLabels.length;
 
   blocos.forEach(bloco => {
     if (bloco.linhas.length === 0) return;
@@ -90,6 +94,7 @@ export function exportResultadoCursosPDF(params: {
         l.comVendedor ? `-${fmt(l.comVendedor)}` : '-',
         l.comMkt ? `-${fmt(l.comMkt)}` : '-',
         l.despDireta ? `-${fmt(l.despDireta)}` : '-',
+        ...l.rateioCols.map(v => (v ? `-${fmt(v)}` : '-')),
         l.rateio ? `-${fmt(l.rateio)}` : '-',
         fmt(l.liquido),
         fmt(l.resultado),
@@ -104,14 +109,15 @@ export function exportResultadoCursosPDF(params: {
         `-${fmt(t.comVendedor)}`,
         `-${fmt(t.comMkt)}`,
         `-${fmt(t.despDireta)}`,
+        ...rateioLabels.map((_, i) => `-${fmt(t.rateioCols[i] || 0)}`),
         `-${fmt(t.rateio)}`,
         fmt(t.liquido),
         fmt(t.resultado),
       ]],
       theme: 'grid',
-      styles: { fontSize: 7.5, cellPadding: 1.4 },
-      headStyles: { fillColor: bloco.cor, textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      footStyles: { fillColor: [226, 232, 240], textColor: 20, fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 6.2, cellPadding: 1 },
+      headStyles: { fillColor: bloco.cor, textColor: 255, fontStyle: 'bold', fontSize: 6.6 },
+      footStyles: { fillColor: [226, 232, 240], textColor: 20, fontStyle: 'bold', fontSize: 6.6 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: {
         1: { halign: 'center' },
@@ -122,10 +128,11 @@ export function exportResultadoCursosPDF(params: {
         6: { halign: 'right', textColor: [185, 28, 28] },
         7: { halign: 'right', textColor: [185, 28, 28] },
         8: { halign: 'right', textColor: [185, 28, 28] },
-        9: { halign: 'right', textColor: [185, 28, 28] },
-        10: { halign: 'right', fontStyle: 'bold' },
-        11: { halign: 'right', fontStyle: 'bold', textColor: [29, 78, 216] },
-      },
+        ...Object.fromEntries(rateioLabels.map((_, i) => [9 + i, { halign: 'right', textColor: [239, 68, 68] }])),
+        [9 + RC]: { halign: 'right', textColor: [185, 28, 28], fontStyle: 'bold' },
+        [10 + RC]: { halign: 'right', fontStyle: 'bold' },
+        [11 + RC]: { halign: 'right', fontStyle: 'bold', textColor: [29, 78, 216] },
+      } as Record<number, Record<string, unknown>>,
       didDrawPage: () => undefined,
     });
     // @ts-expect-error injected by plugin
