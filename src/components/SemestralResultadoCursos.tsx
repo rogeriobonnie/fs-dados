@@ -233,12 +233,14 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       comMkt: l.comMkt,
       despDireta: l.despDireta,
       rateio: l.rateio,
+      rateioCols: RATEIO_COLS.map(c => l.rateioCols[c.cn] || 0),
       liquido: l.liquido,
       resultado: l.resultado,
     });
     exportResultadoCursosPDF({
       periodo: `${year}/${semNum}`,
       blocos: blocos.map(b => ({ titulo: b.titulo, cor: b.cor, linhas: b.linhas.map(toPdf) })),
+      rateioLabels: RATEIO_COLS.map(c => c.label),
       matriz,
       mesesLabels: months.map(m => MONTH_SHORT[m - 1]),
       resultadoSemestre: geral.resultado,
