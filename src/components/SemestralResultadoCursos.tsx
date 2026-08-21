@@ -170,8 +170,20 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     });
 
     const totalRateio = rateaveis.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+    const totalPorCentro: Record<number, number> = {};
+    RATEIO_COLS.forEach(c => { totalPorCentro[c.cn] = 0; });
+    rateaveis.forEach(r => {
+      const cn = Math.floor(r.custoNum);
+      totalPorCentro[cn] = (totalPorCentro[cn] || 0) + Math.abs(r.valorLiquido);
+    });
+
     cursos.forEach(l => {
-      l.rateio = brutoCursos > 0 ? (l.bruto / brutoCursos) * totalRateio : 0;
+      const peso = brutoCursos > 0 ? l.bruto / brutoCursos : 0;
+      l.rateio = peso * totalRateio;
+      l.rateioCols = RATEIO_COLS.reduce((acc, c) => {
+        acc[c.cn] = peso * (totalPorCentro[c.cn] || 0);
+        return acc;
+      }, {} as Record<number, number>);
     });
 
     const finish = (m: Map<string, Linha>) => {
@@ -187,6 +199,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       turmas: finish(turmas),
       outras: finish(outras),
       totalRateio,
+      totalPorCentro,
       rateaveis,
     };
   }, [semData, months]);
