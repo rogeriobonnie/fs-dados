@@ -186,6 +186,13 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       }, {} as Record<number, number>);
     });
 
+    // Comissão Lance a Dois rateada por curso (mês a mês, mesmo cálculo da aba Comissões)
+    const ladPorCurso = ladComissaoPorCursoMensal(semData);
+    const totalComMkt = Array.from(ladPorCurso.values()).reduce((s, v) => s + v, 0);
+    [cursos, turmas, outras].forEach(m =>
+      m.forEach(l => { l.comMkt = ladPorCurso.get(normLad(l.nome)) || 0; }),
+    );
+
     const finish = (m: Map<string, Linha>) => {
       const arr = Array.from(m.values());
       arr.forEach(l => {
@@ -193,6 +200,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       });
       return arr.sort((a, b) => b.bruto - a.bruto);
     };
+
 
     return {
       cursos: finish(cursos),
