@@ -174,8 +174,26 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
       columnStyles: { 1: { halign: 'right' } },
       bodyStyles: { fillColor: [220, 255, 220] },
     });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // Rateio por curso
+    if (lad.cursos.length > 0) {
+      autoTable(doc, {
+        startY: y,
+        head: [['Curso / Receita', 'Bruto', 'Líquido', '% do total', 'Comissão L2']],
+        body: lad.cursos.map(c => [
+          c.nome, fmt(c.bruto), fmt(c.liquido), `${(c.peso * 100).toFixed(1)}%`, fmt(c.comissao),
+        ]),
+        foot: [['TOTAL', fmt(lad.bruto), fmt(lad.liquido), '100,0%', fmt(comissaoLAD)]],
+        theme: 'striped', styles: { fontSize: 8 },
+        headStyles: { fillColor: [14, 165, 233] },
+        footStyles: { fillColor: [226, 232, 240], textColor: 20, fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
+      });
+    }
 
     doc.save(`Comissao_Lance_a_Dois_${monthName}_${year}.pdf`);
+
   };
 
   return (
