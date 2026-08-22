@@ -5,6 +5,8 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, FileText, LayoutGrid, List } from 'lucide-react';
 import { exportResultadoCursosPDF, type CursoLinhaPDF } from '@/utils/semestralCursosPdf';
+import { ladComissaoPorCursoMensal, normLad } from '@/utils/comissaoLadRateio';
+
 
 interface Props {
   semData: Pagina5Record[];
@@ -108,7 +110,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       l.liquido += r.valorLiquido;
       l.impostos += r.vrImposto;
       l.comVendedor += r.vendedor ? r.vrVendedor : 0;
-      l.comMkt += r.mkt ? r.vrMkt : 0;
+      // Com. MKT (L2) é preenchida depois, pelo rateio mensal da comissão Lance a Dois
       const i = mIdx(r.month);
       if (i >= 0) l.porMes[i] += r.valorBruto;
       l.vendas.push(r);
@@ -186,6 +188,13 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       }, {} as Record<number, number>);
     });
 
+    // Comissão Lance a Dois rateada por curso (mês a mês, mesmo cálculo da aba Comissões)
+    const ladPorCurso = ladComissaoPorCursoMensal(semData);
+    const totalComMkt = Array.from(ladPorCurso.values()).reduce((s, v) => s + v, 0);
+    [cursos, turmas, outras].forEach(m =>
+      m.forEach(l => { l.comMkt = ladPorCurso.get(normLad(l.nome)) || 0; }),
+    );
+
     const finish = (m: Map<string, Linha>) => {
       const arr = Array.from(m.values());
       arr.forEach(l => {
@@ -194,6 +203,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       return arr.sort((a, b) => b.bruto - a.bruto);
     };
 
+
     return {
       cursos: finish(cursos),
       turmas: finish(turmas),
@@ -201,8 +211,10 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       totalRateio,
       totalPorCentro,
       rateaveis,
+      totalComMkt,
     };
   }, [semData, months]);
+
 
   const blocos = [
     { key: 'cursos', titulo: 'Cursos (01-CURSOS — vendas novas)', cor: [16, 185, 129] as [number, number, number], linhas: calc.cursos },
@@ -400,7 +412,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-muted-foreground">
           Rateio por receita bruta — total <strong>{fmt(calc.totalRateio)}</strong>:{' '}
-          {RATEIO_COLS.map(c => `${c.label} ${fmt(calc.totalPorCentro[c.cn] || 0)}`).join(' · ')}. Com. MKT = comissão Lance a Dois já apurada por curso; 13-Vendas fora (já em Com. Vend.).
+          {RATEIO_COLS.map(c => `${c.label} ${fmt(calc.totalPorCentro[c.cn] || 0)}`).join(' · ')}. Com. MKT (L2) = comissão Lance a Dois do mês (10% do resultado líquido L2) rateada por curso pela receita líquida — total do semestre <strong>{fmt(calc.totalComMkt)}</strong>; 13-Vendas fora (já em Com. Vend.).
 
         </div>
         <div className="flex items-center gap-2">

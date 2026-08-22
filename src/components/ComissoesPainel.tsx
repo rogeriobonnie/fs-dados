@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Pagina5Record } from '@/types/pagina5';
+import { ladRateioPeriodo } from '@/utils/comissaoLadRateio';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -35,46 +37,32 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
     return map;
   }, [receitasComComissao]);
 
-  // Lance a Dois - Receitas
-  const receitasLAD = useMemo(() => {
-    return data.filter(r =>
-      ((r.custoNum >= 1 && r.custoNum <= 10) || r.custoNum === 97) &&
-      (r.mkt || '').toUpperCase().includes('LANCE')
-    );
-  }, [data]);
+  // Lance a Dois — período selecionado (rateio por curso no mesmo cálculo)
+  const lad = useMemo(() => ladRateioPeriodo(data), [data]);
 
-  // Lance a Dois - Despesas
-  const despesasLAD = useMemo(() => {
-    return data.filter(r =>
-      r.custoNum >= 11 && r.custoNum <= 20 &&
-      (r.mkt || '').toUpperCase().includes('LANCE')
-    );
-  }, [data]);
+  const receitasLAD = lad.receitas;
+  const despesasLAD = lad.despesasRecords;
 
   const receitasLADSorted = useMemo(() => {
     return [...receitasLAD].sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
   }, [receitasLAD]);
 
-  const totaisReceitaLAD = useMemo(() => {
-    const bruto = receitasLAD.reduce((s, r) => s + r.valorBruto, 0);
-    const taxas = receitasLAD.reduce((s, r) => s + r.taxas, 0);
-    const acrescimos = receitasLAD.reduce((s, r) => s + r.acrescimos, 0);
-    const impostos = receitasLAD.reduce((s, r) => s + r.vrImposto, 0);
-    const comVend = receitasLAD.reduce((s, r) => s + r.vrVendedor, 0);
-    const liquido = bruto - taxas + acrescimos - impostos - comVend;
-    return { bruto, taxas, acrescimos, impostos, comVend, liquido };
-  }, [receitasLAD]);
+  const totaisReceitaLAD = {
+    bruto: lad.bruto,
+    taxas: lad.taxas,
+    acrescimos: lad.acrescimos,
+    impostos: lad.impostos,
+    comVend: lad.comVend,
+    liquido: lad.liquido,
+  };
 
-  const totalReceitaLiquida = totaisReceitaLAD.liquido;
-
-  const totalDespesasLAD = useMemo(() => {
-    return despesasLAD.reduce((s, r) => s + r.valorLiquido, 0);
-  }, [despesasLAD]);
-
-  const resultadoLiquido = totalReceitaLiquida + totalDespesasLAD;
-  const comissaoLAD = resultadoLiquido * 0.10;
+  const totalReceitaLiquida = lad.liquido;
+  const totalDespesasLAD = lad.despesas;
+  const resultadoLiquido = lad.resultado;
+  const comissaoLAD = lad.comissao;
 
   const totalVendedor = Array.from(porVendedor.values()).reduce((s, v) => s + v.total, 0);
+
 
   const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
   const year = selectedYear || '';
@@ -186,8 +174,26 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
       columnStyles: { 1: { halign: 'right' } },
       bodyStyles: { fillColor: [220, 255, 220] },
     });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // Rateio por curso
+    if (lad.cursos.length > 0) {
+      autoTable(doc, {
+        startY: y,
+        head: [['Curso / Receita', 'Bruto', 'Líquido', '% do total', 'Comissão L2']],
+        body: lad.cursos.map(c => [
+          c.nome, fmt(c.bruto), fmt(c.liquido), `${(c.peso * 100).toFixed(1)}%`, fmt(c.comissao),
+        ]),
+        foot: [['TOTAL', fmt(lad.bruto), fmt(lad.liquido), '100,0%', fmt(comissaoLAD)]],
+        theme: 'striped', styles: { fontSize: 8 },
+        headStyles: { fillColor: [14, 165, 233] },
+        footStyles: { fillColor: [226, 232, 240], textColor: 20, fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
+      });
+    }
 
     doc.save(`Comissao_Lance_a_Dois_${monthName}_${year}.pdf`);
+
   };
 
   return (
@@ -359,6 +365,47 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
               <span className="font-bold text-primary">{fmt(comissaoLAD)}</span>
             </div>
           </div>
+
+          {/* Rateio da comissão por curso */}
+          {lad.cursos.length > 0 && (
+            <div className="border-t pt-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-1">
+                COMISSÃO LANCE A DOIS POR CURSO (rateio pela receita líquida)
+              </p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Curso / Receita</TableHead>
+                    <TableHead className="text-xs text-right">Receita bruta</TableHead>
+                    <TableHead className="text-xs text-right">Receita líquida</TableHead>
+                    <TableHead className="text-xs text-right">% do total</TableHead>
+                    <TableHead className="text-xs text-right">Comissão L2</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lad.cursos.map(c => (
+                    <TableRow key={c.nome}>
+                      <TableCell className="text-xs font-medium">{c.nome}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(c.bruto)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(c.liquido)}</TableCell>
+                      <TableCell className="text-xs text-right">{(c.peso * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="text-xs text-right font-bold text-primary">{fmt(c.comissao)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell className="text-xs font-bold">TOTAL</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(lad.bruto)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(lad.liquido)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold">100,0%</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-primary">{fmt(comissaoLAD)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          )}
+
         </CardContent>
       </Card>
     </div>
