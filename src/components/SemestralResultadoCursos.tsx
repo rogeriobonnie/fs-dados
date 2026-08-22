@@ -133,6 +133,9 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     const brutoCursos = Array.from(cursos.values()).reduce((s, l) => s + l.bruto, 0);
     const cursosNormMap = new Map<string, Linha>();
     cursos.forEach(l => cursosNormMap.set(norm(l.nome), l));
+    // Column S (evento) can also point to Turma III/IV or other revenue lines
+    const alvoNormMap = new Map<string, Linha>(cursosNormMap);
+    [turmas, outras].forEach(m => m.forEach(l => alvoNormMap.set(norm(l.nome), l)));
 
     const rateaveis: Pagina5Record[] = [];
     const quinzeSobra: Pagina5Record[] = [];
