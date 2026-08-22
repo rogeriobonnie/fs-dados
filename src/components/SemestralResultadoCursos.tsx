@@ -41,7 +41,6 @@ const RATEIO_COLS: { cn: number; label: string }[] = [
   { cn: 11, label: '11-Adm' },
   { cn: 12, label: '12-Mkt' },
   { cn: 14, label: '14-Plataf.' },
-  { cn: 15, label: '15-Cursos' },
   { cn: 17, label: '17-Congr.' },
   { cn: 18, label: '18-Desp.Cur.' },
 ];
