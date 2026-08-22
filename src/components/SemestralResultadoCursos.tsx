@@ -159,8 +159,8 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
         const evt = norm(r.evento);
         if (evt) {
           const direto =
-            cursosNormMap.get(evt) ||
-            Array.from(cursosNormMap.entries()).find(([k]) => k.includes(evt) || evt.includes(k))?.[1];
+            alvoNormMap.get(evt) ||
+            Array.from(alvoNormMap.entries()).find(([k]) => k.includes(evt) || evt.includes(k))?.[1];
           if (direto) {
             direto.despDireta += Math.abs(r.valorLiquido);
             direto.despesas.push(r);
