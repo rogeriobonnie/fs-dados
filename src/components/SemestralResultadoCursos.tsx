@@ -209,8 +209,10 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       totalRateio,
       totalPorCentro,
       rateaveis,
+      totalComMkt,
     };
   }, [semData, months]);
+
 
   const blocos = [
     { key: 'cursos', titulo: 'Cursos (01-CURSOS — vendas novas)', cor: [16, 185, 129] as [number, number, number], linhas: calc.cursos },
