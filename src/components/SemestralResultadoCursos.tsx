@@ -285,7 +285,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   {RATEIO_COLS.map(c => (
                     <TableHead key={c.cn} className="text-xs text-right whitespace-nowrap">{c.label}</TableHead>
                   ))}
-                  <TableHead className="text-xs text-right">Rateio total</TableHead>
+                  <TableHead className="text-xs text-right">Despesas totais</TableHead>
 
                   <TableHead className="text-xs text-right">Líquido</TableHead>
                   <TableHead className="text-xs text-right">Resultado</TableHead>
@@ -320,7 +320,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                             {l.rateioCols[c.cn] ? `-${fmt(l.rateioCols[c.cn])}` : '-'}
                           </TableCell>
                         ))}
-                        <TableCell className="text-xs text-right text-red-600">{l.rateio ? `-${fmt(l.rateio)}` : '-'}</TableCell>
+                        <TableCell className="text-xs text-right font-semibold text-red-600">{l.despDireta + l.rateio ? `-${fmt(l.despDireta + l.rateio)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right font-semibold">{fmt(l.liquido)}</TableCell>
                         <TableCell className={`text-xs text-right font-bold ${l.resultado >= 0 ? 'text-primary' : 'text-red-600'}`}>{fmt(l.resultado)}</TableCell>
                       </TableRow>
@@ -394,7 +394,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                       {t.rateioCols[c.cn] ? `-${fmt(t.rateioCols[c.cn])}` : '-'}
                     </TableCell>
                   ))}
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.rateio)}</TableCell>
+                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta + t.rateio)}</TableCell>
 
                   <TableCell className="text-xs text-right font-bold">{fmt(t.liquido)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-primary">{fmt(t.resultado)}</TableCell>
