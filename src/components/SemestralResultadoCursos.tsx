@@ -108,7 +108,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       l.liquido += r.valorLiquido;
       l.impostos += r.vrImposto;
       l.comVendedor += r.vendedor ? r.vrVendedor : 0;
-      l.comMkt += r.mkt ? r.vrMkt : 0;
+      // Com. MKT (L2) é preenchida depois, pelo rateio mensal da comissão Lance a Dois
       const i = mIdx(r.month);
       if (i >= 0) l.porMes[i] += r.valorBruto;
       l.vendas.push(r);
