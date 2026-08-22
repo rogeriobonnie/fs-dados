@@ -35,46 +35,32 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
     return map;
   }, [receitasComComissao]);
 
-  // Lance a Dois - Receitas
-  const receitasLAD = useMemo(() => {
-    return data.filter(r =>
-      ((r.custoNum >= 1 && r.custoNum <= 10) || r.custoNum === 97) &&
-      (r.mkt || '').toUpperCase().includes('LANCE')
-    );
-  }, [data]);
+  // Lance a Dois — período selecionado (rateio por curso no mesmo cálculo)
+  const lad = useMemo(() => ladRateioPeriodo(data), [data]);
 
-  // Lance a Dois - Despesas
-  const despesasLAD = useMemo(() => {
-    return data.filter(r =>
-      r.custoNum >= 11 && r.custoNum <= 20 &&
-      (r.mkt || '').toUpperCase().includes('LANCE')
-    );
-  }, [data]);
+  const receitasLAD = lad.receitas;
+  const despesasLAD = lad.despesasRecords;
 
   const receitasLADSorted = useMemo(() => {
     return [...receitasLAD].sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
   }, [receitasLAD]);
 
-  const totaisReceitaLAD = useMemo(() => {
-    const bruto = receitasLAD.reduce((s, r) => s + r.valorBruto, 0);
-    const taxas = receitasLAD.reduce((s, r) => s + r.taxas, 0);
-    const acrescimos = receitasLAD.reduce((s, r) => s + r.acrescimos, 0);
-    const impostos = receitasLAD.reduce((s, r) => s + r.vrImposto, 0);
-    const comVend = receitasLAD.reduce((s, r) => s + r.vrVendedor, 0);
-    const liquido = bruto - taxas + acrescimos - impostos - comVend;
-    return { bruto, taxas, acrescimos, impostos, comVend, liquido };
-  }, [receitasLAD]);
+  const totaisReceitaLAD = {
+    bruto: lad.bruto,
+    taxas: lad.taxas,
+    acrescimos: lad.acrescimos,
+    impostos: lad.impostos,
+    comVend: lad.comVend,
+    liquido: lad.liquido,
+  };
 
-  const totalReceitaLiquida = totaisReceitaLAD.liquido;
-
-  const totalDespesasLAD = useMemo(() => {
-    return despesasLAD.reduce((s, r) => s + r.valorLiquido, 0);
-  }, [despesasLAD]);
-
-  const resultadoLiquido = totalReceitaLiquida + totalDespesasLAD;
-  const comissaoLAD = resultadoLiquido * 0.10;
+  const totalReceitaLiquida = lad.liquido;
+  const totalDespesasLAD = lad.despesas;
+  const resultadoLiquido = lad.resultado;
+  const comissaoLAD = lad.comissao;
 
   const totalVendedor = Array.from(porVendedor.values()).reduce((s, v) => s + v.total, 0);
+
 
   const monthName = selectedMonth ? MONTH_NAMES[parseInt(selectedMonth) - 1] : '';
   const year = selectedYear || '';
