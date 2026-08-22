@@ -124,7 +124,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       if (cn === 1) {
         if (isTurmaAntiga(r.descricao)) addVenda(turmas, r.descricao || 'Sem descrição', r);
         else addVenda(cursos, r.descricao || 'Sem descrição', r);
-      } else if ((cn >= 2 && cn <= 10) || cn === 96 || cn === 97 || cn === 98) {
+      } else if (cn === 2 || cn === 3 || cn === 5) {
         addVenda(outras, r.custo || 'Outras receitas', r);
       }
     });
