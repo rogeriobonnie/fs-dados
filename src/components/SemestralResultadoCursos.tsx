@@ -135,6 +135,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     cursos.forEach(l => cursosNormMap.set(norm(l.nome), l));
 
     const rateaveis: Pagina5Record[] = [];
+    const quinzeSobra: Pagina5Record[] = [];
 
     semData.forEach(r => {
       const cn = Math.floor(r.custoNum);
