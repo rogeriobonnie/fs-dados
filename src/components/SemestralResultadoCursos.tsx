@@ -412,7 +412,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-muted-foreground">
           Rateio por receita bruta — total <strong>{fmt(calc.totalRateio)}</strong>:{' '}
-          {RATEIO_COLS.map(c => `${c.label} ${fmt(calc.totalPorCentro[c.cn] || 0)}`).join(' · ')}. Com. MKT = comissão Lance a Dois já apurada por curso; 13-Vendas fora (já em Com. Vend.).
+          {RATEIO_COLS.map(c => `${c.label} ${fmt(calc.totalPorCentro[c.cn] || 0)}`).join(' · ')}. Com. MKT (L2) = comissão Lance a Dois do mês (10% do resultado líquido L2) rateada por curso pela receita líquida — total do semestre <strong>{fmt(calc.totalComMkt)}</strong>; 13-Vendas fora (já em Com. Vend.).
 
         </div>
         <div className="flex items-center gap-2">
