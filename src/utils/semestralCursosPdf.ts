@@ -96,7 +96,7 @@ export function exportResultadoCursosPDF(params: {
 
   const head = [[
     'Curso / Receita', 'Qtd', 'Bruto', 'Vlr médio', 'Taxas', 'Impostos',
-    'Com. Vend.', 'Com. MKT (L2)', 'Desp. direta', ...rateioLabels, 'Despesas totais', 'Líquido', 'Resultado',
+    'Com. Vend.', 'Com. MKT (L2)', 'Desp. Cursos', ...rateioLabels, 'Despesas totais', 'Líquido', 'Resultado',
   ]];
   const RC = rateioLabels.length;
   const ROW_H = 4.6;

@@ -283,7 +283,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableHead className="text-xs text-right">Impostos</TableHead>
                   <TableHead className="text-xs text-right">Com. Vend.</TableHead>
                   <TableHead className="text-xs text-right">Com. MKT (L2)</TableHead>
-                  <TableHead className="text-xs text-right">Desp. direta</TableHead>
+                  <TableHead className="text-xs text-right">Desp. Cursos</TableHead>
                   {RATEIO_COLS.map(c => (
                     <TableHead key={c.cn} className="text-xs text-right whitespace-nowrap">{c.label}</TableHead>
                   ))}
