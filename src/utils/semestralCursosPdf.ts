@@ -24,6 +24,8 @@ export interface BlocoPDF {
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+// Nas tabelas usamos valores sem o prefixo "R$" para evitar quebra de linha nas colunas estreitas
+const fmtN = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const totalize = (linhas: CursoLinhaPDF[]) =>
   linhas.reduce(
@@ -95,8 +97,8 @@ export function exportResultadoCursosPDF(params: {
   };
 
   const head = [[
-    'Curso / Receita', 'Qtd', 'Bruto', 'Vlr médio', 'Taxas', 'Impostos',
-    'Com. Vend.', 'Com. MKT (L2)', 'Desp. direta', ...rateioLabels, 'Despesas totais', 'Líquido', 'Resultado',
+    'Curso / Receita (valores em R$)', 'Qtd', 'Bruto', 'Vlr médio', 'Taxas', 'Impostos',
+    'Com. Vend.', 'Com. MKT (L2)', 'Desp. Cursos', ...rateioLabels, 'Despesas totais', 'Líquido', 'Resultado',
   ]];
   const RC = rateioLabels.length;
   const ROW_H = 4.6;
@@ -114,44 +116,45 @@ export function exportResultadoCursosPDF(params: {
       startY: y,
       margin: { left: margin, right: margin, top: 26 },
       head,
+      tableWidth: 'auto',
       body: bloco.linhas.map(l => [
         l.nome,
         String(l.qtd),
-        fmt(l.bruto),
-        fmt(l.medio),
-        l.taxas ? `-${fmt(l.taxas)}` : '-',
-        l.impostos ? `-${fmt(l.impostos)}` : '-',
-        l.comVendedor ? `-${fmt(l.comVendedor)}` : '-',
-        l.comMkt ? `-${fmt(l.comMkt)}` : '-',
-        l.despDireta ? `-${fmt(l.despDireta)}` : '-',
-        ...l.rateioCols.map(v => (v ? `-${fmt(v)}` : '-')),
-        l.despDireta + l.rateio ? `-${fmt(l.despDireta + l.rateio)}` : '-',
-        fmt(l.liquido),
-        fmt(l.resultado),
+        fmtN(l.bruto),
+        fmtN(l.medio),
+        l.taxas ? `-${fmtN(l.taxas)}` : '-',
+        l.impostos ? `-${fmtN(l.impostos)}` : '-',
+        l.comVendedor ? `-${fmtN(l.comVendedor)}` : '-',
+        l.comMkt ? `-${fmtN(l.comMkt)}` : '-',
+        l.despDireta ? `-${fmtN(l.despDireta)}` : '-',
+        ...l.rateioCols.map(v => (v ? `-${fmtN(v)}` : '-')),
+        l.despDireta + l.rateio ? `-${fmtN(l.despDireta + l.rateio)}` : '-',
+        fmtN(l.liquido),
+        fmtN(l.resultado),
       ]),
       foot: [[
         `TOTAL — ${bloco.titulo}`,
         String(t.qtd),
-        fmt(t.bruto),
+        fmtN(t.bruto),
         '',
-        `-${fmt(t.taxas)}`,
-        `-${fmt(t.impostos)}`,
-        `-${fmt(t.comVendedor)}`,
-        `-${fmt(t.comMkt)}`,
-        `-${fmt(t.despDireta)}`,
-        ...rateioLabels.map((_, i) => `-${fmt(t.rateioCols[i] || 0)}`),
-        `-${fmt(t.despDireta + t.rateio)}`,
-        fmt(t.liquido),
-        fmt(t.resultado),
+        `-${fmtN(t.taxas)}`,
+        `-${fmtN(t.impostos)}`,
+        `-${fmtN(t.comVendedor)}`,
+        `-${fmtN(t.comMkt)}`,
+        `-${fmtN(t.despDireta)}`,
+        ...rateioLabels.map((_, i) => `-${fmtN(t.rateioCols[i] || 0)}`),
+        `-${fmtN(t.despDireta + t.rateio)}`,
+        fmtN(t.liquido),
+        fmtN(t.resultado),
       ]],
       theme: 'grid',
       rowPageBreak: 'avoid',
-      styles: { fontSize: 6.2, cellPadding: 1.1, lineColor: [226, 232, 240], lineWidth: 0.1 },
+      styles: { fontSize: 6.2, cellPadding: { top: 1.1, bottom: 1.1, left: 0.8, right: 0.8 }, overflow: 'visible', valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
       headStyles: { fillColor: bloco.cor, textColor: 255, fontStyle: 'bold', fontSize: 6.6, halign: 'center' },
       footStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 6.8 },
       alternateRowStyles: { fillColor: [241, 245, 249] },
       columnStyles: {
-        0: { fontStyle: 'bold', textColor: [15, 23, 42] },
+        0: { fontStyle: 'bold', textColor: [15, 23, 42], cellWidth: 34, overflow: 'linebreak' },
         1: { halign: 'center' },
         2: { halign: 'right', fillColor: [236, 253, 245], textColor: [6, 95, 70], fontStyle: 'bold' },
         3: { halign: 'right' },
@@ -168,7 +171,7 @@ export function exportResultadoCursosPDF(params: {
       didParseCell: data => {
         if (data.section === 'body' && data.column.index === 11 + RC) {
           const raw = String(data.cell.raw);
-          if (raw.trim().startsWith('-R$')) {
+          if (raw.trim().startsWith('-')) {
             data.cell.styles.textColor = [185, 28, 28];
             data.cell.styles.fillColor = [254, 242, 242];
           }
@@ -189,20 +192,21 @@ export function exportResultadoCursosPDF(params: {
       startY: y,
       margin: { left: margin, right: margin, top: 26 },
       head: [['Curso', ...mesesLabels, 'Total']],
-      body: matriz.map(m => [m.nome, ...m.meses.map(v => (v ? fmt(v) : '-')), fmt(m.total)]),
+      tableWidth: 'auto',
+      body: matriz.map(m => [m.nome, ...m.meses.map(v => (v ? fmtN(v) : '-')), fmtN(m.total)]),
       foot: [[
         'TOTAL',
-        ...mesesLabels.map((_, i) => fmt(matriz.reduce((s, m) => s + m.meses[i], 0))),
-        fmt(matriz.reduce((s, m) => s + m.total, 0)),
+        ...mesesLabels.map((_, i) => fmtN(matriz.reduce((s, m) => s + m.meses[i], 0))),
+        fmtN(matriz.reduce((s, m) => s + m.total, 0)),
       ]],
       theme: 'grid',
       rowPageBreak: 'avoid',
-      styles: { fontSize: 7.5, cellPadding: 1.4, halign: 'right', lineColor: [226, 232, 240], lineWidth: 0.1 },
+      styles: { fontSize: 7.5, cellPadding: { top: 1.4, bottom: 1.4, left: 1, right: 1 }, overflow: 'visible', halign: 'right', lineColor: [226, 232, 240], lineWidth: 0.1 },
       headStyles: { fillColor: [30, 64, 175], textColor: 255, fontSize: 8, halign: 'center', fontStyle: 'bold' },
       footStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 8 },
       alternateRowStyles: { fillColor: [241, 245, 249] },
       columnStyles: {
-        0: { halign: 'left', fontStyle: 'bold', textColor: [15, 23, 42] },
+        0: { halign: 'left', fontStyle: 'bold', textColor: [15, 23, 42], cellWidth: 40, overflow: 'linebreak' },
         [mesesLabels.length + 1]: { fontStyle: 'bold', textColor: [29, 78, 216], fillColor: [239, 246, 255] },
       } as Record<number, Record<string, unknown>>,
     });

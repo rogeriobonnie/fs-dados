@@ -41,7 +41,6 @@ const RATEIO_COLS: { cn: number; label: string }[] = [
   { cn: 11, label: '11-Adm' },
   { cn: 12, label: '12-Mkt' },
   { cn: 14, label: '14-Plataf.' },
-  { cn: 15, label: '15-Cursos' },
   { cn: 17, label: '17-Congr.' },
   { cn: 18, label: '18-Desp.Cur.' },
 ];
@@ -136,6 +135,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     cursos.forEach(l => cursosNormMap.set(norm(l.nome), l));
 
     const rateaveis: Pagina5Record[] = [];
+    const quinzeSobra: Pagina5Record[] = [];
 
     semData.forEach(r => {
       const cn = Math.floor(r.custoNum);
@@ -164,7 +164,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
             return;
           }
         }
-        rateaveis.push(r);
+        quinzeSobra.push(r);
         return;
       }
 
@@ -172,6 +172,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     });
 
     const totalRateio = rateaveis.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+    const totalQuinzeSobra = quinzeSobra.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
     const totalPorCentro: Record<number, number> = {};
     RATEIO_COLS.forEach(c => { totalPorCentro[c.cn] = 0; });
     rateaveis.forEach(r => {
@@ -182,6 +183,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     cursos.forEach(l => {
       const peso = brutoCursos > 0 ? l.bruto / brutoCursos : 0;
       l.rateio = peso * totalRateio;
+      l.despDireta += peso * totalQuinzeSobra;
       l.rateioCols = RATEIO_COLS.reduce((acc, c) => {
         acc[c.cn] = peso * (totalPorCentro[c.cn] || 0);
         return acc;
@@ -281,7 +283,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableHead className="text-xs text-right">Impostos</TableHead>
                   <TableHead className="text-xs text-right">Com. Vend.</TableHead>
                   <TableHead className="text-xs text-right">Com. MKT (L2)</TableHead>
-                  <TableHead className="text-xs text-right">Desp. direta</TableHead>
+                  <TableHead className="text-xs text-right">Desp. Cursos</TableHead>
                   {RATEIO_COLS.map(c => (
                     <TableHead key={c.cn} className="text-xs text-right whitespace-nowrap">{c.label}</TableHead>
                   ))}
