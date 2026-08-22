@@ -224,7 +224,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
   const blocos = [
     { key: 'cursos', titulo: 'Cursos (01-CURSOS — vendas novas)', cor: [16, 185, 129] as [number, number, number], linhas: calc.cursos },
     { key: 'turmas', titulo: 'Recebimentos Turma III e Turma IV', cor: [37, 99, 235] as [number, number, number], linhas: calc.turmas },
-    { key: 'outras', titulo: 'Outras receitas (patrocínios, exames, comissões)', cor: [124, 58, 237] as [number, number, number], linhas: calc.outras },
+    { key: 'outras', titulo: 'Outras receitas (02, 03 e 05)', cor: [124, 58, 237] as [number, number, number], linhas: calc.outras },
   ];
 
   const geral = totalize([...calc.cursos, ...calc.turmas, ...calc.outras]);
