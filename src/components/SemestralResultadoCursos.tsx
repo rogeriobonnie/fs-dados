@@ -163,7 +163,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
             return;
           }
         }
-        rateaveis.push(r);
+        quinzeSobra.push(r);
         return;
       }
 
