@@ -5,6 +5,8 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, FileText, LayoutGrid, List } from 'lucide-react';
 import { exportResultadoCursosPDF, type CursoLinhaPDF } from '@/utils/semestralCursosPdf';
+import { ladComissaoPorCursoMensal, normLad } from '@/utils/comissaoLadRateio';
+
 
 interface Props {
   semData: Pagina5Record[];
