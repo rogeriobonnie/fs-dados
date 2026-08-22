@@ -365,6 +365,47 @@ const ComissoesPainel = ({ data, selectedMonth, selectedYear }: Props) => {
               <span className="font-bold text-primary">{fmt(comissaoLAD)}</span>
             </div>
           </div>
+
+          {/* Rateio da comissão por curso */}
+          {lad.cursos.length > 0 && (
+            <div className="border-t pt-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-1">
+                COMISSÃO LANCE A DOIS POR CURSO (rateio pela receita líquida)
+              </p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Curso / Receita</TableHead>
+                    <TableHead className="text-xs text-right">Receita bruta</TableHead>
+                    <TableHead className="text-xs text-right">Receita líquida</TableHead>
+                    <TableHead className="text-xs text-right">% do total</TableHead>
+                    <TableHead className="text-xs text-right">Comissão L2</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lad.cursos.map(c => (
+                    <TableRow key={c.nome}>
+                      <TableCell className="text-xs font-medium">{c.nome}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(c.bruto)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(c.liquido)}</TableCell>
+                      <TableCell className="text-xs text-right">{(c.peso * 100).toFixed(1)}%</TableCell>
+                      <TableCell className="text-xs text-right font-bold text-primary">{fmt(c.comissao)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell className="text-xs font-bold">TOTAL</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(lad.bruto)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold">{fmt(lad.liquido)}</TableCell>
+                    <TableCell className="text-xs text-right font-bold">100,0%</TableCell>
+                    <TableCell className="text-xs text-right font-bold text-primary">{fmt(comissaoLAD)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          )}
+
         </CardContent>
       </Card>
     </div>
