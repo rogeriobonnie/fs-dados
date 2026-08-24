@@ -308,8 +308,155 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       mesesLabels: months.map(m => MONTH_SHORT[m - 1]),
       resultadoSemestre: geral.resultado,
       liquidoSemestre: geral.liquido,
+      detalhes: allLinhas
+        .filter(l => l.impostos !== 0 || l.despesasTotais !== 0)
+        .map(l => ({
+          nome: l.nome,
+          peso: l.peso,
+          impostos: l.vendas
+            .filter(v => v.vrImposto !== 0)
+            .map(v => ({ data: v.date, descricao: [v.descricao, v.detalhamento].filter(Boolean).join(' — '), bruto: v.valorBruto, aliq: v.impAliq, imposto: v.vrImposto })),
+          impostosTotal: l.impostos,
+          composicao: [
+            { label: 'Taxas', valor: l.taxas },
+            { label: 'Impostos', valor: l.impostos },
+            { label: 'Com. Vendedor', valor: l.comVendedor },
+            { label: 'Com. MKT (L2)', valor: l.comMkt },
+            { label: 'Desp. Cursos', valor: l.despDireta },
+            ...RATEIO_COLS.map(c => ({ label: `Rateio ${c.label}`, valor: l.rateioCols[c.cn] || 0 })),
+          ].filter(i => i.valor !== 0),
+          despesasDiretas: l.despesas.map(d => ({
+            data: d.date,
+            descricao: [d.custo, d.descricao, d.detalhamento].filter(Boolean).join(' — '),
+            valor: Math.abs(d.valorLiquido),
+          })),
+          despesasTotais: l.despesasTotais,
+        })),
+      rateioDetalhe: RATEIO_COLS.map(c => ({
+        label: c.label,
+        total: calc.totalPorCentro[c.cn] || 0,
+        itens: (calc.rateaveisPorCentro[c.cn] || []).map(r => ({
+          data: r.date,
+          descricao: [r.descricao, r.detalhamento].filter(Boolean).join(' — '),
+          valor: Math.abs(r.valorLiquido),
+        })),
+      })).filter(g => g.itens.length > 0),
     });
   };
+
+  const renderDetImpostos = (l: Linha) => {
+    const itens = l.vendas.filter(v => v.vrImposto !== 0);
+    return (
+      <div>
+        <div className="mb-2 text-xs font-bold uppercase text-amber-800">Detalhamento de impostos — {l.nome}</div>
+        {itens.length === 0 ? (
+          <div className="text-xs text-muted-foreground">Sem impostos lançados.</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Data</TableHead>
+                <TableHead className="text-xs">Lançamento</TableHead>
+                <TableHead className="text-xs text-right">Bruto</TableHead>
+                <TableHead className="text-xs text-right">Alíq.</TableHead>
+                <TableHead className="text-xs text-right">Imposto</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {itens.map(v => (
+                <TableRow key={v.id}>
+                  <TableCell className="text-xs">{v.date}</TableCell>
+                  <TableCell className="text-xs">{[v.descricao, v.detalhamento].filter(Boolean).join(' — ')}</TableCell>
+                  <TableCell className="text-xs text-right">{fmt(v.valorBruto)}</TableCell>
+                  <TableCell className="text-xs text-right">{v.impAliq ? `${v.impAliq.toLocaleString('pt-BR')}%` : '-'}</TableCell>
+                  <TableCell className="text-xs text-right text-red-600">-{fmt(v.vrImposto)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="text-xs font-bold" colSpan={4}>TOTAL IMPOSTOS</TableCell>
+                <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(l.impostos)}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        )}
+      </div>
+    );
+  };
+
+  const renderDetDespesas = (l: Linha) => {
+    const comp = [
+      { label: 'Taxas', valor: l.taxas },
+      { label: 'Impostos', valor: l.impostos },
+      { label: 'Com. Vendedor', valor: l.comVendedor },
+      { label: 'Com. MKT (L2)', valor: l.comMkt },
+      { label: 'Desp. Cursos', valor: l.despDireta },
+      ...RATEIO_COLS.map(c => ({ label: `Rateio ${c.label}`, valor: l.rateioCols[c.cn] || 0 })),
+    ].filter(i => i.valor !== 0);
+    return (
+      <div className="space-y-3">
+        <div>
+          <div className="mb-2 text-xs font-bold uppercase text-amber-800">
+            Composição das despesas — {l.nome}
+            {l.peso > 0 && <span className="ml-2 font-normal normal-case text-muted-foreground">(participação no rateio: {(l.peso * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)</span>}
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Item</TableHead>
+                <TableHead className="text-xs text-right">Valor</TableHead>
+                <TableHead className="text-xs text-right">% do total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {comp.map(i => (
+                <TableRow key={i.label}>
+                  <TableCell className="text-xs">{i.label}</TableCell>
+                  <TableCell className="text-xs text-right text-red-600">-{fmt(i.valor)}</TableCell>
+                  <TableCell className="text-xs text-right">
+                    {l.despesasTotais ? `${((i.valor / l.despesasTotais) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : '-'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="text-xs font-bold">DESPESAS TOTAIS</TableCell>
+                <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(l.despesasTotais)}</TableCell>
+                <TableCell className="text-xs text-right font-bold">100%</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
+
+        {l.despesas.length > 0 && (
+          <div>
+            <div className="mb-2 text-xs font-bold uppercase text-amber-800">Despesas de cursos lançadas</div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Data</TableHead>
+                  <TableHead className="text-xs">Lançamento</TableHead>
+                  <TableHead className="text-xs text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {l.despesas.map(d => (
+                  <TableRow key={d.id}>
+                    <TableCell className="text-xs">{d.date}</TableCell>
+                    <TableCell className="text-xs">{[d.custo, d.descricao, d.detalhamento].filter(Boolean).join(' — ')}</TableCell>
+                    <TableCell className="text-xs text-right text-red-600">-{fmt(Math.abs(d.valorLiquido))}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
 
   const renderBloco = (bloco: typeof blocos[number]) => {
     if (bloco.linhas.length === 0) return null;
