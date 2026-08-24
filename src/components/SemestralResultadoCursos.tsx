@@ -57,6 +57,7 @@ interface Linha {
   despDireta: number;
   rateio: number;
   rateioCols: Record<number, number>;
+  peso: number;
   despesasTotais: number;
   liquido: number;
   resultado: number;
@@ -67,8 +68,9 @@ interface Linha {
 
 const emptyLinha = (nome: string, nMeses: number): Linha => ({
   nome, qtd: 0, bruto: 0, taxas: 0, acrescimos: 0, impostos: 0, comVendedor: 0, comMkt: 0,
-  despDireta: 0, rateio: 0, rateioCols: {}, despesasTotais: 0, liquido: 0, resultado: 0, porMes: Array(nMeses).fill(0), vendas: [], despesas: [],
+  despDireta: 0, rateio: 0, rateioCols: {}, peso: 0, despesasTotais: 0, liquido: 0, resultado: 0, porMes: Array(nMeses).fill(0), vendas: [], despesas: [],
 });
+
 
 const totalize = (linhas: Linha[]) =>
   linhas.reduce(
