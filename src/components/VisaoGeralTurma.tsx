@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { FinancialRecord } from '@/types/financial';
 import { Pagina5Record } from '@/types/pagina5';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
@@ -215,8 +215,8 @@ const VisaoGeralTurma = ({ data }: Props) => {
             </TableHeader>
             <TableBody>
               {meses.map(m => (
-                <>
-                  <TableRow key={m.month}>
+                <Fragment key={m.month}>
+                  <TableRow>
                     <TableCell className="font-medium">{m.label}</TableCell>
                     {clickCell(`${m.month}-bruto`, m.bruto)}
                     {clickCell(`${m.month}-imp`, m.impostos)}
@@ -228,7 +228,7 @@ const VisaoGeralTurma = ({ data }: Props) => {
                     </TableCell>
                   </TableRow>
                   {detKey?.startsWith(`${m.month}-`) && (
-                    <TableRow key={`${m.month}-det`}>
+                    <TableRow>
                       <TableCell colSpan={7} className="bg-muted/20">
                         {detKey === `${m.month}-bruto` && (
                           <DetTable itens={m.receitas} titulo={`Recebimentos da Turma 04 — ${m.label}/2025`} />
@@ -254,7 +254,7 @@ const VisaoGeralTurma = ({ data }: Props) => {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               ))}
             </TableBody>
             <TableFooter>
