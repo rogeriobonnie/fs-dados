@@ -85,10 +85,11 @@ const totalize = (linhas: Linha[]) =>
         acc[c.cn] = (a.rateioCols[c.cn] || 0) + (l.rateioCols[c.cn] || 0);
         return acc;
       }, {} as Record<number, number>),
+      despesasTotais: a.despesasTotais + l.despesasTotais,
       liquido: a.liquido + l.liquido,
       resultado: a.resultado + l.resultado,
     }),
-    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, rateioCols: {} as Record<number, number>, liquido: 0, resultado: 0 },
+    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, rateioCols: {} as Record<number, number>, despesasTotais: 0, liquido: 0, resultado: 0 },
   );
 
 
