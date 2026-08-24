@@ -33,9 +33,26 @@ export interface VisibleExpenseCols {
   rateio: { cn: number; label: string }[];
 }
 
+export interface DetalheLinhaPDF {
+  nome: string;
+  peso: number;
+  impostos: { data: string; descricao: string; bruto: number; aliq: number; imposto: number }[];
+  impostosTotal: number;
+  composicao: { label: string; valor: number }[];
+  despesasDiretas: { data: string; descricao: string; valor: number }[];
+  despesasTotais: number;
+}
+
+export interface RateioGrupoPDF {
+  label: string;
+  total: number;
+  itens: { data: string; descricao: string; valor: number }[];
+}
+
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 // Nas tabelas usamos valores sem o prefixo "R$" para evitar quebra de linha nas colunas estreitas
 const fmtN = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
 const totalize = (linhas: CursoLinhaPDF[]) =>
   linhas.reduce(
