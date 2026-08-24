@@ -33,9 +33,26 @@ export interface VisibleExpenseCols {
   rateio: { cn: number; label: string }[];
 }
 
+export interface DetalheLinhaPDF {
+  nome: string;
+  peso: number;
+  impostos: { data: string; descricao: string; bruto: number; aliq: number; imposto: number }[];
+  impostosTotal: number;
+  composicao: { label: string; valor: number }[];
+  despesasDiretas: { data: string; descricao: string; valor: number }[];
+  despesasTotais: number;
+}
+
+export interface RateioGrupoPDF {
+  label: string;
+  total: number;
+  itens: { data: string; descricao: string; valor: number }[];
+}
+
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 // Nas tabelas usamos valores sem o prefixo "R$" para evitar quebra de linha nas colunas estreitas
 const fmtN = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
 const totalize = (linhas: CursoLinhaPDF[]) =>
   linhas.reduce(
@@ -65,8 +82,11 @@ export function exportResultadoCursosPDF(params: {
   mesesLabels: string[];
   resultadoSemestre: number;
   liquidoSemestre: number;
+  detalhes?: DetalheLinhaPDF[];
+  rateioDetalhe?: RateioGrupoPDF[];
 }) {
-  const { periodo, blocos, rateioLabels, visibleExpenseCols, matriz, mesesLabels, resultadoSemestre, liquidoSemestre } = params;
+  const { periodo, blocos, rateioLabels, visibleExpenseCols, matriz, mesesLabels, resultadoSemestre, liquidoSemestre, detalhes = [], rateioDetalhe = [] } = params;
+
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -274,6 +294,130 @@ export function exportResultadoCursosPDF(params: {
     // @ts-expect-error injected by plugin
     y = doc.lastAutoTable.finalY + 8;
   }
+
+  // ── Detalhamento de despesas e impostos por linha ──
+  const detTable = (
+    head: string[],
+    body: (string | number)[][],
+    foot: (string | number)[][] | undefined,
+    cor: [number, number, number],
+    rightFrom: number,
+    firstWidth = 30,
+  ) => {
+    const needed = 6 + (body.length + 2) * 4.4;
+    if (y + needed > BOTTOM) newPage();
+    const cs: Record<number, Record<string, unknown>> = {
+      0: { halign: 'left', cellWidth: firstWidth, overflow: 'linebreak' },
+    };
+    head.forEach((_, i) => {
+      if (i >= rightFrom) cs[i] = { halign: 'right' };
+    });
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin, top: 26 },
+      head: [head],
+      body,
+      foot,
+      theme: 'grid',
+      rowPageBreak: 'avoid',
+      styles: { fontSize: 6.6, cellPadding: { top: 1.1, bottom: 1.1, left: 1, right: 1 }, overflow: 'linebreak', valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.1 },
+      headStyles: { fillColor: cor, textColor: 255, fontStyle: 'bold', fontSize: 6.8, halign: 'center' },
+      footStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 6.8 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: cs,
+    });
+    // @ts-expect-error injected by plugin
+    y = doc.lastAutoTable.finalY + 5;
+  };
+
+  if (detalhes.length > 0) {
+    if (y + 20 > BOTTOM) newPage();
+    sectionTitle('Detalhamento de despesas e impostos por curso', [180, 83, 9], 9);
+
+    detalhes.forEach(d => {
+      if (y + 24 > BOTTOM) newPage();
+      doc.setFillColor(255, 247, 237);
+      doc.setDrawColor(251, 191, 36);
+      doc.roundedRect(margin, y, W - margin * 2, 6.5, 1, 1, 'FD');
+      doc.setTextColor(120, 53, 15);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      const pesoTxt = d.peso > 0 ? `  ·  participação no rateio: ${(d.peso * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%` : '';
+      doc.text(`${d.nome}${pesoTxt}`, margin + 2.5, y + 4.6);
+      doc.setTextColor(0, 0, 0);
+      y += 8.5;
+
+      if (d.composicao.length > 0) {
+        detTable(
+          ['Composição das despesas', 'Valor (R$)', '% do total'],
+          d.composicao.map(i => [
+            i.label,
+            `-${fmtN(i.valor)}`,
+            d.despesasTotais ? `${((i.valor / d.despesasTotais) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : '-',
+          ]),
+          [['DESPESAS TOTAIS', `-${fmtN(d.despesasTotais)}`, '100%']],
+          [153, 27, 27],
+          1,
+          60,
+        );
+      }
+
+      if (d.despesasDiretas.length > 0) {
+        detTable(
+          ['Data', 'Despesa de curso lançada', 'Valor (R$)'],
+          d.despesasDiretas.map(i => [i.data, i.descricao, `-${fmtN(i.valor)}`]),
+          [['', 'SUBTOTAL', `-${fmtN(d.despesasDiretas.reduce((s, i) => s + i.valor, 0))}`]],
+          [194, 65, 12],
+          2,
+          20,
+        );
+      }
+
+      if (d.impostos.length > 0) {
+        detTable(
+          ['Data', 'Lançamento', 'Bruto (R$)', 'Alíq.', 'Imposto (R$)'],
+          d.impostos.map(i => [
+            i.data,
+            i.descricao,
+            fmtN(i.bruto),
+            i.aliq ? `${i.aliq.toLocaleString('pt-BR')}%` : '-',
+            `-${fmtN(i.imposto)}`,
+          ]),
+          [['', 'TOTAL IMPOSTOS', '', '', `-${fmtN(d.impostosTotal)}`]],
+          [124, 45, 18],
+          2,
+          20,
+        );
+      }
+    });
+  }
+
+  // ── Detalhamento dos rateios (despesas comuns) ──
+  if (rateioDetalhe.length > 0) {
+    if (y + 20 > BOTTOM) newPage();
+    sectionTitle('Detalhamento dos rateios — despesas comuns distribuídas por receita', [67, 56, 202], 9);
+    rateioDetalhe.forEach(g => {
+      detTable(
+        ['Data', `${g.label} — lançamentos rateados`, 'Valor (R$)'],
+        g.itens.map(i => [i.data, i.descricao, `-${fmtN(i.valor)}`]),
+        [['', `SUBTOTAL ${g.label}`, `-${fmtN(g.total)}`]],
+        [67, 56, 202],
+        2,
+        20,
+      );
+    });
+    if (y + 12 > BOTTOM) newPage();
+    detTable(
+      ['Rateio', 'Total do centro (R$)', ''],
+      rateioDetalhe.map(g => [g.label, `-${fmtN(g.total)}`, '']),
+      [['TOTAL RATEADO', `-${fmtN(rateioDetalhe.reduce((s, g) => s + g.total, 0))}`, '']],
+      [30, 41, 59],
+      1,
+      60,
+    );
+  }
+
+
 
   // Consolidado
   if (y + 26 > BOTTOM) newPage();
