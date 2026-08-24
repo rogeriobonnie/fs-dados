@@ -360,7 +360,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                       </TableRow>
                       {isOpen && (
                         <TableRow key={bloco.key + l.nome + '-det'} className="bg-muted/20">
-                          <TableCell colSpan={12 + RATEIO_COLS.length} className="p-0">
+                          <TableCell colSpan={totalVisibleCols} className="p-0">
 
                             <Table>
                               <TableHeader>
