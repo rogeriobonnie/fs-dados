@@ -344,17 +344,17 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                         <TableCell className="text-xs text-center">{l.qtd}</TableCell>
                         <TableCell className="text-xs text-right">{fmt(l.bruto)}</TableCell>
                         <TableCell className="text-xs text-right">{fmt(l.qtd > 0 ? l.bruto / l.qtd : 0)}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.taxas ? `-${fmt(l.taxas)}` : '-'}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.impostos ? `-${fmt(l.impostos)}` : '-'}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.comVendedor ? `-${fmt(l.comVendedor)}` : '-'}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.comMkt ? `-${fmt(l.comMkt)}` : '-'}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.despDireta ? `-${fmt(l.despDireta)}` : '-'}</TableCell>
-                        {RATEIO_COLS.map(c => (
+                        {visibleExpenseCols.taxas && <TableCell className="text-xs text-right text-red-600">{l.taxas ? `-${fmt(l.taxas)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.impostos && <TableCell className="text-xs text-right text-red-600">{l.impostos ? `-${fmt(l.impostos)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.comVendedor && <TableCell className="text-xs text-right text-red-600">{l.comVendedor ? `-${fmt(l.comVendedor)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.comMkt && <TableCell className="text-xs text-right text-red-600">{l.comMkt ? `-${fmt(l.comMkt)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.despDireta && <TableCell className="text-xs text-right text-red-600">{l.despDireta ? `-${fmt(l.despDireta)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.rateio.map(c => (
                           <TableCell key={c.cn} className="text-xs text-right text-red-500">
                             {l.rateioCols[c.cn] ? `-${fmt(l.rateioCols[c.cn])}` : '-'}
                           </TableCell>
                         ))}
-                        <TableCell className="text-xs text-right font-semibold text-red-600">{l.despDireta + l.rateio ? `-${fmt(l.despDireta + l.rateio)}` : '-'}</TableCell>
+                        <TableCell className="text-xs text-right font-semibold text-red-600">{l.despesasTotais ? `-${fmt(l.despesasTotais)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right font-semibold">{fmt(l.liquido)}</TableCell>
                         <TableCell className={`text-xs text-right font-bold ${l.resultado >= 0 ? 'text-primary' : 'text-red-600'}`}>{fmt(l.resultado)}</TableCell>
                       </TableRow>
