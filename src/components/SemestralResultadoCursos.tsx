@@ -205,6 +205,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     const finish = (m: Map<string, Linha>) => {
       const arr = Array.from(m.values());
       arr.forEach(l => {
+        l.despesasTotais = l.taxas + l.impostos + l.comVendedor + l.comMkt + l.despDireta + l.rateio;
         l.resultado = l.liquido - l.impostos - l.comVendedor - l.comMkt - l.despDireta - l.rateio;
       });
       return arr.sort((a, b) => b.bruto - a.bruto);
