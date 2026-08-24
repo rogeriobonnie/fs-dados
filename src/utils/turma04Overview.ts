@@ -274,11 +274,7 @@ export function computePagina5Turma(
 
   const receitasCursos = semData.filter(r => Math.floor(r.custoNum) === 1);
   const daTurma = receitasCursos.filter(r => isTurma04(r.descricao));
-  // Cursos "novos" (base do rateio proporcional na aba Semestral)
-  const cursosRateaveis = receitasCursos.filter(
-    r => !isTurma04(r.descricao) && !norm(r.descricao).includes('TURMA III'),
-  );
-  const brutoCursos = cursosRateaveis.reduce((s, r) => s + r.valorBruto, 0);
+
 
   const bruto = daTurma.reduce((s, r) => s + r.valorBruto, 0);
   const taxas = daTurma.reduce((s, r) => s + r.taxas, 0);
