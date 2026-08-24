@@ -282,6 +282,7 @@ const VisaoGeralTurma = ({ data }: Props) => {
             <TableBody>
               {[
                 ['Receita bruta', p5.bruto],
+                ['Acréscimos (juros/multas)', p5.acrescimos],
                 ['Taxas', p5.taxas],
                 ['Receita líquida', p5.liquido],
                 ['Impostos', p5.impostos],

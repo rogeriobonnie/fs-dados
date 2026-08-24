@@ -170,6 +170,7 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5 }: Visa
     head: [['Item', 'Valor']],
     body: [
       ['Receita bruta', fmt(p5.bruto)],
+      ['Acréscimos (juros/multas)', fmt(p5.acrescimos)],
       ['Taxas', fmt(p5.taxas)],
       ['Receita líquida', fmt(p5.liquido)],
       ['Impostos', fmt(p5.impostos)],
