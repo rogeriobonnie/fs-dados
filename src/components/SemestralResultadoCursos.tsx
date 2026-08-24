@@ -57,6 +57,7 @@ interface Linha {
   despDireta: number;
   rateio: number;
   rateioCols: Record<number, number>;
+  despesasTotais: number;
   liquido: number;
   resultado: number;
   porMes: number[];
@@ -66,7 +67,7 @@ interface Linha {
 
 const emptyLinha = (nome: string, nMeses: number): Linha => ({
   nome, qtd: 0, bruto: 0, taxas: 0, acrescimos: 0, impostos: 0, comVendedor: 0, comMkt: 0,
-  despDireta: 0, rateio: 0, rateioCols: {}, liquido: 0, resultado: 0, porMes: Array(nMeses).fill(0), vendas: [], despesas: [],
+  despDireta: 0, rateio: 0, rateioCols: {}, despesasTotais: 0, liquido: 0, resultado: 0, porMes: Array(nMeses).fill(0), vendas: [], despesas: [],
 });
 
 const totalize = (linhas: Linha[]) =>
@@ -84,10 +85,11 @@ const totalize = (linhas: Linha[]) =>
         acc[c.cn] = (a.rateioCols[c.cn] || 0) + (l.rateioCols[c.cn] || 0);
         return acc;
       }, {} as Record<number, number>),
+      despesasTotais: a.despesasTotais + l.despesasTotais,
       liquido: a.liquido + l.liquido,
       resultado: a.resultado + l.resultado,
     }),
-    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, rateioCols: {} as Record<number, number>, liquido: 0, resultado: 0 },
+    { qtd: 0, bruto: 0, taxas: 0, impostos: 0, comVendedor: 0, comMkt: 0, despDireta: 0, rateio: 0, rateioCols: {} as Record<number, number>, despesasTotais: 0, liquido: 0, resultado: 0 },
   );
 
 
@@ -203,6 +205,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     const finish = (m: Map<string, Linha>) => {
       const arr = Array.from(m.values());
       arr.forEach(l => {
+        l.despesasTotais = l.taxas + l.impostos + l.comVendedor + l.comMkt + l.despDireta + l.rateio;
         l.resultado = l.liquido - l.impostos - l.comVendedor - l.comMkt - l.despDireta - l.rateio;
       });
       return arr.sort((a, b) => b.bruto - a.bruto);
@@ -229,13 +232,38 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
 
   const geral = totalize([...calc.cursos, ...calc.turmas, ...calc.outras]);
 
+  const allLinhas = useMemo(() => [...calc.cursos, ...calc.turmas, ...calc.outras], [calc]);
+
+  const visibleExpenseCols = useMemo(() => {
+    const totals = {
+      taxas: allLinhas.reduce((s, l) => s + l.taxas, 0),
+      impostos: allLinhas.reduce((s, l) => s + l.impostos, 0),
+      comVendedor: allLinhas.reduce((s, l) => s + l.comVendedor, 0),
+      comMkt: allLinhas.reduce((s, l) => s + l.comMkt, 0),
+      despDireta: allLinhas.reduce((s, l) => s + l.despDireta, 0),
+    };
+    const rateio = RATEIO_COLS.filter(c => allLinhas.reduce((s, l) => s + (l.rateioCols[c.cn] || 0), 0) !== 0);
+    return {
+      taxas: totals.taxas !== 0,
+      impostos: totals.impostos !== 0,
+      comVendedor: totals.comVendedor !== 0,
+      comMkt: totals.comMkt !== 0,
+      despDireta: totals.despDireta !== 0,
+      rateio,
+    };
+  }, [allLinhas]);
+
+  const totalVisibleCols = 4 + (visibleExpenseCols.taxas ? 1 : 0) + (visibleExpenseCols.impostos ? 1 : 0)
+    + (visibleExpenseCols.comVendedor ? 1 : 0) + (visibleExpenseCols.comMkt ? 1 : 0)
+    + (visibleExpenseCols.despDireta ? 1 : 0) + visibleExpenseCols.rateio.length + 3;
+
   const matriz = useMemo(
-    () => [...calc.cursos, ...calc.turmas, ...calc.outras].map(l => ({
+    () => allLinhas.map(l => ({
       nome: l.nome,
       meses: l.porMes,
       total: l.porMes.reduce((s, v) => s + v, 0),
     })),
-    [calc],
+    [allLinhas],
   );
 
   const handlePDF = () => {
@@ -251,6 +279,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       despDireta: l.despDireta,
       rateio: l.rateio,
       rateioCols: RATEIO_COLS.map(c => l.rateioCols[c.cn] || 0),
+      despesasTotais: l.despesasTotais,
       liquido: l.liquido,
       resultado: l.resultado,
     });
@@ -258,6 +287,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       periodo: `${year}/${semNum}`,
       blocos: blocos.map(b => ({ titulo: b.titulo, cor: b.cor, linhas: b.linhas.map(toPdf) })),
       rateioLabels: RATEIO_COLS.map(c => c.label),
+      visibleExpenseCols,
       matriz,
       mesesLabels: months.map(m => MONTH_SHORT[m - 1]),
       resultadoSemestre: geral.resultado,
@@ -282,16 +312,15 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableHead className="text-xs text-center">Qtd</TableHead>
                   <TableHead className="text-xs text-right">Bruto</TableHead>
                   <TableHead className="text-xs text-right">Vlr médio</TableHead>
-                  <TableHead className="text-xs text-right">Taxas</TableHead>
-                  <TableHead className="text-xs text-right">Impostos</TableHead>
-                  <TableHead className="text-xs text-right">Com. Vend.</TableHead>
-                  <TableHead className="text-xs text-right">Com. MKT (L2)</TableHead>
-                  <TableHead className="text-xs text-right">Desp. Cursos</TableHead>
-                  {RATEIO_COLS.map(c => (
+                  {visibleExpenseCols.taxas && <TableHead className="text-xs text-right">Taxas</TableHead>}
+                  {visibleExpenseCols.impostos && <TableHead className="text-xs text-right">Impostos</TableHead>}
+                  {visibleExpenseCols.comVendedor && <TableHead className="text-xs text-right">Com. Vend.</TableHead>}
+                  {visibleExpenseCols.comMkt && <TableHead className="text-xs text-right">Com. MKT (L2)</TableHead>}
+                  {visibleExpenseCols.despDireta && <TableHead className="text-xs text-right">Desp. Cursos</TableHead>}
+                  {visibleExpenseCols.rateio.map(c => (
                     <TableHead key={c.cn} className="text-xs text-right whitespace-nowrap">{c.label}</TableHead>
                   ))}
                   <TableHead className="text-xs text-right">Despesas totais</TableHead>
-
                   <TableHead className="text-xs text-right">Líquido</TableHead>
                   <TableHead className="text-xs text-right">Resultado</TableHead>
                 </TableRow>
@@ -315,23 +344,23 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                         <TableCell className="text-xs text-center">{l.qtd}</TableCell>
                         <TableCell className="text-xs text-right">{fmt(l.bruto)}</TableCell>
                         <TableCell className="text-xs text-right">{fmt(l.qtd > 0 ? l.bruto / l.qtd : 0)}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.taxas ? `-${fmt(l.taxas)}` : '-'}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.impostos ? `-${fmt(l.impostos)}` : '-'}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.comVendedor ? `-${fmt(l.comVendedor)}` : '-'}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.comMkt ? `-${fmt(l.comMkt)}` : '-'}</TableCell>
-                        <TableCell className="text-xs text-right text-red-600">{l.despDireta ? `-${fmt(l.despDireta)}` : '-'}</TableCell>
-                        {RATEIO_COLS.map(c => (
+                        {visibleExpenseCols.taxas && <TableCell className="text-xs text-right text-red-600">{l.taxas ? `-${fmt(l.taxas)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.impostos && <TableCell className="text-xs text-right text-red-600">{l.impostos ? `-${fmt(l.impostos)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.comVendedor && <TableCell className="text-xs text-right text-red-600">{l.comVendedor ? `-${fmt(l.comVendedor)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.comMkt && <TableCell className="text-xs text-right text-red-600">{l.comMkt ? `-${fmt(l.comMkt)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.despDireta && <TableCell className="text-xs text-right text-red-600">{l.despDireta ? `-${fmt(l.despDireta)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.rateio.map(c => (
                           <TableCell key={c.cn} className="text-xs text-right text-red-500">
                             {l.rateioCols[c.cn] ? `-${fmt(l.rateioCols[c.cn])}` : '-'}
                           </TableCell>
                         ))}
-                        <TableCell className="text-xs text-right font-semibold text-red-600">{l.despDireta + l.rateio ? `-${fmt(l.despDireta + l.rateio)}` : '-'}</TableCell>
+                        <TableCell className="text-xs text-right font-semibold text-red-600">{l.despesasTotais ? `-${fmt(l.despesasTotais)}` : '-'}</TableCell>
                         <TableCell className="text-xs text-right font-semibold">{fmt(l.liquido)}</TableCell>
                         <TableCell className={`text-xs text-right font-bold ${l.resultado >= 0 ? 'text-primary' : 'text-red-600'}`}>{fmt(l.resultado)}</TableCell>
                       </TableRow>
                       {isOpen && (
                         <TableRow key={bloco.key + l.nome + '-det'} className="bg-muted/20">
-                          <TableCell colSpan={12 + RATEIO_COLS.length} className="p-0">
+                          <TableCell colSpan={totalVisibleCols} className="p-0">
 
                             <Table>
                               <TableHeader>
@@ -389,17 +418,17 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableCell className="text-xs text-center font-bold">{t.qtd}</TableCell>
                   <TableCell className="text-xs text-right font-bold">{fmt(t.bruto)}</TableCell>
                   <TableCell className="text-xs text-right">-</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.taxas)}</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.impostos)}</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comVendedor)}</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comMkt)}</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta)}</TableCell>
-                  {RATEIO_COLS.map(c => (
+                  {visibleExpenseCols.taxas && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.taxas)}</TableCell>}
+                  {visibleExpenseCols.impostos && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.impostos)}</TableCell>}
+                  {visibleExpenseCols.comVendedor && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comVendedor)}</TableCell>}
+                  {visibleExpenseCols.comMkt && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comMkt)}</TableCell>}
+                  {visibleExpenseCols.despDireta && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta)}</TableCell>}
+                  {visibleExpenseCols.rateio.map(c => (
                     <TableCell key={c.cn} className="text-xs text-right font-bold text-red-500">
                       {t.rateioCols[c.cn] ? `-${fmt(t.rateioCols[c.cn])}` : '-'}
                     </TableCell>
                   ))}
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta + t.rateio)}</TableCell>
+                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despesasTotais)}</TableCell>
 
                   <TableCell className="text-xs text-right font-bold">{fmt(t.liquido)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-primary">{fmt(t.resultado)}</TableCell>
@@ -416,9 +445,8 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-muted-foreground">
-          Rateio por receita bruta — total <strong>{fmt(calc.totalRateio)}</strong>:{' '}
+          Despesas zeradas são ocultadas automaticamente. Despesas totais = taxas + impostos + comissões + despesas de curso + rateio. Rateio por receita bruta — total <strong>{fmt(calc.totalRateio)}</strong>:{' '}
           {RATEIO_COLS.map(c => `${c.label} ${fmt(calc.totalPorCentro[c.cn] || 0)}`).join(' · ')}. Com. MKT (L2) = comissão Lance a Dois do mês (10% do resultado líquido L2) rateada por curso pela receita líquida — total do semestre <strong>{fmt(calc.totalComMkt)}</strong>; 13-Vendas fora (já em Com. Vend.).
-
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setView(v => (v === 'lista' ? 'meses' : 'lista'))}>
