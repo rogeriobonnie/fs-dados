@@ -229,8 +229,10 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       totalRateio,
       totalPorCentro,
       rateaveis,
+      rateaveisPorCentro,
       totalComMkt,
     };
+
   }, [semData, months]);
 
 
