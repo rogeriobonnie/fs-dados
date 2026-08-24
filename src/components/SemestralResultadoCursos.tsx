@@ -312,16 +312,15 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableHead className="text-xs text-center">Qtd</TableHead>
                   <TableHead className="text-xs text-right">Bruto</TableHead>
                   <TableHead className="text-xs text-right">Vlr médio</TableHead>
-                  <TableHead className="text-xs text-right">Taxas</TableHead>
-                  <TableHead className="text-xs text-right">Impostos</TableHead>
-                  <TableHead className="text-xs text-right">Com. Vend.</TableHead>
-                  <TableHead className="text-xs text-right">Com. MKT (L2)</TableHead>
-                  <TableHead className="text-xs text-right">Desp. Cursos</TableHead>
-                  {RATEIO_COLS.map(c => (
+                  {visibleExpenseCols.taxas && <TableHead className="text-xs text-right">Taxas</TableHead>}
+                  {visibleExpenseCols.impostos && <TableHead className="text-xs text-right">Impostos</TableHead>}
+                  {visibleExpenseCols.comVendedor && <TableHead className="text-xs text-right">Com. Vend.</TableHead>}
+                  {visibleExpenseCols.comMkt && <TableHead className="text-xs text-right">Com. MKT (L2)</TableHead>}
+                  {visibleExpenseCols.despDireta && <TableHead className="text-xs text-right">Desp. Cursos</TableHead>}
+                  {visibleExpenseCols.rateio.map(c => (
                     <TableHead key={c.cn} className="text-xs text-right whitespace-nowrap">{c.label}</TableHead>
                   ))}
                   <TableHead className="text-xs text-right">Despesas totais</TableHead>
-
                   <TableHead className="text-xs text-right">Líquido</TableHead>
                   <TableHead className="text-xs text-right">Resultado</TableHead>
                 </TableRow>
