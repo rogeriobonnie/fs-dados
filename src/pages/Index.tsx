@@ -26,6 +26,7 @@ import logoFS from '@/assets/logo-fs.png';
 import DistratosNegociacao from '@/components/DistratosNegociacao';
 import RelatorioInadimplencia from '@/components/RelatorioInadimplencia';
 import ResumoGerencialTurma from '@/components/ResumoGerencialTurma';
+import VisaoGeralTurma from '@/components/VisaoGeralTurma';
 
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
@@ -243,8 +244,12 @@ const Index = () => {
               />
 
               {/* Nested Tabs for FS Turma IV content */}
-              <Tabs defaultValue="resumo" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-6 text-xs">
+              <Tabs defaultValue="visao-geral" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-7 text-xs">
+                  <TabsTrigger value="visao-geral" className="flex items-center gap-1 px-2">
+                    <TrendingUp className="h-3 w-3" />
+                    Visão Geral
+                  </TabsTrigger>
                   <TabsTrigger value="resumo" className="flex items-center gap-1 px-2">
                     <BarChart3 className="h-3 w-3" />
                     Resumo Gerencial
@@ -270,6 +275,10 @@ const Index = () => {
                     Distratos
                   </TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="visao-geral" className="space-y-6">
+                  <VisaoGeralTurma data={filteredData} />
+                </TabsContent>
 
                 <TabsContent value="resumo" className="space-y-6">
                   <ResumoGerencialTurma data={filteredData} />
