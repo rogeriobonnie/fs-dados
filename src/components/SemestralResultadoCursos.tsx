@@ -97,8 +97,12 @@ const totalize = (linhas: Linha[]) =>
 
 const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [det, setDet] = useState<Record<string, 'impostos' | 'despesas' | undefined>>({});
   const [view, setView] = useState<'lista' | 'meses'>('lista');
   const toggle = (k: string) => setOpen(p => ({ ...p, [k]: !p[k] }));
+  const toggleDet = (k: string, tipo: 'impostos' | 'despesas') =>
+    setDet(p => ({ ...p, [k]: p[k] === tipo ? undefined : tipo }));
+
 
   const calc = useMemo(() => {
     const mIdx = (m: number) => months.indexOf(m);
