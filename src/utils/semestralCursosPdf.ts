@@ -82,8 +82,11 @@ export function exportResultadoCursosPDF(params: {
   mesesLabels: string[];
   resultadoSemestre: number;
   liquidoSemestre: number;
+  detalhes?: DetalheLinhaPDF[];
+  rateioDetalhe?: RateioGrupoPDF[];
 }) {
-  const { periodo, blocos, rateioLabels, visibleExpenseCols, matriz, mesesLabels, resultadoSemestre, liquidoSemestre } = params;
+  const { periodo, blocos, rateioLabels, visibleExpenseCols, matriz, mesesLabels, resultadoSemestre, liquidoSemestre, detalhes = [], rateioDetalhe = [] } = params;
+
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
