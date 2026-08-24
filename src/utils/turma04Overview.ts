@@ -303,17 +303,15 @@ export function computePagina5Turma(
 
   // Comissão MKT (Lance a Dois) rateada por curso, mesmo cálculo da aba Comissões
   const ladPorCurso = ladComissaoPorCursoMensal(semData);
-  const comMkt = daTurma.reduce((s, r) => {
-    const k = normLad(r.descricao || 'Sem descrição');
-    return s;
-  }, 0) || Array.from(
+  const comMkt = Array.from(
     new Set(daTurma.map(r => normLad(r.descricao || 'Sem descrição'))),
   ).reduce((s, k) => s + (ladPorCurso.get(k) || 0), 0);
 
   // A Turma 04 não entra no rateio proporcional das despesas comuns (regra da aba Semestral)
-  const peso = brutoCursos > 0 ? 0 : 0;
   const rateioCols = RATEIO_LABELS.map(c => ({ label: c.label, valor: 0 }));
   const rateio = 0;
+  const peso = 0;
+
 
   const despesasTotais = taxas + impostos + comVendedor + comMkt + despCursos + rateio;
   const resultado = liquido - impostos - comVendedor - comMkt - despCursos - rateio;
