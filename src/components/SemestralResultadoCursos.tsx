@@ -189,6 +189,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
 
     cursos.forEach(l => {
       const peso = brutoCursos > 0 ? l.bruto / brutoCursos : 0;
+      l.peso = peso;
       l.rateio = peso * totalRateio;
       l.despDireta += peso * totalQuinzeSobra;
       l.rateioCols = RATEIO_COLS.reduce((acc, c) => {
@@ -196,6 +197,13 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
         return acc;
       }, {} as Record<number, number>);
     });
+
+    const rateaveisPorCentro: Record<number, Pagina5Record[]> = {};
+    rateaveis.forEach(r => {
+      const cn = Math.floor(r.custoNum);
+      (rateaveisPorCentro[cn] = rateaveisPorCentro[cn] || []).push(r);
+    });
+
 
     // Comissão Lance a Dois rateada por curso (mês a mês, mesmo cálculo da aba Comissões)
     const ladPorCurso = ladComissaoPorCursoMensal(semData);
