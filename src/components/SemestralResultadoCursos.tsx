@@ -343,13 +343,19 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
               </TableHeader>
               <TableBody>
                 {bloco.linhas.map(l => {
-                  const isOpen = !!open[bloco.key + l.nome];
+                  const dk = bloco.key + l.nome;
+                  const isOpen = !!open[dk];
+                  const detTipo = det[dk];
+                  const clickDet = (tipo: 'impostos' | 'despesas') => (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    toggleDet(dk, tipo);
+                  };
                   return (
                     <>
                       <TableRow
-                        key={bloco.key + l.nome}
+                        key={dk}
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => toggle(bloco.key + l.nome)}
+                        onClick={() => toggle(dk)}
                       >
                         <TableCell className="text-xs font-medium">
                           <div className="flex items-center gap-1">
@@ -361,19 +367,54 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                         <TableCell className="text-xs text-right">{fmt(l.bruto)}</TableCell>
                         <TableCell className="text-xs text-right">{fmt(l.qtd > 0 ? l.bruto / l.qtd : 0)}</TableCell>
                         {visibleExpenseCols.taxas && <TableCell className="text-xs text-right text-red-600">{l.taxas ? `-${fmt(l.taxas)}` : '-'}</TableCell>}
-                        {visibleExpenseCols.impostos && <TableCell className="text-xs text-right text-red-600">{l.impostos ? `-${fmt(l.impostos)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.impostos && (
+                          <TableCell
+                            onClick={clickDet('impostos')}
+                            title="Clique para ver o detalhamento dos impostos"
+                            className="text-xs text-right text-red-600 underline decoration-dotted underline-offset-2 hover:bg-red-50"
+                          >
+                            {l.impostos ? `-${fmt(l.impostos)}` : '-'}
+                          </TableCell>
+                        )}
                         {visibleExpenseCols.comVendedor && <TableCell className="text-xs text-right text-red-600">{l.comVendedor ? `-${fmt(l.comVendedor)}` : '-'}</TableCell>}
                         {visibleExpenseCols.comMkt && <TableCell className="text-xs text-right text-red-600">{l.comMkt ? `-${fmt(l.comMkt)}` : '-'}</TableCell>}
-                        {visibleExpenseCols.despDireta && <TableCell className="text-xs text-right text-red-600">{l.despDireta ? `-${fmt(l.despDireta)}` : '-'}</TableCell>}
+                        {visibleExpenseCols.despDireta && (
+                          <TableCell
+                            onClick={clickDet('despesas')}
+                            title="Clique para ver o detalhamento das despesas"
+                            className="text-xs text-right text-red-600 underline decoration-dotted underline-offset-2 hover:bg-red-50"
+                          >
+                            {l.despDireta ? `-${fmt(l.despDireta)}` : '-'}
+                          </TableCell>
+                        )}
                         {visibleExpenseCols.rateio.map(c => (
-                          <TableCell key={c.cn} className="text-xs text-right text-red-500">
+                          <TableCell
+                            key={c.cn}
+                            onClick={clickDet('despesas')}
+                            title="Clique para ver o detalhamento do rateio"
+                            className="text-xs text-right text-red-500 underline decoration-dotted underline-offset-2 hover:bg-red-50"
+                          >
                             {l.rateioCols[c.cn] ? `-${fmt(l.rateioCols[c.cn])}` : '-'}
                           </TableCell>
                         ))}
-                        <TableCell className="text-xs text-right font-semibold text-red-600">{l.despesasTotais ? `-${fmt(l.despesasTotais)}` : '-'}</TableCell>
+                        <TableCell
+                          onClick={clickDet('despesas')}
+                          title="Clique para ver o detalhamento das despesas"
+                          className="text-xs text-right font-semibold text-red-600 underline decoration-dotted underline-offset-2 hover:bg-red-50"
+                        >
+                          {l.despesasTotais ? `-${fmt(l.despesasTotais)}` : '-'}
+                        </TableCell>
                         <TableCell className="text-xs text-right font-semibold">{fmt(l.liquido)}</TableCell>
                         <TableCell className={`text-xs text-right font-bold ${l.resultado >= 0 ? 'text-primary' : 'text-red-600'}`}>{fmt(l.resultado)}</TableCell>
                       </TableRow>
+                      {detTipo && (
+                        <TableRow key={dk + '-detcol'} className="bg-amber-50/60">
+                          <TableCell colSpan={totalVisibleCols} className="p-3">
+                            {detTipo === 'impostos' ? renderDetImpostos(l) : renderDetDespesas(l)}
+                          </TableCell>
+                        </TableRow>
+                      )}
+
                       {isOpen && (
                         <TableRow key={bloco.key + l.nome + '-det'} className="bg-muted/20">
                           <TableCell colSpan={totalVisibleCols} className="p-0">
