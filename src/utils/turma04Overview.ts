@@ -249,6 +249,7 @@ export interface Pagina5TurmaResultado {
   periodo: string;
   qtd: number;
   bruto: number;
+  acrescimos: number;
   taxas: number;
   liquido: number;
   impostos: number;
@@ -277,6 +278,7 @@ export function computePagina5Turma(
 
 
   const bruto = daTurma.reduce((s, r) => s + r.valorBruto, 0);
+  const acrescimos = daTurma.reduce((s, r) => s + (r.acrescimos || 0), 0);
   const taxas = daTurma.reduce((s, r) => s + r.taxas, 0);
   const liquido = daTurma.reduce((s, r) => s + r.valorLiquido, 0);
   const impostos = daTurma.reduce((s, r) => s + r.vrImposto, 0);
@@ -316,6 +318,7 @@ export function computePagina5Turma(
     periodo: `${MONTH_SHORT[months[0] - 1]} a ${MONTH_SHORT[months[months.length - 1] - 1]}/${year}`,
     qtd: daTurma.length,
     bruto,
+    acrescimos,
     taxas,
     liquido,
     impostos,
