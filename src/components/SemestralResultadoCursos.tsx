@@ -418,17 +418,17 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   <TableCell className="text-xs text-center font-bold">{t.qtd}</TableCell>
                   <TableCell className="text-xs text-right font-bold">{fmt(t.bruto)}</TableCell>
                   <TableCell className="text-xs text-right">-</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.taxas)}</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.impostos)}</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comVendedor)}</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comMkt)}</TableCell>
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta)}</TableCell>
-                  {RATEIO_COLS.map(c => (
+                  {visibleExpenseCols.taxas && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.taxas)}</TableCell>}
+                  {visibleExpenseCols.impostos && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.impostos)}</TableCell>}
+                  {visibleExpenseCols.comVendedor && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comVendedor)}</TableCell>}
+                  {visibleExpenseCols.comMkt && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.comMkt)}</TableCell>}
+                  {visibleExpenseCols.despDireta && <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta)}</TableCell>}
+                  {visibleExpenseCols.rateio.map(c => (
                     <TableCell key={c.cn} className="text-xs text-right font-bold text-red-500">
                       {t.rateioCols[c.cn] ? `-${fmt(t.rateioCols[c.cn])}` : '-'}
                     </TableCell>
                   ))}
-                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despDireta + t.rateio)}</TableCell>
+                  <TableCell className="text-xs text-right font-bold text-red-600">-{fmt(t.despesasTotais)}</TableCell>
 
                   <TableCell className="text-xs text-right font-bold">{fmt(t.liquido)}</TableCell>
                   <TableCell className="text-xs text-right font-bold text-primary">{fmt(t.resultado)}</TableCell>
