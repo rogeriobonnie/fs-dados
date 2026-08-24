@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { Pagina5Record } from '@/types/pagina5';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -493,7 +493,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
                   const dk = bloco.key + l.nome;
                   const isOpen = !!open[dk];
                   const detTipo = det[dk];
-                  const clickDet = (tipo: 'impostos' | 'despesas') => (e: React.MouseEvent) => {
+                  const clickDet = (tipo: 'impostos' | 'despesas') => (e: MouseEvent) => {
                     e.stopPropagation();
                     toggleDet(dk, tipo);
                   };
@@ -649,7 +649,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-muted-foreground">
-          Despesas zeradas são ocultadas automaticamente. Despesas totais = taxas + impostos + comissões + despesas de curso + rateio. Rateio por receita bruta — total <strong>{fmt(calc.totalRateio)}</strong>:{' '}
+          Clique em <strong>Impostos</strong>, <strong>Desp. Cursos</strong>, <strong>rateios</strong> ou <strong>Despesas totais</strong> para ver o detalhamento. Despesas zeradas são ocultadas automaticamente. Despesas totais = taxas + impostos + comissões + despesas de curso + rateio. Rateio por receita bruta — total <strong>{fmt(calc.totalRateio)}</strong>:{' '}
           {RATEIO_COLS.map(c => `${c.label} ${fmt(calc.totalPorCentro[c.cn] || 0)}`).join(' · ')}. Com. MKT (L2) = comissão Lance a Dois do mês (10% do resultado líquido L2) rateada por curso pela receita líquida — total do semestre <strong>{fmt(calc.totalComMkt)}</strong>; 13-Vendas fora (já em Com. Vend.).
         </div>
         <div className="flex items-center gap-2">
