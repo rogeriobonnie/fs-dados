@@ -232,13 +232,38 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
 
   const geral = totalize([...calc.cursos, ...calc.turmas, ...calc.outras]);
 
+  const allLinhas = useMemo(() => [...calc.cursos, ...calc.turmas, ...calc.outras], [calc]);
+
+  const visibleExpenseCols = useMemo(() => {
+    const totals = {
+      taxas: allLinhas.reduce((s, l) => s + l.taxas, 0),
+      impostos: allLinhas.reduce((s, l) => s + l.impostos, 0),
+      comVendedor: allLinhas.reduce((s, l) => s + l.comVendedor, 0),
+      comMkt: allLinhas.reduce((s, l) => s + l.comMkt, 0),
+      despDireta: allLinhas.reduce((s, l) => s + l.despDireta, 0),
+    };
+    const rateio = RATEIO_COLS.filter(c => allLinhas.reduce((s, l) => s + (l.rateioCols[c.cn] || 0), 0) !== 0);
+    return {
+      taxas: totals.taxas !== 0,
+      impostos: totals.impostos !== 0,
+      comVendedor: totals.comVendedor !== 0,
+      comMkt: totals.comMkt !== 0,
+      despDireta: totals.despDireta !== 0,
+      rateio,
+    };
+  }, [allLinhas]);
+
+  const totalVisibleCols = 4 + (visibleExpenseCols.taxas ? 1 : 0) + (visibleExpenseCols.impostos ? 1 : 0)
+    + (visibleExpenseCols.comVendedor ? 1 : 0) + (visibleExpenseCols.comMkt ? 1 : 0)
+    + (visibleExpenseCols.despDireta ? 1 : 0) + visibleExpenseCols.rateio.length + 3;
+
   const matriz = useMemo(
-    () => [...calc.cursos, ...calc.turmas, ...calc.outras].map(l => ({
+    () => allLinhas.map(l => ({
       nome: l.nome,
       meses: l.porMes,
       total: l.porMes.reduce((s, v) => s + v, 0),
     })),
-    [calc],
+    [allLinhas],
   );
 
   const handlePDF = () => {
@@ -254,6 +279,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       despDireta: l.despDireta,
       rateio: l.rateio,
       rateioCols: RATEIO_COLS.map(c => l.rateioCols[c.cn] || 0),
+      despesasTotais: l.despesasTotais,
       liquido: l.liquido,
       resultado: l.resultado,
     });
@@ -261,6 +287,7 @@ const SemestralResultadoCursos = ({ semData, months, year, semNum }: Props) => {
       periodo: `${year}/${semNum}`,
       blocos: blocos.map(b => ({ titulo: b.titulo, cor: b.cor, linhas: b.linhas.map(toPdf) })),
       rateioLabels: RATEIO_COLS.map(c => c.label),
+      visibleExpenseCols,
       matriz,
       mesesLabels: months.map(m => MONTH_SHORT[m - 1]),
       resultadoSemestre: geral.resultado,
