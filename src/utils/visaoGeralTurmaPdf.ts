@@ -201,7 +201,12 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebi
   const recebido = recebidoMeses.reduce((s, m) => s + m.valor, 0);
   const totalFinal = recebido - despP2 - despP5;
 
-  section('5. Recebimentos por mês (Página1)', VERDE);
+  section('5. Resumo final (ago/2025 a jun/2026)', CINZA);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Recebimentos por mês (Página1)', 14, y + 2);
+  doc.setFont('helvetica', 'normal');
+  y += 6;
   autoTable(doc, {
     startY: y,
     theme: 'grid',
@@ -222,7 +227,10 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebi
   });
   afterTable();
 
-  section('6. Resumo final (ago/2025 a jun/2026)', CINZA);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total final', 14, y - 4);
+  doc.setFont('helvetica', 'normal');
   autoTable(doc, {
     startY: y,
     theme: 'grid',
