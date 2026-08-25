@@ -139,26 +139,8 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebi
   );
   doc.setTextColor(0);
 
-  // Detalhamento dos recebimentos por mês
-  meses
-    .filter(m => m.receitas.length > 0)
-    .forEach(m => {
-      section(`2.${m.month} Recebimentos de ${m.label}/2025`, [21, 128, 61]);
-      autoTable(doc, {
-        startY: y,
-        theme: 'striped',
-        styles: { fontSize: 8, cellPadding: 1.5 },
-        headStyles: { fillColor: [21, 128, 61], textColor: 255 },
-        columnStyles: { 2: { halign: 'right' } },
-        head: [['Data', 'Descrição', 'Valor']],
-        body: m.receitas.map(l => [l.data, l.descricao, fmtN(l.valor)]),
-        foot: [['', 'Subtotal', fmtN(m.bruto)]],
-        footStyles: { fillColor: [220, 252, 231], textColor: 20, fontStyle: 'bold' },
-        margin: { left: 14, right: 14 },
-        pageBreak: 'avoid',
-      });
-      afterTable();
-    });
+
+
 
   // ── Bloco 3 ──
   section(`3. Resultado ${p5.periodo} (Página5)`, ROXO);
@@ -187,23 +169,8 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebi
   });
   afterTable();
 
-  if (p5.despesasItens.length) {
-    section('3.1 Despesas diretas do semestre', [124, 58, 237]);
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { fontSize: 8, cellPadding: 1.5 },
-      headStyles: { fillColor: [124, 58, 237], textColor: 255 },
-      columnStyles: { 2: { halign: 'right' } },
-      head: [['Data', 'Descrição', 'Valor']],
-      body: p5.despesasItens.map(l => [l.data, l.descricao, fmtN(l.valor)]),
-      foot: [['', 'Subtotal', fmtN(p5.despCursos)]],
-      footStyles: { fillColor: [237, 233, 254], textColor: 20, fontStyle: 'bold' },
-      margin: { left: 14, right: 14 },
-      pageBreak: 'avoid',
-    });
-    afterTable();
-  }
+
+
 
   // ── Bloco 4 ──
   section('4. Consolidado da Turma 04', CINZA);
@@ -234,7 +201,12 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebi
   const recebido = recebidoMeses.reduce((s, m) => s + m.valor, 0);
   const totalFinal = recebido - despP2 - despP5;
 
-  section('5. Recebimentos por mês (Página1)', VERDE);
+  section('5. Resumo final (ago/2025 a jun/2026)', CINZA);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Recebimentos por mês (Página1)', 14, y + 2);
+  doc.setFont('helvetica', 'normal');
+  y += 6;
   autoTable(doc, {
     startY: y,
     theme: 'grid',
@@ -255,7 +227,10 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebi
   });
   afterTable();
 
-  section('6. Resumo final (ago/2025 a jun/2026)', CINZA);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total final', 14, y - 4);
+  doc.setFont('helvetica', 'normal');
   autoTable(doc, {
     startY: y,
     theme: 'grid',

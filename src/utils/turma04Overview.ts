@@ -172,6 +172,10 @@ export interface MesTurma {
 
 export const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
+/** Comissão das consultoras na Página2 (3%), mesma regra das abas Consultoras/Lance a Dois. */
+const COMISSAO_VENDEDOR = 0.03;
+
+
 const isEntrada = (t: string) => {
   const n = norm(t);
   return n.includes('ENTRADA') || n.includes('TRANSITAR');
@@ -221,12 +225,26 @@ export function computePagina2Turma(
     const peso = brutoGeral > 0 ? bruto / brutoGeral : 0;
 
     const impostosRecs = doMes.filter(isImposto);
-    const comVendRecs = doMes.filter(isComissaoVend);
     const comLadRecs = doMes.filter(isComissaoLad);
 
     const impostos = impostosRecs.reduce((s, r) => s + r.amount, 0) * peso;
-    const comVendedor = comVendRecs.reduce((s, r) => s + r.amount, 0) * peso;
     const comLad = comLadRecs.reduce((s, r) => s + r.amount, 0) * peso;
+
+    // Comissão de vendedores: 3% direto sobre as entradas da turma que têm vendedor (coluna I).
+    // Se a Página2 tiver linhas explícitas de comissão, elas entram rateadas.
+    const comVendRecs = doMes.filter(isComissaoVend);
+    const comVendLancado = comVendRecs.reduce((s, r) => s + r.amount, 0) * peso;
+    const comTurmaRecs = daTurma.filter(r => norm(r.vendedor || '').length > 0);
+    const comVendCalc = comTurmaRecs.reduce((s, r) => s + r.amount * COMISSAO_VENDEDOR, 0);
+    const comVendedor = comVendLancado > 0 ? comVendLancado : comVendCalc;
+    const comVendedorItens =
+      comVendLancado > 0
+        ? comVendRecs.map(r => toLanc(r, r.amount * peso))
+        : comTurmaRecs.map(r => ({
+            data: r.date || '',
+            descricao: `${r.vendedor} — ${[r.description, r.details].filter(Boolean).join(' — ')} (3%)`,
+            valor: r.amount * COMISSAO_VENDEDOR,
+          }));
 
     return {
       month: m,
@@ -240,8 +258,9 @@ export function computePagina2Turma(
       liquido: bruto - impostos - comVendedor - comLad,
       receitas: daTurma.map(r => toLanc(r, r.amount)).sort((a, b) => b.valor - a.valor),
       impostosItens: impostosRecs.map(r => toLanc(r, r.amount * peso)),
-      comVendedorItens: comVendRecs.map(r => toLanc(r, r.amount * peso)),
+      comVendedorItens,
       comLadItens: comLadRecs.map(r => toLanc(r, r.amount * peso)),
+
     };
   });
 
