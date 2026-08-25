@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { ContratosResumo, MesTurma, Pagina5TurmaResultado } from '@/utils/turma04Overview';
+import type { ContratosResumo, MesTurma, Pagina5TurmaResultado, RecebidoMes } from '@/utils/turma04Overview';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtN = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
