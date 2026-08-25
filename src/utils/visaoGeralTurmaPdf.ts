@@ -139,26 +139,8 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebi
   );
   doc.setTextColor(0);
 
-  // Detalhamento dos recebimentos por mês
-  meses
-    .filter(m => m.receitas.length > 0)
-    .forEach(m => {
-      section(`2.${m.month} Recebimentos de ${m.label}/2025`, [21, 128, 61]);
-      autoTable(doc, {
-        startY: y,
-        theme: 'striped',
-        styles: { fontSize: 8, cellPadding: 1.5 },
-        headStyles: { fillColor: [21, 128, 61], textColor: 255 },
-        columnStyles: { 2: { halign: 'right' } },
-        head: [['Data', 'Descrição', 'Valor']],
-        body: m.receitas.map(l => [l.data, l.descricao, fmtN(l.valor)]),
-        foot: [['', 'Subtotal', fmtN(m.bruto)]],
-        footStyles: { fillColor: [220, 252, 231], textColor: 20, fontStyle: 'bold' },
-        margin: { left: 14, right: 14 },
-        pageBreak: 'avoid',
-      });
-      afterTable();
-    });
+
+
 
   // ── Bloco 3 ──
   section(`3. Resultado ${p5.periodo} (Página5)`, ROXO);
