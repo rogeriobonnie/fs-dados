@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, FileText, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import {
   computeContratos,
   computePagina2Turma,
@@ -29,7 +30,9 @@ const VisaoGeralTurma = ({ data }: Props) => {
   const [dre, setDre] = useState<DRERecordLike[]>([]);
   const [p5Data, setP5Data] = useState<Pagina5Record[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [detKey, setDetKey] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const load = async () => {
     setLoading(true);
@@ -56,6 +59,27 @@ const VisaoGeralTurma = ({ data }: Props) => {
 
 
   const toggleDet = (k: string) => setDetKey(prev => (prev === k ? null : k));
+
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      await new Promise(resolve => window.setTimeout(resolve, 50));
+      exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebidoMeses });
+      toast({
+        title: 'PDF gerado',
+        description: 'O download do relatório foi iniciado.',
+      });
+    } catch (error) {
+      console.error('Erro ao exportar visão geral da turma:', error);
+      toast({
+        title: 'Erro ao exportar PDF',
+        description: 'Não foi possível gerar o relatório. Tente atualizar as bases e exportar novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const DetTable = ({ itens, titulo }: { itens: Lancamento[]; titulo: string }) => (
     <div className="rounded-md border bg-muted/30 p-3">
@@ -111,10 +135,11 @@ const VisaoGeralTurma = ({ data }: Props) => {
         </Button>
         <Button
           size="sm"
-          onClick={() => exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebidoMeses })}
+          onClick={handleExportPDF}
+          disabled={exporting}
         >
           <FileText className="h-4 w-4" />
-          Exportar PDF
+          {exporting ? 'Gerando PDF...' : 'Exportar PDF'}
         </Button>
       </div>
 
