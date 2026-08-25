@@ -229,34 +229,49 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5 }: Visa
   // ── Bloco 5 — Resumo final ──
   const despP2 = totalP2.impostos + totalP2.comVendedor + totalP2.comLad;
   const despP5 = p5.taxas + p5.impostos + p5.comVendedor + p5.comMkt + p5.despCursos;
-  const receitaEfetiva =
-    contratos.totalContratado - contratos.distratoPerdido - contratos.totalPendente - contratos.totalVencido;
-  const totalFinal = receitaEfetiva - despP2 - despP5;
+  const recebido = recebidoMeses.reduce((s, m) => s + m.valor, 0);
+  const totalFinal = recebido - despP2 - despP5;
 
-  section('5. Resumo final (ago/2025 a jun/2026)', VERDE);
+  section('5. Recebimentos por mês (Página1)', VERDE);
   autoTable(doc, {
     startY: y,
     theme: 'grid',
-    styles: { fontSize: 9.5, cellPadding: 2.4 },
+    styles: { fontSize: 9, cellPadding: 2.2 },
     headStyles: { fillColor: VERDE, textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [240, 253, 244] },
-    columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+    head: [['Mês', 'Parcelas', 'Recebido']],
+    body: recebidoMeses.map(m => [m.label, String(m.parcelas), fmt(m.valor)]),
+    foot: [[
+      'Total recebido',
+      String(recebidoMeses.reduce((s, m) => s + m.parcelas, 0)),
+      fmt(recebido),
+    ]],
+    footStyles: { fillColor: [209, 250, 229], textColor: 20, fontStyle: 'bold' },
+    margin: { left: 14, right: 14 },
+    pageBreak: 'avoid',
+  });
+  afterTable();
+
+  section('6. Resumo final (ago/2025 a jun/2026)', CINZA);
+  autoTable(doc, {
+    startY: y,
+    theme: 'grid',
+    styles: { fontSize: 10, cellPadding: 2.8 },
+    headStyles: { fillColor: CINZA, textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [243, 244, 246] },
+    columnStyles: { 1: { halign: 'right', fontStyle: 'bold', cellWidth: 45 } },
     head: [['Resumo final', 'Valor']],
     body: [
-      ['Receita total contratada', fmt(contratos.totalContratado)],
-      ['(−) Perdido em distratos', `− ${fmt(contratos.distratoPerdido)}`],
-      ['(−) A receber (em dia)', `− ${fmt(contratos.totalPendente)}`],
-      ['(−) Atrasados (vencidos)', `− ${fmt(contratos.totalVencido)}`],
-      ['Receita efetivamente recebida', fmt(receitaEfetiva)],
-      ['(−) Despesas ago–dez/2025 (impostos, taxas e comissões)', `− ${fmt(despP2)}`],
-      [`(−) Despesas ${p5.periodo} (taxas, impostos, comissões e desp. cursos)`, `− ${fmt(despP5)}`],
+      ['Total recebido (Página1)', fmt(recebido)],
+      ['(-) Despesas ago-dez/2025', fmt(despP2)],
+      [`(-) Despesas ${p5.periodo}`, fmt(despP5)],
       ['Total final da Turma 04', fmt(totalFinal)],
     ],
     didParseCell: d => {
       if (d.section !== 'body') return;
-      if (d.row.index === 4) d.cell.styles.fillColor = [209, 250, 229];
-      if (d.row.index === 7) {
-        d.cell.styles.fillColor = totalFinal >= 0 ? [22, 128, 96] : [185, 28, 28];
+      if (d.row.index === 3) {
+        d.cell.styles.fillColor = totalFinal >= 0 ? VERDE : [185, 28, 28];
         d.cell.styles.textColor = 255;
         d.cell.styles.fontStyle = 'bold';
       }
@@ -264,6 +279,7 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5 }: Visa
     margin: { left: 14, right: 14 },
     pageBreak: 'avoid',
   });
+
 
 
   // Paginação
