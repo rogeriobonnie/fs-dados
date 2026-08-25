@@ -169,23 +169,8 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebi
   });
   afterTable();
 
-  if (p5.despesasItens.length) {
-    section('3.1 Despesas diretas do semestre', [124, 58, 237]);
-    autoTable(doc, {
-      startY: y,
-      theme: 'striped',
-      styles: { fontSize: 8, cellPadding: 1.5 },
-      headStyles: { fillColor: [124, 58, 237], textColor: 255 },
-      columnStyles: { 2: { halign: 'right' } },
-      head: [['Data', 'Descrição', 'Valor']],
-      body: p5.despesasItens.map(l => [l.data, l.descricao, fmtN(l.valor)]),
-      foot: [['', 'Subtotal', fmtN(p5.despCursos)]],
-      footStyles: { fillColor: [237, 233, 254], textColor: 20, fontStyle: 'bold' },
-      margin: { left: 14, right: 14 },
-      pageBreak: 'avoid',
-    });
-    afterTable();
-  }
+
+
 
   // ── Bloco 4 ──
   section('4. Consolidado da Turma 04', CINZA);
