@@ -93,7 +93,47 @@ export function computeContratos(data: FinancialRecord[]): ContratosResumo {
   };
 }
 
+// ───────────────── Recebimentos mensais (Página1) ─────────────────
+
+export interface RecebidoMes {
+  key: string;
+  label: string;
+  valor: number;
+  parcelas: number;
+}
+
+const parseAnyDate = (s?: string): { y: number; m: number } | null => {
+  if (!s) return null;
+  const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (br) {
+    const y = Number(br[3]);
+    return { y: y < 100 ? 2000 + y : y, m: Number(br[2]) };
+  }
+  const iso = s.match(/^(\d{4})-(\d{1,2})/);
+  if (iso) return { y: Number(iso[1]), m: Number(iso[2]) };
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : { y: d.getFullYear(), m: d.getMonth() + 1 };
+};
+
+/** Soma das parcelas PAGAS da Página1 agrupadas por mês de pagamento. */
+export function computeRecebidoPorMes(data: FinancialRecord[]): RecebidoMes[] {
+  const map = new Map<string, RecebidoMes>();
+  data.forEach(r => {
+    if (r.status !== 'PAGO') return;
+    const d = parseAnyDate(r.paymentDate) || parseAnyDate(r.dueDate);
+    if (!d) return;
+    const key = `${d.y}-${String(d.m).padStart(2, '0')}`;
+    if (!map.has(key))
+      map.set(key, { key, label: `${MONTH_SHORT[d.m - 1]}/${String(d.y).slice(2)}`, valor: 0, parcelas: 0 });
+    const e = map.get(key)!;
+    e.valor += valorParcela(r);
+    e.parcelas += 1;
+  });
+  return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+}
+
 // ───────────────────── Bloco 2 — Página2 (ago–dez/2025) ─────────────────────
+
 
 export interface DRERecordLike {
   id: string;
