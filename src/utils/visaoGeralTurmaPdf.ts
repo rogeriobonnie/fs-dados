@@ -224,6 +224,47 @@ export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5 }: Visa
     margin: { left: 14, right: 14 },
     pageBreak: 'avoid',
   });
+  afterTable();
+
+  // ── Bloco 5 — Resumo final ──
+  const despP2 = totalP2.impostos + totalP2.comVendedor + totalP2.comLad;
+  const despP5 = p5.taxas + p5.impostos + p5.comVendedor + p5.comMkt + p5.despCursos;
+  const receitaEfetiva =
+    contratos.totalContratado - contratos.distratoPerdido - contratos.totalPendente - contratos.totalVencido;
+  const totalFinal = receitaEfetiva - despP2 - despP5;
+
+  section('5. Resumo final (ago/2025 a jun/2026)', VERDE);
+  autoTable(doc, {
+    startY: y,
+    theme: 'grid',
+    styles: { fontSize: 9.5, cellPadding: 2.4 },
+    headStyles: { fillColor: VERDE, textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [240, 253, 244] },
+    columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+    head: [['Resumo final', 'Valor']],
+    body: [
+      ['Receita total contratada', fmt(contratos.totalContratado)],
+      ['(−) Perdido em distratos', `− ${fmt(contratos.distratoPerdido)}`],
+      ['(−) A receber (em dia)', `− ${fmt(contratos.totalPendente)}`],
+      ['(−) Atrasados (vencidos)', `− ${fmt(contratos.totalVencido)}`],
+      ['Receita efetivamente recebida', fmt(receitaEfetiva)],
+      ['(−) Despesas ago–dez/2025 (impostos, taxas e comissões)', `− ${fmt(despP2)}`],
+      [`(−) Despesas ${p5.periodo} (taxas, impostos, comissões e desp. cursos)`, `− ${fmt(despP5)}`],
+      ['Total final da Turma 04', fmt(totalFinal)],
+    ],
+    didParseCell: d => {
+      if (d.section !== 'body') return;
+      if (d.row.index === 4) d.cell.styles.fillColor = [209, 250, 229];
+      if (d.row.index === 7) {
+        d.cell.styles.fillColor = totalFinal >= 0 ? [22, 128, 96] : [185, 28, 28];
+        d.cell.styles.textColor = 255;
+        d.cell.styles.fontStyle = 'bold';
+      }
+    },
+    margin: { left: 14, right: 14 },
+    pageBreak: 'avoid',
+  });
+
 
   // Paginação
   const total = doc.getNumberOfPages();
