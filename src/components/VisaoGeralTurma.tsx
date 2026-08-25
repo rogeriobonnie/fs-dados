@@ -111,7 +111,7 @@ const VisaoGeralTurma = ({ data }: Props) => {
         </Button>
         <Button
           size="sm"
-          onClick={() => exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5 })}
+          onClick={() => exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebidoMeses })}
         >
           <FileText className="h-4 w-4" />
           Exportar PDF
