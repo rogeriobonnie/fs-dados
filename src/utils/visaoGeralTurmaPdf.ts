@@ -15,9 +15,11 @@ export interface VisaoGeralPDFParams {
   meses: MesTurma[];
   totalP2: { bruto: number; impostos: number; comVendedor: number; comLad: number; liquido: number; peso: number };
   p5: Pagina5TurmaResultado;
+  recebidoMeses: RecebidoMes[];
 }
 
-export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5 }: VisaoGeralPDFParams) {
+export function exportVisaoGeralTurmaPDF({ contratos, meses, totalP2, p5, recebidoMeses }: VisaoGeralPDFParams) {
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   let y = 0;
