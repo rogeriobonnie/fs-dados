@@ -380,56 +380,80 @@ const VisaoGeralTurma = ({ data }: Props) => {
       {(() => {
         const despP2 = totalP2.impostos + totalP2.comVendedor + totalP2.comLad;
         const despP5 = p5.taxas + p5.impostos + p5.comVendedor + p5.comMkt + p5.despCursos;
-        const receitaEfetiva =
-          contratos.totalContratado -
-          contratos.distratoPerdido -
-          contratos.totalPendente -
-          contratos.totalVencido;
-        const total = receitaEfetiva - despP2 - despP5;
-        const row = (label: string, valor: number, cls = '', neg = false) => (
-          <TableRow>
-            <TableCell>{label}</TableCell>
-            <TableCell className={`text-right font-semibold ${cls}`}>
-              {neg ? `− ${fmt(Math.abs(valor))}` : fmt(valor)}
-            </TableCell>
-          </TableRow>
-        );
+        const recebido = recebidoMeses.reduce((s, m) => s + m.valor, 0);
+        const total = recebido - despP2 - despP5;
         return (
           <Card>
             <CardHeader className="rounded-t-lg bg-sky-100 dark:bg-sky-950/40">
               <CardTitle className="text-base">5. Resumo final (ago/2025 a jun/2026)</CardTitle>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-6">
+              <div>
+                <div className="mb-2 text-sm font-semibold text-muted-foreground">
+                  Recebimentos por mês (Página1)
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mês</TableHead>
+                      <TableHead className="text-right">Parcelas</TableHead>
+                      <TableHead className="text-right">Recebido</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recebidoMeses.map(m => (
+                      <TableRow key={m.key}>
+                        <TableCell>{m.label}</TableCell>
+                        <TableCell className="text-right">{m.parcelas}</TableCell>
+                        <TableCell className="text-right">{fmt(m.valor)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell className="font-semibold">Total recebido</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {recebidoMeses.reduce((s, m) => s + m.parcelas, 0)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">{fmt(recebido)}</TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </div>
+
               <Table>
                 <TableBody>
-                  {row('Receita total contratada', contratos.totalContratado)}
-                  {row('(−) Perdido em distratos', contratos.distratoPerdido, 'text-red-600 dark:text-red-400', true)}
-                  {row('(−) A receber (em dia)', contratos.totalPendente, 'text-blue-600 dark:text-blue-400', true)}
-                  {row('(−) Atrasados (vencidos)', contratos.totalVencido, 'text-amber-600 dark:text-amber-400', true)}
-                  <TableRow className="bg-muted/60">
-                    <TableCell className="font-semibold">Receita efetivamente recebida</TableCell>
-                    <TableCell className="text-right font-bold">{fmt(receitaEfetiva)}</TableCell>
+                  <TableRow>
+                    <TableCell>Total recebido (Página1)</TableCell>
+                    <TableCell className="text-right font-semibold">{fmt(recebido)}</TableCell>
                   </TableRow>
-                  {row('(−) Despesas ago–dez/2025 (impostos, taxas e comissões)', despP2, 'text-red-600 dark:text-red-400', true)}
-                  {row(`(−) Despesas ${p5.periodo} (taxas, impostos, comissões e desp. cursos)`, despP5, 'text-red-600 dark:text-red-400', true)}
+                  <TableRow>
+                    <TableCell>(−) Despesas ago–dez/2025</TableCell>
+                    <TableCell className="text-right font-semibold text-red-600 dark:text-red-400">
+                      {fmt(despP2)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>(−) Despesas {p5.periodo}</TableCell>
+                    <TableCell className="text-right font-semibold text-red-600 dark:text-red-400">
+                      {fmt(despP5)}
+                    </TableCell>
+                  </TableRow>
                   <TableRow className="bg-muted">
                     <TableCell className="font-bold">Total final da Turma 04</TableCell>
                     <TableCell
-                      className={`text-right font-bold text-lg ${total >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                      className={`text-right text-lg font-bold ${total >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                     >
                       {fmt(total)}
                     </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Receita efetivamente recebida = contratado − distratos em aberto − parcelas a receber − parcelas
-                atrasadas. Despesas somam o que foi localizado na Página2 (ago–dez/2025) e na Página5 ({p5.periodo}).
-              </p>
             </CardContent>
           </Card>
         );
       })()}
+
     </div>
 
   );
