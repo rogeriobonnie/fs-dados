@@ -50,8 +50,10 @@ const VisaoGeralTurma = ({ data }: Props) => {
   }, []);
 
   const contratos = useMemo(() => computeContratos(data), [data]);
+  const recebidoMeses = useMemo(() => computeRecebidoPorMes(data), [data]);
   const { meses, total: totalP2 } = useMemo(() => computePagina2Turma(dre), [dre]);
   const p5 = useMemo(() => computePagina5Turma(p5Data, SEM_YEAR, SEM_MONTHS), [p5Data]);
+
 
   const toggleDet = (k: string) => setDetKey(prev => (prev === k ? null : k));
 
