@@ -172,6 +172,10 @@ export interface MesTurma {
 
 export const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
+/** Comissão das consultoras na Página2 (3%), mesma regra das abas Consultoras/Lance a Dois. */
+const COMISSAO_VENDEDOR = 0.03;
+
+
 const isEntrada = (t: string) => {
   const n = norm(t);
   return n.includes('ENTRADA') || n.includes('TRANSITAR');
