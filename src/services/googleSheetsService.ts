@@ -111,7 +111,7 @@ export class GoogleSheetsService {
     }
   }
 
-  }
+
 
   static async fetchDREData(): Promise<any[]> {
     const apiKey = this.getApiKey();
