@@ -78,7 +78,10 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Error fetching sheet data:', error);
       throw error;
+    }
   }
+
+
 
   static async fetchTurmaVData(): Promise<FinancialRecord[]> {
     const apiKey = this.getApiKey();
