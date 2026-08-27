@@ -1,11 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
-import { FinancialDashboard } from '@/components/FinancialDashboard';
-import { FinancialFilters, FilterState } from '@/components/FinancialFilters';
-import { FinancialTable } from '@/components/FinancialTable';
-import { StudentsDirectory } from '@/components/StudentsDirectory';
-import { QuickFilters } from '@/components/QuickFilters';
-import { MonthlyRevenue } from '@/components/MonthlyRevenue';
-import { MonthlyCommissionReport } from '@/components/MonthlyCommissionReport';
+import { useState, useEffect } from 'react';
 import FinancialDRE from '@/components/FinancialDRE';
 import FinancialDRENovo from '@/components/FinancialDRENovo';
 import CursosParceiros from '@/components/CursosParceiros';
@@ -13,35 +6,20 @@ import CashFlow from '@/components/CashFlow';
 import PainelFinanceiro from '@/components/PainelFinanceiro';
 import HistoricoAnual from '@/components/HistoricoAnual';
 import Comissoes from '@/components/Comissoes';
+import TurmaPanel from '@/components/TurmaPanel';
 import { PinAuth } from '@/components/PinAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { financialData } from '@/data/financialData';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
-import { calculateFinancialSummary, calculateConsultantSummaries } from '@/utils/financialCalculations';
 import { FinancialRecord } from '@/types/financial';
-import { Table2, Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3, UserX, AlertTriangle } from 'lucide-react';
+import { Users, TrendingUp, RefreshCw, LogOut, DollarSign, BarChart3, GraduationCap } from 'lucide-react';
 import logoFS from '@/assets/logo-fs.png';
-import DistratosNegociacao from '@/components/DistratosNegociacao';
-import RelatorioInadimplencia from '@/components/RelatorioInadimplencia';
-import ResumoGerencialTurma from '@/components/ResumoGerencialTurma';
-import VisaoGeralTurma from '@/components/VisaoGeralTurma';
 
 const Index = () => {
-  const [filters, setFilters] = useState<FilterState>({
-    status: 'all',
-    consultant: 'all',
-    studentName: '',
-    monthFrom: 'all',
-    yearFrom: 'all',
-    monthTo: 'all',
-    yearTo: 'all',
-    amountMin: '',
-    amountMax: ''
-  });
-
   const [data, setData] = useState<FinancialRecord[]>(financialData);
+  const [turmaVData, setTurmaVData] = useState<FinancialRecord[]>([]);
   const [isConnectedToSheets, setIsConnectedToSheets] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -56,7 +34,7 @@ const Index = () => {
   // Check connection on mount (only if authenticated)
   useEffect(() => {
     if (!isAuthenticated) return;
-    
+
     const checkConnection = async () => {
       const connected = await GoogleSheetsService.testConnection();
       setIsConnectedToSheets(connected);
@@ -67,7 +45,6 @@ const Index = () => {
     checkConnection();
   }, [isAuthenticated]);
 
-  // Handle authentication change
   const handleAuthenticated = (authenticated: boolean) => {
     setIsAuthenticated(authenticated);
   };
@@ -75,11 +52,18 @@ const Index = () => {
   const loadDataFromSheets = async () => {
     setIsLoading(true);
     try {
-      const sheetData = await GoogleSheetsService.fetchSheetData();
+      const [sheetData, turmaV] = await Promise.all([
+        GoogleSheetsService.fetchSheetData(),
+        GoogleSheetsService.fetchTurmaVData().catch((e) => {
+          console.error('Erro ao carregar Turma V:', e);
+          return [] as FinancialRecord[];
+        }),
+      ]);
       setData(sheetData);
+      setTurmaVData(turmaV);
       toast({
         title: "Dados atualizados!",
-        description: `${sheetData.length} registros carregados da planilha`,
+        description: `${sheetData.length} registros da Turma IV e ${turmaV.length} da Turma V`,
       });
     } catch (error) {
       console.error('Error loading data from sheets:', error);
@@ -88,65 +72,9 @@ const Index = () => {
         description: "Falha ao conectar com a planilha. Usando dados locais.",
         variant: "destructive",
       });
-      setData(financialData); // Fallback to local data
+      setData(financialData);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Filter data based on current filters
-  const filteredData = useMemo(() => {
-    return data.filter(record => {
-      // Status filter
-      if (filters.status && filters.status !== 'all' && record.status !== filters.status) return false;
-      
-      // Consultant filter
-      if (filters.consultant && filters.consultant !== 'all') {
-        const consultantValue = filters.consultant === 'direct' ? '' : filters.consultant;
-        if (record.consultant !== consultantValue) return false;
-      }
-      
-      // Student name filter
-      if (filters.studentName && !record.studentName.toLowerCase().includes(filters.studentName.toLowerCase())) return false;
-      
-      // Date range filter
-      const dueDate = new Date(record.dueDate);
-      const dueMonth = String(dueDate.getMonth() + 1).padStart(2, '0');
-      const dueYear = dueDate.getFullYear().toString();
-      
-      // From date filter
-      if (filters.monthFrom && filters.monthFrom !== 'all' && filters.yearFrom && filters.yearFrom !== 'all') {
-        const fromDate = new Date(parseInt(filters.yearFrom), parseInt(filters.monthFrom) - 1, 1);
-        if (dueDate < fromDate) return false;
-      }
-      
-      // To date filter
-      if (filters.monthTo && filters.monthTo !== 'all' && filters.yearTo && filters.yearTo !== 'all') {
-        const toDate = new Date(parseInt(filters.yearTo), parseInt(filters.monthTo), 0); // Last day of month
-        if (dueDate > toDate) return false;
-      }
-      
-      // Amount filters
-      if (filters.amountMin && record.amount < parseFloat(filters.amountMin)) return false;
-      if (filters.amountMax && record.amount > parseFloat(filters.amountMax)) return false;
-      
-      return true;
-    });
-  }, [data, filters]);
-
-  // Excluir DISTRATO e EM NEGOCIAÇÃO da aba principal de Alunos/Dashboard
-  const mainFilteredData = useMemo(
-    () => filteredData.filter(r => !r.isDistrato && r.status !== 'EM NEGOCIACAO'),
-    [filteredData],
-  );
-  const summary = useMemo(() => calculateFinancialSummary(mainFilteredData), [mainFilteredData]);
-  const consultantSummaries = useMemo(() => calculateConsultantSummaries(mainFilteredData), [mainFilteredData]);
-  const uniqueConsultants = useMemo(() => [...new Set(data.map(r => r.consultant))], [data]);
-
-  const handleConnectionChange = (connected: boolean) => {
-    setIsConnectedToSheets(connected);
-    if (connected) {
-      loadDataFromSheets();
     }
   };
 
@@ -159,12 +87,11 @@ const Index = () => {
     });
   };
 
-  // Show authentication screen if not authenticated
   if (!isAuthenticated) {
     return (
-      <PinAuth 
-        onAuthenticated={handleAuthenticated} 
-        isAuthenticated={isAuthenticated} 
+      <PinAuth
+        onAuthenticated={handleAuthenticated}
+        isAuthenticated={isAuthenticated}
       />
     );
   }
@@ -179,11 +106,11 @@ const Index = () => {
               <img src={logoFS} alt="Fisioterapeutas do Sono" className="h-16 w-auto" />
               <h1 className="text-3xl font-bold tracking-tight text-white">Controle FS</h1>
             </div>
-            
+
             <div className="flex gap-2">
               {isConnectedToSheets && (
-                <Button 
-                  onClick={loadDataFromSheets} 
+                <Button
+                  onClick={loadDataFromSheets}
                   disabled={isLoading}
                   variant="outline"
                   className="flex items-center gap-2"
@@ -192,9 +119,9 @@ const Index = () => {
                   {isLoading ? 'Atualizando...' : 'Atualizar Dados'}
                 </Button>
               )}
-              
-              <Button 
-                onClick={handleLogout} 
+
+              <Button
+                onClick={handleLogout}
                 variant="outline"
                 className="flex items-center gap-2"
               >
@@ -205,11 +132,11 @@ const Index = () => {
           </div>
 
           {/* Main Tabs */}
-          <Tabs defaultValue="fs-turma" className="space-y-6">
+          <Tabs defaultValue="curso-extensao" className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="fs-turma" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                FS Turma IV
+              <TabsTrigger value="curso-extensao" className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" />
+                Curso de Extensão
               </TabsTrigger>
               <TabsTrigger value="demonstracoes" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
@@ -225,83 +152,25 @@ const Index = () => {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="fs-turma" className="space-y-6">
-              {/* Dashboard Overview */}
-              <FinancialDashboard summary={summary} consultantSummaries={consultantSummaries} />
-
-              {/* Quick Filters */}
-              <QuickFilters
-                filters={filters}
-                onFiltersChange={setFilters}
-                totalRecords={filteredData.length}
-              />
-
-              {/* Advanced Filters */}
-              <FinancialFilters
-                filters={filters}
-                onFiltersChange={setFilters}
-                consultants={uniqueConsultants}
-              />
-
-              {/* Nested Tabs for FS Turma IV content */}
-              <Tabs defaultValue="visao-geral" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-7 text-xs">
-                  <TabsTrigger value="visao-geral" className="flex items-center gap-1 px-2">
-                    <TrendingUp className="h-3 w-3" />
-                    Visão Geral
+            <TabsContent value="curso-extensao" className="space-y-6">
+              <Tabs defaultValue="turma-v" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="turma-v" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Turma V
                   </TabsTrigger>
-                  <TabsTrigger value="resumo" className="flex items-center gap-1 px-2">
-                    <BarChart3 className="h-3 w-3" />
-                    Resumo Gerencial
-                  </TabsTrigger>
-                  <TabsTrigger value="students" className="flex items-center gap-1 px-2">
-                    <Users className="h-3 w-3" />
-                    Alunos
-                  </TabsTrigger>
-                  <TabsTrigger value="monthly" className="flex items-center gap-1 px-2">
-                    <TrendingUp className="h-3 w-3" />
-                    Mensal
-                  </TabsTrigger>
-                  <TabsTrigger value="table" className="flex items-center gap-1 px-2">
-                    <Table2 className="h-3 w-3" />
-                    Tabela
-                  </TabsTrigger>
-                  <TabsTrigger value="inadimplencia" className="flex items-center gap-1 px-2">
-                    <AlertTriangle className="h-3 w-3" />
-                    Inadimplência
-                  </TabsTrigger>
-                  <TabsTrigger value="distratos" className="flex items-center gap-1 px-2">
-                    <UserX className="h-3 w-3" />
-                    Distratos
+                  <TabsTrigger value="turma-iv" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Turma IV
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="visao-geral" className="space-y-6">
-                  <VisaoGeralTurma data={filteredData} />
+                <TabsContent value="turma-v" className="space-y-6">
+                  <TurmaPanel data={turmaVData} />
                 </TabsContent>
 
-                <TabsContent value="resumo" className="space-y-6">
-                  <ResumoGerencialTurma data={filteredData} />
-                </TabsContent>
-
-                <TabsContent value="students" className="space-y-6">
-                  <StudentsDirectory data={mainFilteredData} />
-                </TabsContent>
-
-                <TabsContent value="monthly" className="space-y-6">
-                  <MonthlyRevenue data={mainFilteredData} />
-                </TabsContent>
-
-                <TabsContent value="table" className="space-y-6">
-                  <FinancialTable data={mainFilteredData} />
-                </TabsContent>
-
-                <TabsContent value="inadimplencia" className="space-y-6">
-                  <RelatorioInadimplencia data={filteredData} />
-                </TabsContent>
-
-                <TabsContent value="distratos" className="space-y-6">
-                  <DistratosNegociacao data={filteredData} />
+                <TabsContent value="turma-iv" className="space-y-6">
+                  <TurmaPanel data={data} showVisaoGeral />
                 </TabsContent>
               </Tabs>
             </TabsContent>
@@ -337,7 +206,7 @@ const Index = () => {
                   <CursosParceiros />
                 </TabsContent>
                 <TabsContent value="dre" className="space-y-6">
-                  <FinancialDRE data={filteredData} />
+                  <FinancialDRE data={data} />
                 </TabsContent>
                 <TabsContent value="fluxo-caixa" className="space-y-6">
                   <CashFlow />
