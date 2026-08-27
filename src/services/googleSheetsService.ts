@@ -81,6 +81,38 @@ export class GoogleSheetsService {
     }
   }
 
+
+
+  static async fetchTurmaVData(): Promise<FinancialRecord[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      const range = `'TURMA V'!A:P`;
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados da Turma V: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+
+      return this.parseSheetData(rows);
+    } catch (error) {
+      console.error('Error fetching Turma V data:', error);
+      throw error;
+    }
+  }
+
+
+
   static async fetchDREData(): Promise<any[]> {
     const apiKey = this.getApiKey();
     const sheetId = this.getSheetId();
