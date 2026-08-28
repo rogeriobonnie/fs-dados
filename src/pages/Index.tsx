@@ -54,19 +54,25 @@ const Index = () => {
   const loadDataFromSheets = async () => {
     setIsLoading(true);
     try {
-      const [sheetData, turmaV] = await Promise.all([
+      const [sheetData, turmaV, turmaIII] = await Promise.all([
         GoogleSheetsService.fetchSheetData(),
         GoogleSheetsService.fetchTurmaVData().catch((e) => {
           console.error('Erro ao carregar Turma V:', e);
           return [] as FinancialRecord[];
         }),
+        GoogleSheetsService.fetchTurmaIIIData().catch((e) => {
+          console.error('Erro ao carregar Turma III:', e);
+          return [] as FinancialRecord[];
+        }),
       ]);
       setData(sheetData);
       setTurmaVData(turmaV);
+      setTurmaIIIData(turmaIII);
       toast({
         title: "Dados atualizados!",
-        description: `${sheetData.length} registros da Turma IV e ${turmaV.length} da Turma V`,
+        description: `${sheetData.length} registros da Turma IV, ${turmaV.length} da Turma V e ${turmaIII.length} da Turma III`,
       });
+
     } catch (error) {
       console.error('Error loading data from sheets:', error);
       toast({
