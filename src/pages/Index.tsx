@@ -162,7 +162,7 @@ const Index = () => {
 
             <TabsContent value="curso-extensao" className="space-y-6">
               <Tabs defaultValue="turma-v" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="turma-v" className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Turma V
@@ -170,6 +170,10 @@ const Index = () => {
                   <TabsTrigger value="turma-iv" className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Turma IV
+                  </TabsTrigger>
+                  <TabsTrigger value="turma-iii" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Turma III
                   </TabsTrigger>
                 </TabsList>
 
@@ -180,6 +184,11 @@ const Index = () => {
                 <TabsContent value="turma-iv" className="space-y-6">
                   <TurmaPanel data={data} showVisaoGeral />
                 </TabsContent>
+
+                <TabsContent value="turma-iii" className="space-y-6">
+                  <TurmaPanel data={turmaIIIData} />
+                </TabsContent>
+
               </Tabs>
             </TabsContent>
 
