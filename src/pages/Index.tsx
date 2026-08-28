@@ -20,6 +20,8 @@ import logoFS from '@/assets/logo-fs.png';
 const Index = () => {
   const [data, setData] = useState<FinancialRecord[]>(financialData);
   const [turmaVData, setTurmaVData] = useState<FinancialRecord[]>([]);
+  const [turmaIIIData, setTurmaIIIData] = useState<FinancialRecord[]>([]);
+
   const [isConnectedToSheets, setIsConnectedToSheets] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
