@@ -111,6 +111,36 @@ export class GoogleSheetsService {
     }
   }
 
+  static async fetchTurmaIIIData(): Promise<FinancialRecord[]> {
+    const apiKey = this.getApiKey();
+    const sheetId = this.getSheetId();
+
+    if (!apiKey || !sheetId) {
+      throw new Error('API key ou Sheet ID não configurados');
+    }
+
+    try {
+      const range = `'TURMA III'!A:P`;
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar dados da Turma III: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rows = data.values || [];
+
+      return this.parseSheetData(rows);
+    } catch (error) {
+      console.error('Error fetching Turma III data:', error);
+      throw error;
+    }
+  }
+
+
+
 
 
   static async fetchDREData(): Promise<any[]> {
