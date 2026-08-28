@@ -20,6 +20,8 @@ import logoFS from '@/assets/logo-fs.png';
 const Index = () => {
   const [data, setData] = useState<FinancialRecord[]>(financialData);
   const [turmaVData, setTurmaVData] = useState<FinancialRecord[]>([]);
+  const [turmaIIIData, setTurmaIIIData] = useState<FinancialRecord[]>([]);
+
   const [isConnectedToSheets, setIsConnectedToSheets] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -52,19 +54,25 @@ const Index = () => {
   const loadDataFromSheets = async () => {
     setIsLoading(true);
     try {
-      const [sheetData, turmaV] = await Promise.all([
+      const [sheetData, turmaV, turmaIII] = await Promise.all([
         GoogleSheetsService.fetchSheetData(),
         GoogleSheetsService.fetchTurmaVData().catch((e) => {
           console.error('Erro ao carregar Turma V:', e);
           return [] as FinancialRecord[];
         }),
+        GoogleSheetsService.fetchTurmaIIIData().catch((e) => {
+          console.error('Erro ao carregar Turma III:', e);
+          return [] as FinancialRecord[];
+        }),
       ]);
       setData(sheetData);
       setTurmaVData(turmaV);
+      setTurmaIIIData(turmaIII);
       toast({
         title: "Dados atualizados!",
-        description: `${sheetData.length} registros da Turma IV e ${turmaV.length} da Turma V`,
+        description: `${sheetData.length} registros da Turma IV, ${turmaV.length} da Turma V e ${turmaIII.length} da Turma III`,
       });
+
     } catch (error) {
       console.error('Error loading data from sheets:', error);
       toast({
@@ -154,7 +162,7 @@ const Index = () => {
 
             <TabsContent value="curso-extensao" className="space-y-6">
               <Tabs defaultValue="turma-v" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="turma-v" className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Turma V
@@ -162,6 +170,10 @@ const Index = () => {
                   <TabsTrigger value="turma-iv" className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Turma IV
+                  </TabsTrigger>
+                  <TabsTrigger value="turma-iii" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Turma III
                   </TabsTrigger>
                 </TabsList>
 
@@ -172,6 +184,11 @@ const Index = () => {
                 <TabsContent value="turma-iv" className="space-y-6">
                   <TurmaPanel data={data} showVisaoGeral />
                 </TabsContent>
+
+                <TabsContent value="turma-iii" className="space-y-6">
+                  <TurmaPanel data={turmaIIIData} />
+                </TabsContent>
+
               </Tabs>
             </TabsContent>
 
