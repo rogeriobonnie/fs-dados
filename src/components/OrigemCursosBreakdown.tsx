@@ -3,10 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Pagina5Record } from '@/types/pagina5';
-import { ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Sparkles } from 'lucide-react';
 import {
   OrigemCategoria, ORIGEM_LABEL, ORIGEM_ORDEM, classificarPorRegra, chaveOrigem,
 } from '@/utils/classificarOrigemCursos';
+import { exportOrigemCursosPDF } from '@/utils/origemCursosPdf';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const LOTE = 100;
@@ -15,6 +16,7 @@ export default function OrigemCursosBreakdown({ items }: { items: Pagina5Record[
   const { toast } = useToast();
   const [ia, setIa] = useState<Record<string, OrigemCategoria>>({});
   const [rodando, setRodando] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [aberto, setAberto] = useState<OrigemCategoria | null>(null);
 
   const linhas = useMemo(() => items.map(r => ({ r, chave: chaveOrigem(r), regra: classificarPorRegra(r) })), [items]);
@@ -68,16 +70,44 @@ export default function OrigemCursosBreakdown({ items }: { items: Pagina5Record[
 
   const total = items.reduce((s, r) => s + r.valorLiquido, 0);
 
+  const exportarPDF = () => {
+    setExportando(true);
+    try {
+      exportOrigemCursosPDF(
+        ORIGEM_ORDEM.map(categoria => ({ categoria, itens: grupos.get(categoria) ?? [] })),
+        total,
+      );
+      toast({ title: 'PDF gerado', description: 'O relatório por origem foi baixado.' });
+    } catch (error) {
+      console.error('Erro ao gerar PDF de entradas por origem:', error);
+      toast({ title: 'Erro ao gerar PDF', description: 'Não foi possível gerar o relatório.', variant: 'destructive' });
+    } finally {
+      setExportando(false);
+    }
+  };
+
   return (
     <div className="ml-8 mt-2 mb-3 rounded-md border bg-card p-3 space-y-1">
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Entradas por origem</p>
-        {pendentes.length > 0 && (
-          <Button size="sm" variant="outline" disabled={rodando} onClick={(e) => { e.stopPropagation(); rodarIA(); }} className="h-7 gap-1 text-xs">
-            <Sparkles className="h-3 w-3" />
-            {rodando ? 'Classificando...' : `Classificar com IA (${pendentes.length})`}
+        <div className="flex items-center gap-2">
+          {pendentes.length > 0 && (
+            <Button size="sm" variant="outline" disabled={rodando} onClick={(e) => { e.stopPropagation(); rodarIA(); }} className="h-7 gap-1 text-xs">
+              <Sparkles className="h-3 w-3" />
+              {rodando ? 'Classificando...' : `Classificar com IA (${pendentes.length})`}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={exportando || items.length === 0}
+            onClick={(e) => { e.stopPropagation(); exportarPDF(); }}
+            className="h-7 gap-1 text-xs"
+          >
+            <FileText className="h-3 w-3" />
+            {exportando ? 'Gerando...' : 'Exportar PDF'}
           </Button>
-        )}
+        </div>
       </div>
       {ORIGEM_ORDEM.map(cat => {
         const lst = grupos.get(cat)!;
