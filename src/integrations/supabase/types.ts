@@ -14,7 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      origem_classificacao: {
+        Row: {
+          categoria: string
+          chave: string
+          created_at: string
+          fonte: string
+        }
+        Insert: {
+          categoria: string
+          chave: string
+          created_at?: string
+          fonte?: string
+        }
+        Update: {
+          categoria?: string
+          chave?: string
+          created_at?: string
+          fonte?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
