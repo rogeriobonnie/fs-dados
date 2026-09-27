@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import OrigemCursosBreakdown from '@/components/OrigemCursosBreakdown';
 import { GoogleSheetsService } from '@/services/googleSheetsService';
 import { Pagina5Record } from '@/types/pagina5';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -1155,6 +1156,7 @@ const HistoricoAnual = () => {
                                       </div>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
+                                      {cc.custoNum === 1 && <OrigemCursosBreakdown items={cc.items} />}
                                       <div className="ml-8 mt-1 mb-2 space-y-0.5">
                                         {cc.items.slice(0, 50).map((item, idx) => (
                                           <div key={idx} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
