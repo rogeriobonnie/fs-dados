@@ -870,6 +870,38 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       y = (doc as any).lastAutoTable.finalY + 6;
     }
 
+    // ── INVESTIMENTO (34) ──
+    if (allInv34PDF.length > 0) {
+      checkPage(30);
+      const inv34Rows: string[][] = [];
+      Object.entries(grouped.investimento34).sort(([a], [b]) => a.localeCompare(b)).forEach(([desc, items]) => {
+        const descTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        items.forEach(r => {
+          inv34Rows.push([`   ${r.date || '-'} - ${r.detalhamento || desc}`, `-${fmt(Math.abs(r.valorLiquido))}`]);
+        });
+        if (items.length > 1) {
+          inv34Rows.push([`   Subtotal: ${desc}`, `-${fmt(descTotal)}`]);
+        }
+      });
+      inv34Rows.push(['TOTAL INVESTIMENTO (34)', `-${fmt(totalInv34PDF)}`]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['(-) INVESTIMENTO [34]', 'Valor']],
+        body: inv34Rows,
+        theme: 'grid', styles: { fontSize: 9 },
+        headStyles: { fillColor: [180, 150, 40], fontStyle: 'bold', textColor: [255, 255, 255] },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === inv34Rows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [255, 250, 220];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+
     // ── RESULTADO MENSAL + ÷ 3 ──
     checkPage(20);
     const resultMensalRows: string[][] = [
