@@ -177,7 +177,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       }
     });
 
-    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois, despMesSub };
+    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois, despMesSub, investimento34 };
   }, [data, saldoTransportado, selectedMonth, selectedYear]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
