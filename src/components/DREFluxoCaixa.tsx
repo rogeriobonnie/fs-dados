@@ -1787,7 +1787,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                                 <div className="flex items-center gap-2">
                                   <TrendingUp className="h-4 w-4 text-accent-foreground" />
                                   <span className="text-sm font-bold">RESULTADO MENSAL</span>
-                                  <span className="text-[10px] text-muted-foreground">(Patrimônio Final - Desp Mês Sub)</span>
+                                  <span className="text-[10px] text-muted-foreground">(Patrimônio Final - Investimento (34) - Desp Mês Sub)</span>
                                 </div>
                                 <span className={`text-base font-bold ${resultadoMensal >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>{fmt(resultadoMensal)}</span>
                               </div>
