@@ -1690,6 +1690,52 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
 
                           return (
                             <>
+                              {allInv34.length > 0 && (
+                                <div className="border-t border-border">
+                                  <div className="flex justify-between items-center py-2 px-4" style={{ backgroundColor: 'hsl(45 80% 50% / 0.08)' }}>
+                                    <div className="flex items-center gap-2">
+                                      <PiggyBank className="h-4 w-4" style={{ color: 'hsl(45 80% 50%)' }} />
+                                      <span className="text-xs font-bold" style={{ color: 'hsl(45 80% 35%)' }}>(-) INVESTIMENTO</span>
+                                      <Badge variant="outline" className="text-[10px]">34</Badge>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-0">
+                                    {Object.entries(grouped.investimento34).sort(([a], [b]) => a.localeCompare(b)).map(([desc, items]) => {
+                                      const descTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                                      const isOpen = openSections[`inv34-${desc}`] ?? false;
+                                      return (
+                                        <Collapsible key={desc} open={isOpen} onOpenChange={() => toggleSection(`inv34-${desc}`)}>
+                                          <CollapsibleTrigger className="w-full">
+                                            <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 hover:bg-muted/30 transition-colors cursor-pointer border-t border-border/30">
+                                              <div className="flex items-center gap-1.5">
+                                                {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                                <span className="font-medium">{desc}</span>
+                                                <span className="text-muted-foreground">({items.length})</span>
+                                              </div>
+                                              <span className="font-semibold" style={{ color: 'hsl(45 80% 35%)' }}>-{fmt(descTotal)}</span>
+                                            </div>
+                                          </CollapsibleTrigger>
+                                          <CollapsibleContent>
+                                            <div className="pl-12 pr-4 pb-1">
+                                              {items.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
+                                                <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
+                                                  <span className="truncate max-w-[65%]">{r.date} - {r.detalhamento || r.descricao} {r.banco ? `[${r.banco}]` : ''}</span>
+                                                  <span className="font-medium">-{fmt(Math.abs(r.valorLiquido))}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      );
+                                    })}
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs py-1.5 px-4 border-t border-border/50" style={{ backgroundColor: 'hsl(45 80% 50% / 0.08)' }}>
+                                    <span className="font-semibold" style={{ color: 'hsl(45 80% 35%)' }}>TOTAL INVESTIMENTO (34)</span>
+                                    <span className="font-bold" style={{ color: 'hsl(45 80% 35%)' }}>-{fmt(totalInv34)}</span>
+                                  </div>
+                                </div>
+                              )}
+
                               {allDespSub.length > 0 && (
                                 <div className="border-t border-border">
                                   <div className="flex justify-between items-center py-2 px-4 bg-destructive/5">
