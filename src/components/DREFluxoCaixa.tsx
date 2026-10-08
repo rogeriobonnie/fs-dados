@@ -776,7 +776,9 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const patrimonioFinalPDF = patrimonioLiquidoPDF - investimentoXPpdf;
     const allDespSubPDF = Object.values(grouped.despMesSub).flat();
     const totalDespMesSubPDF = allDespSubPDF.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-    const resultadoMensalPDF = patrimonioFinalPDF - totalDespMesSubPDF;
+    const allInv34PDF = Object.values(grouped.investimento34).flat();
+    const totalInv34PDF = allInv34PDF.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+    const resultadoMensalPDF = patrimonioFinalPDF - totalDespMesSubPDF - totalInv34PDF;
     const resultadoDivTresPDF = resultadoMensalPDF / 3;
 
     if (grouped.investimentos.length > 0) {
