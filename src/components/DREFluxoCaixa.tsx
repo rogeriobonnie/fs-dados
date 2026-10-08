@@ -1679,11 +1679,13 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                           <span className="text-base font-bold text-primary">{fmt(patrimonioFinal)}</span>
                         </div>
 
-                        {/* ── DESPESAS MÊS SUBSEQUENTE (custoNum 33) ── */}
+                        {/* ── INVESTIMENTO (custoNum 34) + DESPESAS MÊS SUBSEQUENTE (custoNum 33) ── */}
                         {(() => {
                           const allDespSub = Object.values(grouped.despMesSub).flat();
                           const totalDespMesSub = allDespSub.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-                          const resultadoMensal = patrimonioFinal - totalDespMesSub;
+                          const allInv34 = Object.values(grouped.investimento34).flat();
+                          const totalInv34 = allInv34.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                          const resultadoMensal = patrimonioFinal - totalDespMesSub - totalInv34;
                           const resultadoDivTres = resultadoMensal / 3;
 
                           return (
