@@ -906,6 +906,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     checkPage(20);
     const resultMensalRows: string[][] = [
       ['Patrimônio Final', fmt(patrimonioFinalPDF)],
+      ['(-) Investimento (34)', `-${fmt(totalInv34PDF)}`],
       ['(-) Desp Mês Subsequente', `-${fmt(totalDespMesSubPDF)}`],
       ['= RESULTADO MENSAL', fmt(resultadoMensalPDF)],
       ['÷ 3', fmt(resultadoDivTresPDF)],
