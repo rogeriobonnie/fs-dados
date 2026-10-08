@@ -139,6 +139,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const reservas: Record<string, Pagina5Record[]> = {};
     const lanceADois: Pagina5Record[] = [];
     const despMesSub: Record<string, Pagina5Record[]> = {};
+    const investimento34: Record<string, Pagina5Record[]> = {};
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
@@ -161,6 +162,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       const key = r.descricao || 'Sem descrição';
       if (!despMesSub[key]) despMesSub[key] = [];
       despMesSub[key].push(r);
+    } else if (r.custoNum === 34) {
+      const key = r.descricao || 'Sem descrição';
+      if (!investimento34[key]) investimento34[key] = [];
+      investimento34[key].push(r);
     } else if (r.custoNum === 50) {
       investimentos.push(r);
     } else if (r.custoNum === 51 || r.custoNum === 52) {
@@ -172,7 +177,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       }
     });
 
-    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois, despMesSub };
+    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois, despMesSub, investimento34 };
   }, [data, saldoTransportado, selectedMonth, selectedYear]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
@@ -771,7 +776,9 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const patrimonioFinalPDF = patrimonioLiquidoPDF - investimentoXPpdf;
     const allDespSubPDF = Object.values(grouped.despMesSub).flat();
     const totalDespMesSubPDF = allDespSubPDF.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-    const resultadoMensalPDF = patrimonioFinalPDF - totalDespMesSubPDF;
+    const allInv34PDF = Object.values(grouped.investimento34).flat();
+    const totalInv34PDF = allInv34PDF.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+    const resultadoMensalPDF = patrimonioFinalPDF - totalDespMesSubPDF - totalInv34PDF;
     const resultadoDivTresPDF = resultadoMensalPDF / 3;
 
     if (grouped.investimentos.length > 0) {
@@ -863,10 +870,43 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       y = (doc as any).lastAutoTable.finalY + 6;
     }
 
+    // ── INVESTIMENTO (34) ──
+    if (allInv34PDF.length > 0) {
+      checkPage(30);
+      const inv34Rows: string[][] = [];
+      Object.entries(grouped.investimento34).sort(([a], [b]) => a.localeCompare(b)).forEach(([desc, items]) => {
+        const descTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+        items.forEach(r => {
+          inv34Rows.push([`   ${r.date || '-'} - ${r.detalhamento || desc}`, `-${fmt(Math.abs(r.valorLiquido))}`]);
+        });
+        if (items.length > 1) {
+          inv34Rows.push([`   Subtotal: ${desc}`, `-${fmt(descTotal)}`]);
+        }
+      });
+      inv34Rows.push(['TOTAL INVESTIMENTO (34)', `-${fmt(totalInv34PDF)}`]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['(-) INVESTIMENTO [34]', 'Valor']],
+        body: inv34Rows,
+        theme: 'grid', styles: { fontSize: 9 },
+        headStyles: { fillColor: [180, 150, 40], fontStyle: 'bold', textColor: [255, 255, 255] },
+        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        didParseCell: (data: any) => {
+          if (data.section === 'body' && data.row.index === inv34Rows.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [255, 250, 220];
+          }
+        },
+      });
+      y = (doc as any).lastAutoTable.finalY + 6;
+    }
+
     // ── RESULTADO MENSAL + ÷ 3 ──
     checkPage(20);
     const resultMensalRows: string[][] = [
       ['Patrimônio Final', fmt(patrimonioFinalPDF)],
+      ['(-) Investimento (34)', `-${fmt(totalInv34PDF)}`],
       ['(-) Desp Mês Subsequente', `-${fmt(totalDespMesSubPDF)}`],
       ['= RESULTADO MENSAL', fmt(resultadoMensalPDF)],
       ['÷ 3', fmt(resultadoDivTresPDF)],
@@ -1674,15 +1714,63 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                           <span className="text-base font-bold text-primary">{fmt(patrimonioFinal)}</span>
                         </div>
 
-                        {/* ── DESPESAS MÊS SUBSEQUENTE (custoNum 33) ── */}
+                        {/* ── INVESTIMENTO (custoNum 34) + DESPESAS MÊS SUBSEQUENTE (custoNum 33) ── */}
                         {(() => {
                           const allDespSub = Object.values(grouped.despMesSub).flat();
                           const totalDespMesSub = allDespSub.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
-                          const resultadoMensal = patrimonioFinal - totalDespMesSub;
+                          const allInv34 = Object.values(grouped.investimento34).flat();
+                          const totalInv34 = allInv34.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                          const resultadoMensal = patrimonioFinal - totalDespMesSub - totalInv34;
                           const resultadoDivTres = resultadoMensal / 3;
 
                           return (
                             <>
+                              {allInv34.length > 0 && (
+                                <div className="border-t border-border">
+                                  <div className="flex justify-between items-center py-2 px-4" style={{ backgroundColor: 'hsl(45 80% 50% / 0.08)' }}>
+                                    <div className="flex items-center gap-2">
+                                      <PiggyBank className="h-4 w-4" style={{ color: 'hsl(45 80% 50%)' }} />
+                                      <span className="text-xs font-bold" style={{ color: 'hsl(45 80% 35%)' }}>(-) INVESTIMENTO</span>
+                                      <Badge variant="outline" className="text-[10px]">34</Badge>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-0">
+                                    {Object.entries(grouped.investimento34).sort(([a], [b]) => a.localeCompare(b)).map(([desc, items]) => {
+                                      const descTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                                      const isOpen = openSections[`inv34-${desc}`] ?? false;
+                                      return (
+                                        <Collapsible key={desc} open={isOpen} onOpenChange={() => toggleSection(`inv34-${desc}`)}>
+                                          <CollapsibleTrigger className="w-full">
+                                            <div className="flex justify-between items-center text-xs py-1.5 px-4 pl-8 hover:bg-muted/30 transition-colors cursor-pointer border-t border-border/30">
+                                              <div className="flex items-center gap-1.5">
+                                                {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                                <span className="font-medium">{desc}</span>
+                                                <span className="text-muted-foreground">({items.length})</span>
+                                              </div>
+                                              <span className="font-semibold" style={{ color: 'hsl(45 80% 35%)' }}>-{fmt(descTotal)}</span>
+                                            </div>
+                                          </CollapsibleTrigger>
+                                          <CollapsibleContent>
+                                            <div className="pl-12 pr-4 pb-1">
+                                              {items.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
+                                                <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
+                                                  <span className="truncate max-w-[65%]">{r.date} - {r.detalhamento || r.descricao} {r.banco ? `[${r.banco}]` : ''}</span>
+                                                  <span className="font-medium">-{fmt(Math.abs(r.valorLiquido))}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      );
+                                    })}
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs py-1.5 px-4 border-t border-border/50" style={{ backgroundColor: 'hsl(45 80% 50% / 0.08)' }}>
+                                    <span className="font-semibold" style={{ color: 'hsl(45 80% 35%)' }}>TOTAL INVESTIMENTO (34)</span>
+                                    <span className="font-bold" style={{ color: 'hsl(45 80% 35%)' }}>-{fmt(totalInv34)}</span>
+                                  </div>
+                                </div>
+                              )}
+
                               {allDespSub.length > 0 && (
                                 <div className="border-t border-border">
                                   <div className="flex justify-between items-center py-2 px-4 bg-destructive/5">
@@ -1734,7 +1822,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                                 <div className="flex items-center gap-2">
                                   <TrendingUp className="h-4 w-4 text-accent-foreground" />
                                   <span className="text-sm font-bold">RESULTADO MENSAL</span>
-                                  <span className="text-[10px] text-muted-foreground">(Patrimônio Final - Desp Mês Sub)</span>
+                                  <span className="text-[10px] text-muted-foreground">(Patrimônio Final - Investimento (34) - Desp Mês Sub)</span>
                                 </div>
                                 <span className={`text-base font-bold ${resultadoMensal >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>{fmt(resultadoMensal)}</span>
                               </div>
