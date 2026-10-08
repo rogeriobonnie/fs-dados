@@ -139,6 +139,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const reservas: Record<string, Pagina5Record[]> = {};
     const lanceADois: Pagina5Record[] = [];
     const despMesSub: Record<string, Pagina5Record[]> = {};
+    const investimento34: Record<string, Pagina5Record[]> = {};
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
@@ -161,6 +162,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
       const key = r.descricao || 'Sem descrição';
       if (!despMesSub[key]) despMesSub[key] = [];
       despMesSub[key].push(r);
+    } else if (r.custoNum === 34) {
+      const key = r.descricao || 'Sem descrição';
+      if (!investimento34[key]) investimento34[key] = [];
+      investimento34[key].push(r);
     } else if (r.custoNum === 50) {
       investimentos.push(r);
     } else if (r.custoNum === 51 || r.custoNum === 52) {
