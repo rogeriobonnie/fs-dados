@@ -151,6 +151,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     const lanceADois: Pagina5Record[] = [];
     const despMesSub: Record<string, Pagina5Record[]> = {};
     const investimento34: Record<string, Pagina5Record[]> = {};
+    const semCentro: Pagina5Record[] = [];
 
     data.forEach(r => {
       if (r.custoNum >= 1 && r.custoNum <= 10) {
@@ -182,13 +183,15 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     } else if (r.custoNum === 51 || r.custoNum === 52) {
         if (!reservas[r.custo]) reservas[r.custo] = [];
         reservas[r.custo].push(r);
+      } else if (r.custoNum < 0 && !['PROVISAO', 'PAGO', 'INVEST', 'L2', ''].includes((r.banco || '').toUpperCase())) {
+        semCentro.push(r);
       } else if (r.custoNum === 96 || r.custoNum === 97 || r.custoNum === 98) {
         if (!entradasCaixa[r.custo]) entradasCaixa[r.custo] = [];
         entradasCaixa[r.custo].push(r);
       }
     });
 
-    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois, despMesSub, investimento34 };
+    return { saldoInicial, receitas, despesas, saidasCaixa, entradasCaixa, provisoes, transferencias, investimentos, reservas, lanceADois, despMesSub, investimento34, semCentro };
   }, [data, saldoTransportado, selectedMonth, selectedYear]);
 
   // Aggregate all revenue items by course name across all revenue cost centers
@@ -1481,8 +1484,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                 const key = '99-Transferências (entrada)';
                 entradasPorCusto[key] = transferenciasPositivas;
               }
+              const semCentroPos = grouped.semCentro.filter(r => r.valorLiquido > 0);
+              if (semCentroPos.length > 0) entradasPorCusto['Sem centro de custo'] = semCentroPos;
 
-              const totalEntradas = Object.values(entradasPorCusto).flat().reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+              const totalEntradas = Object.values(entradasPorCusto).flat().reduce((s, r) => s + r.valorLiquido, 0); // sinal real: estornos reduzem
 
               return (
                 <div className="border-b border-border">
@@ -1495,7 +1500,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                   </div>
                   <div className="space-y-0">
                     {Object.entries(entradasPorCusto).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => {
-                      const custoTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                      const custoTotal = items.reduce((s, r) => s + r.valorLiquido, 0);
                       const isOpen = openSections[`ent-${custo}`] ?? false;
                       return (
                         <Collapsible key={custo} open={isOpen} onOpenChange={() => toggleSection(`ent-${custo}`)}>
@@ -1506,7 +1511,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                                 <span className="font-medium">{custo}</span>
                                 <span className="text-muted-foreground">({items.length})</span>
                               </div>
-                              <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(custoTotal)}</span>
+                              <span className="font-semibold" style={{ color: 'hsl(142 70% 35%)' }}>{custoTotal < 0 ? '-' : '+'}{fmt(Math.abs(custoTotal))}</span>
                             </div>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
@@ -1514,7 +1519,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                               {items.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
                                 <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
                                   <span className="truncate max-w-[60%]">{r.date} - {r.descricao} {r.detalhamento ? `- ${r.detalhamento}` : ''} {r.banco ? `[${r.banco}]` : ''}</span>
-                                  <span className="font-medium" style={{ color: 'hsl(142 70% 35%)' }}>+{fmt(Math.abs(r.valorLiquido))}</span>
+                                  <span className="font-medium" style={{ color: 'hsl(142 70% 35%)' }}>{r.valorLiquido < 0 ? '-' : '+'}{fmt(Math.abs(r.valorLiquido))}</span>
                                 </div>
                               ))}
                             </div>
@@ -1543,8 +1548,10 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                 const key = '99-Transferências (saída)';
                 saidasPorCusto[key] = transferenciasNegativas;
               }
+              const semCentroNeg = grouped.semCentro.filter(r => r.valorLiquido < 0);
+              if (semCentroNeg.length > 0) saidasPorCusto['Sem centro de custo'] = semCentroNeg;
 
-              const totalSaidas = Object.values(saidasPorCusto).flat().reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+              const totalSaidas = Object.values(saidasPorCusto).flat().reduce((s, r) => s - r.valorLiquido, 0); // sinal real: estornos reduzem
 
               return (
                 <div className="border-b border-border">
@@ -1557,7 +1564,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                   </div>
                   <div className="space-y-0">
                     {Object.entries(saidasPorCusto).sort(([a], [b]) => a.localeCompare(b)).map(([custo, items]) => {
-                      const custoTotal = items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0);
+                      const custoTotal = items.reduce((s, r) => s - r.valorLiquido, 0);
                       const isOpen = openSections[`sai-${custo}`] ?? false;
                       return (
                         <Collapsible key={custo} open={isOpen} onOpenChange={() => toggleSection(`sai-${custo}`)}>
@@ -1568,7 +1575,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                                 <span className="font-medium">{custo}</span>
                                 <span className="text-muted-foreground">({items.length})</span>
                               </div>
-                              <span className="font-semibold" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(custoTotal)}</span>
+                              <span className="font-semibold" style={{ color: 'hsl(var(--destructive))' }}>{custoTotal < 0 ? '+' : '-'}{fmt(Math.abs(custoTotal))}</span>
                             </div>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
@@ -1576,7 +1583,7 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
                               {items.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map(r => (
                                 <div key={r.id} className="flex justify-between items-center text-[11px] py-0.5 text-muted-foreground">
                                   <span className="truncate max-w-[60%]">{r.date} - {r.descricao} {r.detalhamento ? `- ${r.detalhamento}` : ''} {r.banco ? `[${r.banco}]` : ''}</span>
-                                  <span className="font-medium" style={{ color: 'hsl(var(--destructive))' }}>-{fmt(Math.abs(r.valorLiquido))}</span>
+                                  <span className="font-medium" style={{ color: 'hsl(var(--destructive))' }}>{r.valorLiquido > 0 ? '+' : '-'}{fmt(Math.abs(r.valorLiquido))}</span>
                                 </div>
                               ))}
                             </div>
