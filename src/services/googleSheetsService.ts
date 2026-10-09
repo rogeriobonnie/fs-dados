@@ -899,7 +899,7 @@ export class GoogleSheetsService {
       
       if (!custo && !descricao && valorBruto === 0) continue;
       
-      const custoNum = parseInt(custo.split('-')[0]) || 0;
+      const custoParsed = parseInt(custo.split('-')[0]); const custoNum = Number.isNaN(custoParsed) ? -1 : custoParsed; // blank cost center must not be read as 00-Saldo Inicial
       
       // Format date
       let dateFormatted = dateStr;
@@ -1016,7 +1016,7 @@ export class GoogleSheetsService {
       }
       
       // Determine cost code number
-      const custoNum = parseInt(custo.split('-')[0]) || 0;
+      const custoParsed = parseInt(custo.split('-')[0]); const custoNum = Number.isNaN(custoParsed) ? -1 : custoParsed; // blank cost center must not be read as 00-Saldo Inicial
       
       // Debug: log despesas com mkt preenchido
       if (mkt && custoNum >= 11 && custoNum <= 20) {
