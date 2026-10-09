@@ -648,129 +648,106 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
     doc.line(14, y, 196, y);
     y += 8;
 
-    // Disponível
+    // ── FLUXO NO MESMO FORMATO DA TELA (sinal real de cada lançamento) ──
+    const REAL_EXCL = ['INVEST', 'L2', 'PROVISAO'];
+    const bancosReais = fluxoBancos.filter(b => !REAL_EXCL.includes(b.banco.toUpperCase()));
+    const siTotalPDF = bancosReais.reduce((s, b) => s + b.saldoInicial, 0);
+    const sfTotalPDF = bancosReais.reduce((s, b) => s + b.saldoFinal, 0);
+
+    const entPDF: Record<string, Pagina5Record[]> = {};
+    Object.entries(grouped.receitas).forEach(([c, items]) => { const f = items.filter(r => r.banco !== 'PROVISAO'); if (f.length) entPDF[c] = f; });
+    Object.entries(grouped.entradasCaixa).forEach(([c, items]) => { entPDF[c] = [...(entPDF[c] || []), ...items]; });
+    const trPos = grouped.transferencias.filter(r => r.valorLiquido > 0 && (r.banco || '').toUpperCase() !== 'PROVISAO');
+    if (trPos.length) entPDF['99-Transferências (entrada)'] = trPos;
+    const scPos = grouped.semCentro.filter(r => r.valorLiquido > 0);
+    if (scPos.length) entPDF['Sem centro de custo'] = scPos;
+
+    const saiPDF: Record<string, Pagina5Record[]> = {};
+    Object.entries(grouped.despesas).forEach(([c, items]) => { const f = items.filter(r => r.banco !== 'PROVISAO'); if (f.length) saiPDF[c] = f; });
+    Object.entries(grouped.saidasCaixa).forEach(([c, items]) => { saiPDF[c] = [...(saiPDF[c] || []), ...items]; });
+    const trNeg = grouped.transferencias.filter(r => r.valorLiquido < 0 && (r.banco || '').toUpperCase() !== 'PROVISAO');
+    if (trNeg.length) saiPDF['99-Transferências (saída)'] = trNeg;
+    const scNeg = grouped.semCentro.filter(r => r.valorLiquido < 0);
+    if (scNeg.length) saiPDF['Sem centro de custo'] = scNeg;
+
+    const sgn = (v: number) => (v < 0 ? '-' : '+') + fmt(Math.abs(v));
+    const totEntPDF = Object.values(entPDF).flat().reduce((s, r) => s + r.valorLiquido, 0);
+    const totSaiPDF = Object.values(saiPDF).flat().reduce((s, r) => s - r.valorLiquido, 0);
+    const contaPDF = siTotalPDF + totEntPDF - totSaiPDF;
+
+    // Resumo em destaque
+    checkPage(45);
     autoTable(doc, {
       startY: y,
+      head: [['RESUMO DO MÊS', 'Valor']],
       body: [
-        ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
-        ['(+) Resultado de Caixa (Receitas Líq. - Despesas)', fmt(totals.resultadoCaixa)],
-        ['= DISPONÍVEL ANTES DE MOVIMENTAÇÕES', fmt(totals.disponivelAntes)],
+        ['Saldo Inicial (bancos)', fmt(siTotalPDF)],
+        ['(+) Entradas', sgn(totEntPDF)],
+        ['(-) Saídas', sgn(-totSaiPDF)],
+        ['= SALDO FINAL DO MÊS', fmt(sfTotalPDF)],
       ],
-      theme: 'grid', styles: { fontSize: 10 },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-      didParseCell: (data: any) => {
-        if (data.section === 'body' && data.row.index === 2) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [230, 240, 255];
-          data.cell.styles.fontSize = 11;
-        }
-      },
-    });
-    y = (doc as any).lastAutoTable.finalY + 8;
-
-    // Saídas de Caixa
-    if (Object.keys(grouped.saidasCaixa).length > 0) {
-      const saidasResumo = Object.entries(grouped.saidasCaixa)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([custo, items]) => [custo, `-${fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}`]);
-      saidasResumo.push(['TOTAL SAÍDAS DE CAIXA', `-${fmt(totals.totalSaidasCaixa)}`]);
-
-      autoTable(doc, {
-        startY: y,
-        head: [['SAÍDAS DE CAIXA', 'Valor']],
-        body: saidasResumo,
-        theme: 'grid', styles: { fontSize: 9 },
-        headStyles: { fillColor: [200, 50, 50], fontStyle: 'bold', textColor: [255, 255, 255] },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-        didParseCell: (data: any) => {
-          if (data.section === 'body' && data.row.index === saidasResumo.length - 1) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [255, 230, 230];
-          }
-        },
-      });
-      y = (doc as any).lastAutoTable.finalY + 6;
-      addSubtitle('Distribuições, pagamentos externos e outras saídas que não são despesas do mês.');
-      y += 3;
-    }
-
-    // Entradas de Caixa
-    if (Object.keys(grouped.entradasCaixa).length > 0) {
-      const entradasResumo = Object.entries(grouped.entradasCaixa)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([custo, items]) => [custo, `+${fmt(items.reduce((s, r) => s + Math.abs(r.valorLiquido), 0))}`]);
-      entradasResumo.push(['TOTAL ENTRADAS DE CAIXA', `+${fmt(totals.totalEntradasCaixa)}`]);
-
-      autoTable(doc, {
-        startY: y,
-        head: [['ENTRADAS DE CAIXA', 'Valor']],
-        body: entradasResumo,
-        theme: 'grid', styles: { fontSize: 9 },
-        headStyles: { fillColor: [34, 139, 34], fontStyle: 'bold', textColor: [255, 255, 255] },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
-        didParseCell: (data: any) => {
-          if (data.section === 'body' && data.row.index === entradasResumo.length - 1) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [220, 255, 220];
-          }
-        },
-      });
-      y = (doc as any).lastAutoTable.finalY + 6;
-      addSubtitle('Resgates, repasses de terceiros e outras entradas que não são receitas do mês.');
-      y += 3;
-    }
-
-    // ── RESUMO DO FLUXO DE CAIXA ──
-    checkPage(50);
-    const fluxoResumo: string[][] = [
-      ['Saldo Inicial', fmt(totals.totalSaldoInicial)],
-      ['(+) Resultado de Caixa', fmt(totals.resultadoCaixa)],
-      ['(-) Saídas de Caixa', `-${fmt(totals.totalSaidasCaixa)}`],
-      ['(+) Entradas de Caixa', `+${fmt(totals.totalEntradasCaixa)}`],
-    ];
-    if (totals.totalTransferencias !== 0) {
-      fluxoResumo.push(['(+/-) Transferências', fmt(totals.totalTransferencias)]);
-    }
-    fluxoResumo.push(['= SALDO FINAL LIVRE', fmt(totals.saldoFinalLivre)]);
-
-    autoTable(doc, {
-      startY: y,
-      head: [['RESUMO DO FLUXO DE CAIXA', 'Valor']],
-      body: fluxoResumo,
-      theme: 'grid', styles: { fontSize: 10 },
+      theme: 'grid', styles: { fontSize: 10, cellPadding: 2.5 },
       headStyles: { fillColor: [0, 51, 102], fontStyle: 'bold', textColor: [255, 255, 255] },
-      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: { 0: { cellWidth: 120 }, 1: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data: any) => {
-        const lastIdx = fluxoResumo.length - 1;
-        if (data.section === 'body' && data.row.index === lastIdx) {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize = 12;
-          data.cell.styles.fillColor = totals.saldoFinalLivre >= 0 ? [220, 255, 220] : [255, 220, 220];
-        }
+        if (data.section !== 'body') return;
+        if (data.row.index === 1 && data.column.index === 1) data.cell.styles.textColor = [22, 128, 61];
+        if (data.row.index === 2 && data.column.index === 1) data.cell.styles.textColor = [185, 28, 28];
+        if (data.row.index === 3) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fontSize = 12; data.cell.styles.fillColor = sfTotalPDF >= 0 ? [220, 252, 231] : [254, 226, 226]; }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 2;
+    doc.setFontSize(8); doc.setFont('helvetica', 'italic');
+    const okConta = Math.abs(contaPDF - sfTotalPDF) < 0.01;
+    doc.setTextColor(okConta ? 22 : 185, okConta ? 128 : 28, okConta ? 61 : 28);
+    doc.text(okConta ? 'Conferência: Saldo Inicial + Entradas - Saídas = Saldo Final dos bancos (OK)' : `Atenção: diferença de ${fmt(sfTotalPDF - contaPDF)} entre a conta e o saldo dos bancos`, 14, y + 3);
+    doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'normal');
+    y += 9;
+
+    // Tabela detalhada por centro de custo (com lançamentos)
+    const renderGrupo = (titulo: string, grupos: Record<string, Pagina5Record[]>, cor: [number, number, number], claro: [number, number, number], fator: 1 | -1, total: number) => {
+      const body: any[] = [];
+      Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b)).forEach(([custo, items]) => {
+        const sub = items.reduce((s, r) => s + fator * r.valorLiquido, 0);
+        body.push([{ content: `${custo}  (${items.length})`, styles: { fontStyle: 'bold', fillColor: claro } }, { content: sgn(fator * sub), styles: { fontStyle: 'bold', fillColor: claro, halign: 'right' } }]);
+        [...items].sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(r => {
+          const v = fator * r.valorLiquido;
+          const estorno = v < 0;
+          body.push([
+            { content: `   ${r.date || ''}  ${r.descricao}${r.detalhamento ? ' - ' + r.detalhamento : ''}${r.banco ? ' [' + r.banco + ']' : ''}${estorno ? '  (estorno)' : ''}`, styles: { fontSize: 7, textColor: estorno ? [185, 28, 28] : [75, 85, 99] } },
+            { content: sgn(v), styles: { fontSize: 7, halign: 'right', textColor: estorno ? [185, 28, 28] : [75, 85, 99] } },
+          ]);
+        });
+      });
+      checkPage(30);
+      autoTable(doc, {
+        startY: y,
+        head: [[titulo, 'Valor']],
+        body,
+        foot: [[`TOTAL ${titulo.replace(/^\([+-]\)\s*/, '')}`, sgn(total)]],
+        showHead: 'everyPage', showFoot: 'lastPage',
+        theme: 'grid', styles: { fontSize: 8.5, cellPadding: 1.6, overflow: 'linebreak' },
+        headStyles: { fillColor: cor, fontStyle: 'bold', textColor: [255, 255, 255] },
+        footStyles: { fillColor: cor, fontStyle: 'bold', textColor: [255, 255, 255], halign: 'right' },
+        columnStyles: { 0: { cellWidth: 140 }, 1: { halign: 'right', cellWidth: 42 } },
+        rowPageBreak: 'avoid',
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    };
+    renderGrupo('(+) ENTRADAS', entPDF, [22, 128, 61], [220, 252, 231], 1, totEntPDF);
+    renderGrupo('(-) SAÍDAS', saiPDF, [185, 28, 28], [254, 226, 226], -1, -totSaiPDF);
 
     // ── SALDO POR BANCO ──
     checkPage(40);
-    const bancoRows = fluxoBancos.map(b => {
-      const entradas = b.receitas + b.resgates + Math.max(0, b.transferencias);
-      const saidas = b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias));
-      const saldoFinal = b.saldoInicial + entradas - saidas;
-      return [b.banco, fmt(b.saldoInicial), `+${fmt(entradas)}`, `-${fmt(saidas)}`, fmt(saldoFinal)];
-    });
-    const totEntradas = fluxoBancos.reduce((s, b) => s + b.receitas + b.resgates + Math.max(0, b.transferencias), 0);
-    const totSaidas = fluxoBancos.reduce((s, b) => s + b.despesas + b.destinacoes + Math.abs(Math.min(0, b.transferencias)), 0);
-    const totSaldoFinal = fluxoTotal.saldoInicial + totEntradas - totSaidas;
-    bancoRows.push(['TOTAL', fmt(fluxoTotal.saldoInicial), `+${fmt(totEntradas)}`, `-${fmt(totSaidas)}`, fmt(totSaldoFinal)]);
-
+    const bancoRows = bancosReais.map(b => [b.banco, fmt(b.saldoInicial), sgn(b.saldoFinal - b.saldoInicial), fmt(b.saldoFinal)]);
+    bancoRows.push(['TOTAL', fmt(siTotalPDF), sgn(sfTotalPDF - siTotalPDF), fmt(sfTotalPDF)]);
     autoTable(doc, {
       startY: y,
-      head: [['SALDO POR BANCO', 'Saldo Inicial', '+ Entradas', '- Saídas', 'Saldo Final']],
+      head: [['SALDO POR BANCO', 'Saldo Inicial', 'Movimento do mês', 'Saldo Final']],
       body: bancoRows,
       theme: 'grid', styles: { fontSize: 9 },
       headStyles: { fillColor: [0, 100, 180], fontStyle: 'bold', textColor: [255, 255, 255] },
-      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } },
       didParseCell: (data: any) => {
         if (data.section === 'body' && data.row.index === bancoRows.length - 1) {
           data.cell.styles.fontStyle = 'bold';
