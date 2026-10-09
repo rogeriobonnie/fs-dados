@@ -16,6 +16,16 @@ Conta conferida: Saldo Inicial + Entradas - Saídas = Saldo Final (bancos)
 
 De janeiro a junho fecha certinho. O saldo inicial de cada mês agora é igual ao saldo final do mês anterior.
 
+## Conferência por banco (Eduzz, Azul, Inter)
+
+| Banco | Jul (início -> fim) | Ago (início -> fim) | Set (início -> fim) |
+|---|---|---|---|
+| EDUZZ | 714,59 -> 3.097,76 | 3.097,76 -> 4.582,20 | 4.582,20 -> 2.013,04 |
+| AZUL | 0,00 -> 0,00 | 0,00 -> 2.830,74 | 2.830,74 -> 3.141,79 |
+| INTER | 41.885,89 -> 37.493,37 | 37.493,37 -> 81.414,37 | 81.414,37 -> 70.085,92 |
+
+Por banco, nada se perde de um mês para o outro: o saldo final de cada banco passa inteiro para o mês seguinte. A soma dos três bancos é igual ao saldo final do painel (jul 40.591,13 / ago 88.827,31 / set 75.240,75). A diferença está só na forma como o painel mostra as listas de Entradas e Saídas, explicada abaixo.
+
 ## O que acontece em julho, agosto e setembro
 
 **1. Valores com o sinal trocado na planilha (causa principal)**
