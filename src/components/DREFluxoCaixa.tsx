@@ -89,21 +89,32 @@ const DREFluxoCaixa = ({ data, allData, selectedMonth, selectedYear }: Props) =>
   const toggleSection = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
   const toggleCourse = (key: string) => setOpenCourses(prev => ({ ...prev, [key]: !prev[key] }));
 
-  // Check if saldo inicial needs to be transported from previous month
+  // Saldo inicial: from February on it is ALWAYS the previous month's YTD saldo final
+  // (same formula used for "Saldo Final"), so months chain exactly.
   const saldoTransportado = useMemo(() => {
-    const manualSaldo = data.filter(r => r.custoNum === 0);
-    if (manualSaldo.length > 0 || !allData || !selectedMonth || !selectedYear) return null;
-
+    if (!allData || !selectedMonth || !selectedYear) return null;
     const m = parseInt(selectedMonth);
     const y = parseInt(selectedYear);
+    if (m > 1) {
+      const NON_BANKS = ['PROVISAO', 'PAGO', 'INVEST', 'L2', ''];
+      const bancos: Record<string, number> = {};
+      allData.forEach(r => {
+        if (r.year !== y || r.month < 1 || r.month > m - 1) return;
+        if (NON_BANKS.includes((r.banco || '').toUpperCase())) return;
+        bancos[r.banco] = (bancos[r.banco] || 0) + (r.custoNum === 0 ? r.valorBruto : r.valorLiquido);
+      });
+      Object.keys(bancos).forEach(k => { if (Math.abs(bancos[k]) < 0.005) delete bancos[k]; });
+      return { bancos, fromMonth: m - 1, fromYear: y };
+    }
+    if (data.some(r => r.custoNum === 0)) return null;
     return calcSaldoInicialTransportado(allData, m, y);
   }, [data, allData, selectedMonth, selectedYear]);
 
   const grouped = useMemo(() => {
     let saldoInicial = data.filter(r => r.custoNum === 0);
 
-    // If no manual saldo inicial, inject synthetic records from previous month
-    if (saldoInicial.length === 0 && saldoTransportado) {
+    // From Feb on (or when no manual saldo), use the transported previous-month saldo final
+    if (saldoTransportado) {
       saldoInicial = Object.entries(saldoTransportado.bancos)
         .filter(([, valor]) => valor !== 0)
         .map(([banco, valor]) => ({
