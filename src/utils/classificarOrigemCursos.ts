@@ -25,6 +25,8 @@ const REGRAS: [OrigemCategoria, string[]][] = [
 
 export function classificarPorRegra(r: Pagina5Record): OrigemCategoria | null {
   const t = norm(`${r.descricao} ${r.detalhamento}`);
+  // Página5 (2026) informa o banco: recebimentos no banco EDUZZ são Eduzz, salvo patrocínio
+  if (norm(r.banco) === 'EDUZZ' && !['PATROCIN', 'APOIO'].some(p => t.includes(p))) return 'EDUZZ';
   for (const [cat, palavras] of REGRAS) if (palavras.some(p => t.includes(p))) return cat;
   return null;
 }

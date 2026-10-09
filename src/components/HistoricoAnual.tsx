@@ -67,12 +67,18 @@ const HistoricoAnual = () => {
     setLoading(true);
     setError(null);
     try {
-      const [records, eduzz] = await Promise.all([
+      const [records, eduzz, p5] = await Promise.all([
         GoogleSheetsService.fetchFluxoCaixaHistorico(),
         GoogleSheetsService.fetchPagina6Data(),
+        GoogleSheetsService.fetchPagina5Data(),
       ]);
-      setData(records);
-      setEduzzData(eduzz.filter(r => r.year <= 2025));
+      // 2026 vem da Página5: só movimentos reais de banco (sem saldo inicial, provisões, pagos, L2 ou posição de investimento)
+      const NON_BANKS = ['PROVISAO', 'PAGO', 'INVEST', 'L2', ''];
+      const ano2026 = p5
+        .filter(r => r.year === 2026 && r.custoNum !== 0 && !NON_BANKS.includes((r.banco || '').toUpperCase()))
+        .map(r => ({ ...r, id: `p5_${r.id}` }));
+      setData([...records.filter(r => r.year !== 2026), ...ano2026]);
+      setEduzzData(eduzz.filter(r => r.year <= 2026));
     } catch (err) {
       setError('Erro ao carregar dados históricos');
       console.error(err);
@@ -126,24 +132,25 @@ const HistoricoAnual = () => {
 
   // Receitas operacionais por centro de custo (2024 e 2025) — exclui 07-Aplicação/Rendimento
   const receitasPorCusto = useMemo(() => {
-    const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7);
-    const map: Record<string, { custo: string; custoNum: number; total2024: number; total2025: number; qtd2024: number; qtd2025: number }> = {};
+    const filtered = data.filter(r => (r.year >= 2024 && r.year <= 2026) && r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7);
+    const map: Record<string, { custo: string; custoNum: number; total2024: number; total2025: number; total2026: number; qtd2024: number; qtd2025: number; qtd2026: number }> = {};
     filtered.forEach(r => {
       const key = r.custo || `${r.custoNum}-Sem categoria`;
-      if (!map[key]) map[key] = { custo: key, custoNum: r.custoNum, total2024: 0, total2025: 0, qtd2024: 0, qtd2025: 0 };
+      if (!map[key]) map[key] = { custo: key, custoNum: r.custoNum, total2024: 0, total2025: 0, total2026: 0, qtd2024: 0, qtd2025: 0, qtd2026: 0 };
       if (r.year === 2024) { map[key].total2024 += r.valorLiquido; map[key].qtd2024++; }
-      else { map[key].total2025 += r.valorLiquido; map[key].qtd2025++; }
+      else if (r.year === 2025) { map[key].total2025 += r.valorLiquido; map[key].qtd2025++; }
+      else { map[key].total2026 += r.valorLiquido; map[key].qtd2026++; }
     });
     return Object.values(map).sort((a, b) => a.custoNum - b.custoNum);
   }, [data]);
 
   // Receitas operacionais: detalhe por centro de custo → ano → mês
   const receitasDetalhe = useMemo(() => {
-    const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7);
+    const filtered = data.filter(r => (r.year >= 2024 && r.year <= 2026) && r.custoNum >= 1 && r.custoNum <= 10 && r.custoNum !== 7);
     const map: Record<string, Record<number, number[]>> = {};
     filtered.forEach(r => {
       const key = r.custo || `${r.custoNum}-Sem categoria`;
-      if (!map[key]) map[key] = { 2024: Array(12).fill(0), 2025: Array(12).fill(0) };
+      if (!map[key]) map[key] = { 2024: Array(12).fill(0), 2025: Array(12).fill(0), 2026: Array(12).fill(0) };
       const mi = (r.month || 1) - 1;
       map[key][r.year][mi] += r.valorLiquido;
     });
@@ -179,13 +186,15 @@ const HistoricoAnual = () => {
       { label: '21-Lucros Divididos', custoFilter: (n: number) => n === 21 },
     ];
     return groups.map(g => {
-      const filtered = data.filter(r => (r.year === 2024 || r.year === 2025) && g.custoFilter(r.custoNum));
+      const filtered = data.filter(r => (r.year >= 2024 && r.year <= 2026) && g.custoFilter(r.custoNum));
+      const total2026 = filtered.filter(r => r.year === 2026).reduce((s, r) => s + r.valorLiquido, 0);
+      const items2026 = filtered.filter(r => r.year === 2026);
       const total2024 = filtered.filter(r => r.year === 2024).reduce((s, r) => s + r.valorLiquido, 0);
       const total2025 = filtered.filter(r => r.year === 2025).reduce((s, r) => s + r.valorLiquido, 0);
       const items2024 = filtered.filter(r => r.year === 2024);
       const items2025 = filtered.filter(r => r.year === 2025);
       const variacao = total2024 !== 0 ? ((total2025 - total2024) / Math.abs(total2024)) * 100 : 0;
-      return { label: g.label, total2024, total2025, variacao, items2024, items2025 };
+      return { label: g.label, total2024, total2025, total2026, variacao, items2024, items2025, items2026 };
     });
   }, [data]);
 
@@ -331,6 +340,7 @@ const HistoricoAnual = () => {
 
   const totalRec2024 = receitasPorCusto.reduce((s, r) => s + r.total2024, 0);
   const totalRec2025 = receitasPorCusto.reduce((s, r) => s + r.total2025, 0);
+  const totalRec2026 = receitasPorCusto.reduce((s, r) => s + r.total2026, 0);
   const varRecTotal = totalRec2024 !== 0 ? ((totalRec2025 - totalRec2024) / Math.abs(totalRec2024)) * 100 : 0;
   const totalDespGeral = despMonthTotals.reduce((s, v) => s + v, 0);
 
@@ -343,7 +353,7 @@ const HistoricoAnual = () => {
             <BarChart3 className="h-8 w-8 text-primary" />
             Histórico Financeiro
           </h2>
-          <p className="text-muted-foreground mt-1">Evolução anual da empresa desde 2022</p>
+          <p className="text-muted-foreground mt-1">Evolução anual da empresa desde 2022 (2026 vem da Página5)</p>
         </div>
         <Button onClick={loadData} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" /> Atualizar
@@ -436,17 +446,20 @@ const HistoricoAnual = () => {
                 <TableHead className="text-right">2024</TableHead>
                 <TableHead className="text-right">Qtd 2025</TableHead>
                 <TableHead className="text-right">2025</TableHead>
-                <TableHead className="text-right">Variação</TableHead>
+                <TableHead className="text-right">Qtd 2026</TableHead>
+                <TableHead className="text-right">2026</TableHead>
+                <TableHead className="text-right">Var. 25/24</TableHead>
                 <TableHead className="w-[120px]">Proporção</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(() => {
-                const maxVal = Math.max(...receitasPorCusto.map(r => Math.max(r.total2024, r.total2025)), 1);
+                const maxVal = Math.max(...receitasPorCusto.map(r => Math.max(r.total2024, r.total2025, r.total2026)), 1);
                 return receitasPorCusto.map(r => {
                   const variacao = r.total2024 !== 0 ? ((r.total2025 - r.total2024) / Math.abs(r.total2024)) * 100 : 0;
                   const barWidth2024 = (r.total2024 / maxVal) * 100;
                   const barWidth2025 = (r.total2025 / maxVal) * 100;
+                  const barWidth2026 = (r.total2026 / maxVal) * 100;
                   const isExpanded = expandedReceitaCusto === r.custo;
                   const detalhe = receitasDetalhe[r.custo];
                   return (
@@ -467,6 +480,8 @@ const HistoricoAnual = () => {
                             <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2024)}</TableCell>
                             <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2025}</TableCell>
                             <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2025)}</TableCell>
+                            <TableCell className="text-right text-muted-foreground tabular-nums">{r.qtd2026}</TableCell>
+                            <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(r.total2026)}</TableCell>
                             <TableCell className={`text-right font-bold tabular-nums ${variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                               {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}%
                             </TableCell>
@@ -478,15 +493,18 @@ const HistoricoAnual = () => {
                                 <div className="h-1.5 rounded-full bg-primary/20">
                                   <div className="h-full rounded-full bg-primary" style={{ width: `${barWidth2025}%` }} />
                                 </div>
+                                <div className="h-1.5 rounded-full bg-accent">
+                                  <div className="h-full rounded-full bg-accent-foreground/60" style={{ width: `${barWidth2026}%` }} />
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>
                         </CollapsibleTrigger>
                         <CollapsibleContent asChild>
                           <tr>
-                            <td colSpan={7} className="p-0">
+                            <td colSpan={9} className="p-0">
                               <div className="bg-muted/20 px-4 py-3 border-y overflow-x-auto">
-                                {detalhe && [2024, 2025].map((year, yi) => {
+                                {detalhe && [2024, 2025, 2026].map((year, yi) => {
                                   const months = detalhe[year] || Array(12).fill(0);
                                   const yearTotal = months.reduce((s: number, v: number) => s + v, 0);
                                   return (
@@ -529,6 +547,8 @@ const HistoricoAnual = () => {
                 <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(totalRec2024)}</TableCell>
                 <TableCell className="text-right tabular-nums">{receitasPorCusto.reduce((s, r) => s + r.qtd2025, 0)}</TableCell>
                 <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(totalRec2025)}</TableCell>
+                <TableCell className="text-right tabular-nums">{receitasPorCusto.reduce((s, r) => s + r.qtd2026, 0)}</TableCell>
+                <TableCell className="text-right text-emerald-600 tabular-nums">{fmt(totalRec2026)}</TableCell>
                 <TableCell className={`text-right ${varRecTotal >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                   {varRecTotal >= 0 ? '+' : ''}{varRecTotal.toFixed(1)}%
                 </TableCell>
@@ -551,7 +571,7 @@ const HistoricoAnual = () => {
               <CardDescription>Clique em uma linha para ver o detalhamento</CardDescription>
             </div>
             <div className="flex gap-1">
-              {[2024, 2025].map(yr => (
+              {[2024, 2025, 2026].map(yr => (
                 <Button
                   key={yr}
                   variant={selectedDetailYear === yr ? 'default' : 'outline'}
@@ -665,7 +685,7 @@ const HistoricoAnual = () => {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-primary" />
-            Aplicações/Rendimentos e Lucros Divididos — 2024 vs 2025
+            Aplicações/Rendimentos e Lucros Divididos — 2024, 2025 e 2026
           </CardTitle>
           <CardDescription>custoNum 07 e 21 — comparativo anual com detalhamento</CardDescription>
         </CardHeader>
@@ -676,7 +696,8 @@ const HistoricoAnual = () => {
                 <TableHead>Categoria</TableHead>
                 <TableHead className="text-right">2024</TableHead>
                 <TableHead className="text-right">2025</TableHead>
-                <TableHead className="text-right">Variação</TableHead>
+                <TableHead className="text-right">2026</TableHead>
+                <TableHead className="text-right">Var. 25/24</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -693,6 +714,7 @@ const HistoricoAnual = () => {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{fmt(g.total2024)}</TableCell>
                         <TableCell className="text-right tabular-nums">{fmt(g.total2025)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmt(g.total2026)}</TableCell>
                         <TableCell className={`text-right font-bold ${g.variacao >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                           {g.variacao >= 0 ? '+' : ''}{g.variacao.toFixed(1)}%
                         </TableCell>
@@ -700,9 +722,9 @@ const HistoricoAnual = () => {
                     </CollapsibleTrigger>
                     <CollapsibleContent asChild>
                       <tr>
-                        <td colSpan={4} className="p-0">
+                        <td colSpan={5} className="p-0">
                           <div className="bg-muted/20 px-4 py-3 border-y">
-                            <div className="grid grid-cols-2 gap-6">
+                            <div className="grid grid-cols-3 gap-6">
                               <div>
                                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">2024 ({g.items2024.length} itens)</p>
                                 <div className="space-y-0.5 max-h-48 overflow-y-auto">
@@ -733,6 +755,21 @@ const HistoricoAnual = () => {
                                   ))}
                                 </div>
                               </div>
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">2026 ({g.items2026.length} itens)</p>
+                                <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                                  {g.items2026.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs py-0.5 px-2 rounded hover:bg-muted/30">
+                                      <div className="flex gap-2 items-center">
+                                        <Minus className="h-2 w-2 text-muted-foreground" />
+                                        <span className="text-muted-foreground">{item.date}</span>
+                                        <span className="truncate max-w-[200px]">{item.descricao}</span>
+                                      </div>
+                                      <span className="font-medium tabular-nums">{fmt(item.valorLiquido)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -744,12 +781,14 @@ const HistoricoAnual = () => {
               {(() => {
                 const t2024 = aplicacoesLucros.reduce((s, g) => s + g.total2024, 0);
                 const t2025 = aplicacoesLucros.reduce((s, g) => s + g.total2025, 0);
+                const t2026 = aplicacoesLucros.reduce((s, g) => s + g.total2026, 0);
                 const vt = t2024 !== 0 ? ((t2025 - t2024) / Math.abs(t2024)) * 100 : 0;
                 return (
                   <TableRow className="bg-muted/50 font-bold border-t-2">
                     <TableCell>TOTAL</TableCell>
                     <TableCell className="text-right tabular-nums">{fmt(t2024)}</TableCell>
                     <TableCell className="text-right tabular-nums">{fmt(t2025)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmt(t2026)}</TableCell>
                     <TableCell className={`text-right ${vt >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                       {vt >= 0 ? '+' : ''}{vt.toFixed(1)}%
                     </TableCell>
